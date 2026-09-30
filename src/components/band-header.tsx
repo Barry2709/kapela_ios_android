@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import * as Linking from 'expo-linking';
@@ -12,6 +12,7 @@ export function BandHeader() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { activeBand } = useAppStore();
+  const [aspectRatio, setAspectRatio] = useState<number | null>(null);
 
   const handleLogoPress = () => {
     if (activeBand?.web) {
@@ -27,7 +28,20 @@ export function BandHeader() {
     <View style={[styles.header, { paddingTop: insets.top + 3 }]}>
       {activeBand?.logoUri ? (
          <Pressable onPress={handleLogoPress} style={{ width: '100%', alignItems: 'center' }}>
-           <Image source={{ uri: activeBand.logoUri }} style={styles.logo} contentFit="cover" />
+           <Image
+             source={{ uri: activeBand.logoUri }}
+             style={[
+               styles.logo,
+               aspectRatio ? { aspectRatio, height: undefined, width: '100%' } : { height: 120, width: '100%' }
+             ]}
+             contentFit="cover"
+             onLoad={(e) => {
+               const { width, height } = e.source;
+               if (width && height) {
+                 setAspectRatio(width / height);
+               }
+             }}
+           />
          </Pressable>
       ) : (
         <Pressable

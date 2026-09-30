@@ -8,7 +8,12 @@
     "scheme": "kapelaiosandroid",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "deploymentTarget": "16.0",
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.ios.kapela",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +22,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.ios.kapela"
     },
     "web": {
       "output": "static",
@@ -32,11 +38,40 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Aplikace potřebuje přístup k mikrofonu pro nahrávání zvuku ze zkoušek."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.4"
+          },
+          "android": {
+            "newArchEnabled": false
+          }
+        }
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#e91e63"
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-audio"
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": true
     },
     "extra": {
       "router": {},

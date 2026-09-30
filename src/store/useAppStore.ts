@@ -14,21 +14,21 @@ interface AppState {
   activeRoleView: Role;
   setActiveRoleView: (role: Role) => void;
 
-  // Aktivní podzáložka na stránce Správa kapely ('band' | 'members')
-  manageBandTab: 'band' | 'members';
-  setManageBandTab: (tab: 'band' | 'members') => void;
+  // Aktivní podzáložka na stránce Správa kapely ('band' | 'members' | 'tech' | 'settings')
+  manageBandTab: 'band' | 'members' | 'tech' | 'settings';
+  setManageBandTab: (tab: 'band' | 'members' | 'tech' | 'settings') => void;
 
-  // Aktivní podzáložka na stránce Akce ('koncerty' | 'zkousky' | 'poptavky' | 'rezervace' | 'absence')
-  eventsTab: 'koncerty' | 'zkousky' | 'poptavky' | 'rezervace' | 'absence';
-  setEventsTab: (tab: 'koncerty' | 'zkousky' | 'poptavky' | 'rezervace' | 'absence') => void;
+  // Aktivní podzáložka na stránce Akce ('akce' | 'poptavky' | 'rezervace' | 'absence')
+  eventsTab: 'akce' | 'poptavky' | 'rezervace' | 'absence';
+  setEventsTab: (tab: 'akce' | 'poptavky' | 'rezervace' | 'absence') => void;
 
   // Aktivní podzáložka na stránce Zpěvník ('nase_pisne' | 'zpevnik_plus' | 'audio_zapisnik')
   repertoireTab: 'nase_pisne' | 'zpevnik_plus' | 'audio_zapisnik';
   setRepertoireTab: (tab: 'nase_pisne' | 'zpevnik_plus' | 'audio_zapisnik') => void;
 
   // Aktivní podzáložka na stránce Pokladna ('prijem' | 'vydej' | 'doklady' | 'kniha_jizd')
-  treasuryTab: 'prijem' | 'vydej' | 'doklady' | 'kniha_jizd';
-  setTreasuryTab: (tab: 'prijem' | 'vydej' | 'doklady' | 'kniha_jizd') => void;
+  treasuryTab: 'overview' | 'prijem' | 'vydej' | 'doklady' | 'kniha_jizd';
+  setTreasuryTab: (tab: 'overview' | 'prijem' | 'vydej' | 'doklady' | 'kniha_jizd') => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -36,10 +36,10 @@ export const useAppStore = create<AppState>((set) => ({
   setCurrentUser: (user) => set({ currentUser: user }),
 
   activeBand: {
-    id: 'naplech-demo',
+    id: 'naplech',
     name: 'Naplech',
     genre: 'Country / Rock',
-    description: 'Kapela Naplech - demo profil'
+    description: 'Kapela Naplech'
   }, // Zatím hardcodováno pro ukázku
   setActiveBand: (band) => set({ activeBand: band }),
 
@@ -49,12 +49,12 @@ export const useAppStore = create<AppState>((set) => ({
   manageBandTab: 'band',
   setManageBandTab: (tab) => set({ manageBandTab: tab }),
 
-  eventsTab: 'koncerty',
+  eventsTab: 'akce',
   setEventsTab: (tab) => set({ eventsTab: tab }),
 
   repertoireTab: 'nase_pisne',
   setRepertoireTab: (tab) => set({ repertoireTab: tab }),
 
-  treasuryTab: 'prijem',
+  treasuryTab: 'overview',
   setTreasuryTab: (tab) => set({ treasuryTab: tab }),
 }));

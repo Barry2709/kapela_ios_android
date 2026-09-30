@@ -2,7 +2,7 @@ import 'expo-blob';
 import { Platform } from 'react-native';
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { initializeAuth, getReactNativePersistence, getAuth, browserLocalPersistence } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -40,6 +40,18 @@ try {
 }
 
 export const auth = firebaseAuth;
-// Explicitně předáváme jméno databáze "kapela"
-export const db = getFirestore(app, "kapela");
+// Používáme specificky vytvořenou databázi "kapela" v tomto Firebase projektu
+let firestoreDb;
+try {
+  firestoreDb = initializeFirestore(app, {
+    experimentalAutoDetectLongPolling: true,
+    localCache: Platform.OS === 'web'
+      ? persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+      : memoryLocalCache()
+  }, "kapela");
+} catch (error) {
+  firestoreDb = getFirestore(app, "kapela");
+}
+
+export const db = firestoreDb;
 export const storage = getStorage(app);

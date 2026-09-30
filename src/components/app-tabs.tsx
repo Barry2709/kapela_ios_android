@@ -1,16 +1,15 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useColorScheme, View, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Colors } from '@/constants/theme';
 import { useAppStore } from '@/store/useAppStore';
+import { useTheme } from '@/hooks/use-theme';
 import { ThemedText } from './themed-text';
 
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' || !scheme ? 'light' : scheme];
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
 
   // Stav role uživatele a aktivní pod-záložky pro správu kapely, akce, zpěvník a pokladnu
@@ -19,15 +18,15 @@ export default function AppTabs() {
   const renderCustomTabBar = (props: any) => {
     const currentRoute = props.state.routes[props.state.index].name;
 
-    // SCÉNÁR 1: Stránka Akce ("events") -> Domů, Koncerty, Zkoušky, Poptávky, Rezervace, Absence
-    if (currentRoute === 'events') {
+    // VZHLED PRO FANOUŠKY: Spodní lišta -> Domů, Poptávky, Kapela
+    if (activeRoleView === 'fan') {
       return (
         <View
           style={[
             styles.bottomBar,
             {
-              backgroundColor: colors.background,
-              borderTopColor: colors.backgroundElement,
+              backgroundColor: theme.background,
+              borderTopColor: theme.backgroundElement,
               height: 60 + (insets.bottom > 0 ? insets.bottom : 0),
               paddingBottom: Math.max(insets.bottom, 8),
             }
@@ -40,53 +39,109 @@ export default function AppTabs() {
           >
             <SymbolView
               name={{ ios: 'house.fill', android: 'home', web: 'home' }}
-              tintColor={colors.textSecondary}
+              tintColor={currentRoute === 'index' ? theme.text : theme.textSecondary}
+              size={24}
+            />
+            <ThemedText
+              type="smallBold"
+              style={{ color: currentRoute === 'index' ? theme.text : theme.textSecondary, fontSize: 11, marginTop: 3 }}
+            >
+              Domů
+            </ThemedText>
+          </Pressable>
+
+          {/* Poptávky */}
+          <Pressable
+            style={styles.tabItem}
+            onPress={() => {
+              setEventsTab('poptavky');
+              props.navigation.navigate('events');
+            }}
+          >
+            <SymbolView
+              name={{ ios: 'envelope.fill', android: 'mail', web: 'mail' }}
+              tintColor={currentRoute === 'events' ? theme.text : theme.textSecondary}
+              size={24}
+            />
+            <ThemedText
+              type="smallBold"
+              style={{ color: currentRoute === 'events' ? theme.text : theme.textSecondary, fontSize: 11, marginTop: 3 }}
+            >
+              Poptávky
+            </ThemedText>
+          </Pressable>
+
+          {/* Kapela */}
+          <Pressable
+            style={styles.tabItem}
+            onPress={() => props.navigation.navigate('manage-band')}
+          >
+            <SymbolView
+              name={{ ios: 'music.note.house.fill', android: 'domain', web: 'domain' }}
+              tintColor={currentRoute === 'manage-band' ? theme.text : theme.textSecondary}
+              size={24}
+            />
+            <ThemedText
+              type="smallBold"
+              style={{ color: currentRoute === 'manage-band' ? theme.text : theme.textSecondary, fontSize: 11, marginTop: 3 }}
+            >
+              Kapela
+            </ThemedText>
+          </Pressable>
+        </View>
+      );
+    }
+
+    // SCÉNÁŘ 1: Stránka Akce ("events") -> Domů, Koncerty, Zkoušky, Poptávky, Rezervace, Absence
+    if (currentRoute === 'events') {
+      return (
+        <View
+          style={[
+            styles.bottomBar,
+            {
+              backgroundColor: theme.background,
+              borderTopColor: theme.backgroundElement,
+              height: 60 + (insets.bottom > 0 ? insets.bottom : 0),
+              paddingBottom: Math.max(insets.bottom, 8),
+            }
+          ]}
+        >
+          {/* Přehled */}
+          {/* Domů */}
+          <Pressable
+            style={styles.tabItem}
+            onPress={() => props.navigation.navigate('index')}
+          >
+            <SymbolView
+              name={{ ios: 'house.fill', android: 'home', web: 'home' }}
+              tintColor={theme.textSecondary}
               size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: colors.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
               Domů
             </ThemedText>
           </Pressable>
 
-          {/* Koncerty */}
+          {/* Akce Zkoušky (sloučené Koncerty a Zkoušky) */}
           <Pressable
             style={styles.tabItem}
-            onPress={() => setEventsTab('koncerty')}
-          >
-            <SymbolView
-              name={{ ios: 'music.mic', android: 'confirmation_number', web: 'confirmation_number' }}
-              tintColor={eventsTab === 'koncerty' ? colors.text : colors.textSecondary}
-              size={22}
-            />
-            <ThemedText
-              type="smallBold"
-              style={{ color: eventsTab === 'koncerty' ? colors.text : colors.textSecondary, fontSize: 10, marginTop: 2 }}
-              numberOfLines={1}
-            >
-              Koncerty
-            </ThemedText>
-          </Pressable>
-
-          {/* Zkoušky */}
-          <Pressable
-            style={styles.tabItem}
-            onPress={() => setEventsTab('zkousky')}
+            onPress={() => setEventsTab('akce')}
           >
             <SymbolView
               name={{ ios: 'calendar', android: 'event', web: 'event' }}
-              tintColor={eventsTab === 'zkousky' ? colors.text : colors.textSecondary}
+              tintColor={eventsTab === 'akce' ? theme.text : theme.textSecondary}
               size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: eventsTab === 'zkousky' ? colors.text : colors.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: eventsTab === 'akce' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Zkoušky
+              Akce Zkoušky
             </ThemedText>
           </Pressable>
 
@@ -97,12 +152,12 @@ export default function AppTabs() {
           >
             <SymbolView
               name={{ ios: 'envelope.fill', android: 'mail', web: 'mail' }}
-              tintColor={eventsTab === 'poptavky' ? colors.text : colors.textSecondary}
+              tintColor={eventsTab === 'poptavky' ? theme.text : theme.textSecondary}
               size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: eventsTab === 'poptavky' ? colors.text : colors.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: eventsTab === 'poptavky' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
               Poptávky
@@ -116,12 +171,12 @@ export default function AppTabs() {
           >
             <SymbolView
               name={{ ios: 'bookmark.fill', android: 'bookmark', web: 'bookmark' }}
-              tintColor={eventsTab === 'rezervace' ? colors.text : colors.textSecondary}
+              tintColor={eventsTab === 'rezervace' ? theme.text : theme.textSecondary}
               size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: eventsTab === 'rezervace' ? colors.text : colors.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: eventsTab === 'rezervace' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
               Rezervace
@@ -135,12 +190,12 @@ export default function AppTabs() {
           >
             <SymbolView
               name={{ ios: 'person.crop.circle.badge.xmark', android: 'event_busy', web: 'event_busy' }}
-              tintColor={eventsTab === 'absence' ? colors.text : colors.textSecondary}
+              tintColor={eventsTab === 'absence' ? theme.text : theme.textSecondary}
               size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: eventsTab === 'absence' ? colors.text : colors.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: eventsTab === 'absence' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
               Absence
@@ -157,13 +212,14 @@ export default function AppTabs() {
           style={[
             styles.bottomBar,
             {
-              backgroundColor: colors.background,
-              borderTopColor: colors.backgroundElement,
+              backgroundColor: theme.background,
+              borderTopColor: theme.backgroundElement,
               height: 60 + (insets.bottom > 0 ? insets.bottom : 0),
               paddingBottom: Math.max(insets.bottom, 8),
             }
           ]}
         >
+          {/* Přehled */}
           {/* Domů */}
           <Pressable
             style={styles.tabItem}
@@ -171,12 +227,12 @@ export default function AppTabs() {
           >
             <SymbolView
               name={{ ios: 'house.fill', android: 'home', web: 'home' }}
-              tintColor={colors.textSecondary}
+              tintColor={theme.textSecondary}
               size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: colors.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
               Domů
@@ -190,12 +246,12 @@ export default function AppTabs() {
           >
             <SymbolView
               name={{ ios: 'music.note.list', android: 'library_music', web: 'library_music' }}
-              tintColor={repertoireTab === 'nase_pisne' ? colors.text : colors.textSecondary}
+              tintColor={repertoireTab === 'nase_pisne' ? theme.text : theme.textSecondary}
               size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: repertoireTab === 'nase_pisne' ? colors.text : colors.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: repertoireTab === 'nase_pisne' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
               Naše písně
@@ -209,12 +265,12 @@ export default function AppTabs() {
           >
             <SymbolView
               name={{ ios: 'plus.circle.fill', android: 'add_circle', web: 'add_circle' }}
-              tintColor={repertoireTab === 'zpevnik_plus' ? colors.text : colors.textSecondary}
+              tintColor={repertoireTab === 'zpevnik_plus' ? theme.text : theme.textSecondary}
               size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: repertoireTab === 'zpevnik_plus' ? colors.text : colors.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: repertoireTab === 'zpevnik_plus' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
               Zpěvník +
@@ -228,12 +284,12 @@ export default function AppTabs() {
           >
             <SymbolView
               name={{ ios: 'mic.fill', android: 'mic', web: 'mic' }}
-              tintColor={repertoireTab === 'audio_zapisnik' ? colors.text : colors.textSecondary}
+              tintColor={repertoireTab === 'audio_zapisnik' ? theme.text : theme.textSecondary}
               size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: repertoireTab === 'audio_zapisnik' ? colors.text : colors.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: repertoireTab === 'audio_zapisnik' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
               Audio zápisník
@@ -250,13 +306,14 @@ export default function AppTabs() {
           style={[
             styles.bottomBar,
             {
-              backgroundColor: colors.background,
-              borderTopColor: colors.backgroundElement,
+              backgroundColor: theme.background,
+              borderTopColor: theme.backgroundElement,
               height: 60 + (insets.bottom > 0 ? insets.bottom : 0),
               paddingBottom: Math.max(insets.bottom, 8),
             }
           ]}
         >
+          {/* Přehled */}
           {/* Domů */}
           <Pressable
             style={styles.tabItem}
@@ -264,12 +321,12 @@ export default function AppTabs() {
           >
             <SymbolView
               name={{ ios: 'house.fill', android: 'home', web: 'home' }}
-              tintColor={colors.textSecondary}
+              tintColor={theme.textSecondary}
               size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: colors.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
               Domů
@@ -283,12 +340,12 @@ export default function AppTabs() {
           >
             <SymbolView
               name={{ ios: 'arrow.down.circle.fill', android: 'add_circle', web: 'add_circle' }}
-              tintColor={treasuryTab === 'prijem' ? colors.text : colors.textSecondary}
+              tintColor={treasuryTab === 'prijem' ? theme.text : theme.textSecondary}
               size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: treasuryTab === 'prijem' ? colors.text : colors.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: treasuryTab === 'prijem' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
               Příjem
@@ -302,12 +359,12 @@ export default function AppTabs() {
           >
             <SymbolView
               name={{ ios: 'arrow.up.circle.fill', android: 'remove_circle', web: 'remove_circle' }}
-              tintColor={treasuryTab === 'vydej' ? colors.text : colors.textSecondary}
+              tintColor={treasuryTab === 'vydej' ? theme.text : theme.textSecondary}
               size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: treasuryTab === 'vydej' ? colors.text : colors.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: treasuryTab === 'vydej' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
               Výdej
@@ -321,12 +378,12 @@ export default function AppTabs() {
           >
             <SymbolView
               name={{ ios: 'doc.text.fill', android: 'description', web: 'description' }}
-              tintColor={treasuryTab === 'doklady' ? colors.text : colors.textSecondary}
+              tintColor={treasuryTab === 'doklady' ? theme.text : theme.textSecondary}
               size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: treasuryTab === 'doklady' ? colors.text : colors.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: treasuryTab === 'doklady' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
               Doklady
@@ -340,12 +397,12 @@ export default function AppTabs() {
           >
             <SymbolView
               name={{ ios: 'car.fill', android: 'directions_car', web: 'directions_car' }}
-              tintColor={treasuryTab === 'kniha_jizd' ? colors.text : colors.textSecondary}
+              tintColor={treasuryTab === 'kniha_jizd' ? theme.text : theme.textSecondary}
               size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: treasuryTab === 'kniha_jizd' ? colors.text : colors.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: treasuryTab === 'kniha_jizd' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
               Kniha jízd
@@ -355,15 +412,15 @@ export default function AppTabs() {
       );
     }
 
-    // SCÉNÁŘ 2: Stránka Kapela ("manage-band") -> Zobrazujeme ikony Domů, Profil, Členové
+    // SCÉNÁŘ 4: Stránka Kapela ("manage-band") -> Zobrazujeme ikony Domů, Profil, Členové, Technika, Nastavení
     if (currentRoute === 'manage-band') {
       return (
         <View
           style={[
             styles.bottomBar,
             {
-              backgroundColor: colors.background,
-              borderTopColor: colors.backgroundElement,
+              backgroundColor: theme.background,
+              borderTopColor: theme.backgroundElement,
               height: 60 + (insets.bottom > 0 ? insets.bottom : 0),
               paddingBottom: Math.max(insets.bottom, 8),
             }
@@ -376,12 +433,13 @@ export default function AppTabs() {
           >
             <SymbolView
               name={{ ios: 'house.fill', android: 'home', web: 'home' }}
-              tintColor={colors.textSecondary}
-              size={24}
+              tintColor={theme.textSecondary}
+              size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: colors.textSecondary, fontSize: 11, marginTop: 3 }}
+              style={{ color: theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              numberOfLines={1}
             >
               Domů
             </ThemedText>
@@ -393,13 +451,14 @@ export default function AppTabs() {
             onPress={() => setManageBandTab('band')}
           >
             <SymbolView
-              name={{ ios: 'gearshape.fill', android: 'settings', web: 'settings' }}
-              tintColor={manageBandTab === 'band' ? colors.text : colors.textSecondary}
-              size={24}
+              name={{ ios: 'building.2.fill', android: 'domain', web: 'domain' }}
+              tintColor={manageBandTab === 'band' ? theme.text : theme.textSecondary}
+              size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: manageBandTab === 'band' ? colors.text : colors.textSecondary, fontSize: 11, marginTop: 3 }}
+              style={{ color: manageBandTab === 'band' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              numberOfLines={1}
             >
               Profil
             </ThemedText>
@@ -412,28 +471,67 @@ export default function AppTabs() {
           >
             <SymbolView
               name={{ ios: 'person.2.fill', android: 'group', web: 'group' }}
-              tintColor={manageBandTab === 'members' ? colors.text : colors.textSecondary}
-              size={24}
+              tintColor={manageBandTab === 'members' ? theme.text : theme.textSecondary}
+              size={22}
             />
             <ThemedText
               type="smallBold"
-              style={{ color: manageBandTab === 'members' ? colors.text : colors.textSecondary, fontSize: 11, marginTop: 3 }}
+              style={{ color: manageBandTab === 'members' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              numberOfLines={1}
             >
               Členové
+            </ThemedText>
+          </Pressable>
+
+          {/* Tlačítko Technika */}
+          <Pressable
+            style={styles.tabItem}
+            onPress={() => setManageBandTab('tech')}
+          >
+            <SymbolView
+              name={{ ios: 'speaker.wave.2.fill', android: 'speaker', web: 'speaker' }}
+              tintColor={manageBandTab === 'tech' ? theme.text : theme.textSecondary}
+              size={22}
+            />
+            <ThemedText
+              type="smallBold"
+              style={{ color: manageBandTab === 'tech' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              numberOfLines={1}
+            >
+              Technika
+            </ThemedText>
+          </Pressable>
+
+          {/* Tlačítko Nastavení */}
+          <Pressable
+            style={styles.tabItem}
+            onPress={() => setManageBandTab('settings')}
+          >
+            <SymbolView
+              name={{ ios: 'gearshape.fill', android: 'settings', web: 'settings' }}
+              tintColor={manageBandTab === 'settings' ? theme.text : theme.textSecondary}
+              size={22}
+            />
+            <ThemedText
+              type="smallBold"
+              style={{ color: manageBandTab === 'settings' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              numberOfLines={1}
+            >
+              Nastavení
             </ThemedText>
           </Pressable>
         </View>
       );
     }
 
-    // SCÉNÁŘ 3: Všechny ostatní stránky (Domů, Zpěvník, Pokladna) -> Standardní lišta
+    // SCÉNÁŘ 5: Všechny ostatní stránky (Domů, Zpěvník, Pokladna) -> Standardní lišta
     return (
       <View
         style={[
           styles.bottomBar,
           {
-            backgroundColor: colors.background,
-            borderTopColor: colors.backgroundElement,
+            backgroundColor: theme.background,
+            borderTopColor: theme.backgroundElement,
             height: 60 + (insets.bottom > 0 ? insets.bottom : 0),
             paddingBottom: Math.max(insets.bottom, 8),
           }
@@ -442,11 +540,10 @@ export default function AppTabs() {
         {props.state.routes.map((route: any, index: number) => {
           const { options } = props.descriptors[route.key];
 
-          // Pokud má route 'href: null', nezobrazujeme v liště
           if (options.href === null) return null;
 
           const isFocused = props.state.index === index;
-          const color = isFocused ? colors.text : colors.textSecondary;
+          const color = isFocused ? theme.text : theme.textSecondary;
 
           const onPress = () => {
             const event = props.navigation.emit({
@@ -513,6 +610,7 @@ export default function AppTabs() {
         name="repertoire"
         options={{
           title: 'Zpěvník',
+          href: activeRoleView === 'fan' ? null : '/repertoire',
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'music.note.list', android: 'library_music', web: 'library_music' }} tintColor={color} size={24} />
           ),
@@ -523,7 +621,7 @@ export default function AppTabs() {
         name="treasury"
         options={{
           title: 'Pokladna',
-          href: activeRoleView === 'fan' ? null : '/treasury', // Schová tab pro fanoušky
+          href: activeRoleView === 'fan' ? null : '/treasury',
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'banknote.fill', android: 'account_balance_wallet', web: 'account_balance_wallet' }} tintColor={color} size={24} />
           ),
@@ -534,9 +632,9 @@ export default function AppTabs() {
         name="manage-band"
         options={{
           title: 'Kapela',
-          href: activeRoleView === 'admin' ? '/manage-band' : null, // Zobrazí pouze pro kapelníka/admina
+          href: '/manage-band',
           tabBarIcon: ({ color }) => (
-            <SymbolView name={{ ios: 'gearshape.fill', android: 'settings', web: 'settings' }} tintColor={color} size={24} />
+            <SymbolView name={{ ios: 'music.note.house.fill', android: 'domain', web: 'domain' }} tintColor={color} size={24} />
           ),
         }}
       />

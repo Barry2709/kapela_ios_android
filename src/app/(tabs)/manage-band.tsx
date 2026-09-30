@@ -27,9 +27,6 @@ export default function ManageBandScreen() {
 
       setActiveBand(updatedBand);
       await AsyncStorage.setItem('savedBand', JSON.stringify(updatedBand));
-
-      Alert.alert("Úspěch", "Změny byly úspěšně uloženy.");
-      router.replace('/(tabs)/');
     } catch (e: any) {
       Alert.alert("Nelze upravit profil", e.message || "Nastala chyba při úpravě profilu kapely.");
       console.error("Nepodařilo se upravit profil kapely", e);
@@ -44,7 +41,7 @@ export default function ManageBandScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
         <EditBandForm
           band={activeBand}
           onSave={handleSaveBandUpdates}
