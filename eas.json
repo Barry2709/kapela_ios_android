@@ -16,7 +16,7 @@
     },
     "sideload": {
       "developmentClient": true,
-      "distribution": "internal",
+      "distribution": "store",
       "ios": {
         "simulator": false
       }
