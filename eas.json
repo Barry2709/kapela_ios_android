@@ -14,6 +14,14 @@
         "simulator": false
       }
     },
+    "sideload": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": false,
+        "enterpriseProvisioning": "adhoc"
+      }
+    },
     "preview": {
       "distribution": "internal",
       "android": {
