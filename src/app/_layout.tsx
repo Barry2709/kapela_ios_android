@@ -46,7 +46,7 @@ export default function RootLayout() {
         if (!token) return;
 
         const members = await getBandMembers(activeBand.id);
-        const member = members.find(m =>
+        let targetMember = members.find(m =>
           (currentUser.memberId && m.id === currentUser.memberId) ||
           (currentUser.id && m.id === currentUser.id) ||
           ((m as any).uid && currentUser.id && (m as any).uid === currentUser.id) ||
@@ -55,13 +55,18 @@ export default function RootLayout() {
           (m.firstName && currentUser.displayName && m.firstName.toLowerCase() === currentUser.displayName.toLowerCase())
         );
 
-        if (member) {
+        // Fallback pro admina, pokud nebyl nalezen podle konkrétního ID/emailu
+        if (!targetMember && currentUser.role === 'admin') {
+          targetMember = members.find(m => m.isAdmin) || members[0];
+        }
+
+        if (targetMember) {
           const updates: Partial<any> = {};
-          if (member.pushToken !== token) updates.pushToken = token;
-          if (currentUser.role === 'admin' && !member.isAdmin) updates.isAdmin = true;
+          if (targetMember.pushToken !== token) updates.pushToken = token;
+          if (currentUser.role === 'admin' && !targetMember.isAdmin) updates.isAdmin = true;
 
           if (Object.keys(updates).length > 0) {
-            await updateBandMember(activeBand.id, member.id, updates);
+            await updateBandMember(activeBand.id, targetMember.id, updates);
           }
         }
       } catch (err) {
