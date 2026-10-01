@@ -25,12 +25,12 @@ jobs:
       - name: Expo Prebuild for iOS
         run: npx expo prebuild --platform ios
 
-      - name: Build Xcode Archive (Unsigned)
+      - name: Build Xcode Archive (Debug Development Client)
         run: |
           cd ios
           xcodebuild -workspace *.xcworkspace \
             -scheme kapelaiosandroid \
-            -configuration Release \
+            -configuration Debug \
             -sdk iphoneos \
             -archivePath build/kapela.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
