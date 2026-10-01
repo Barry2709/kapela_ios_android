@@ -1,0 +1,53 @@
+name: Build iOS IPA for Sideloadly
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Expo Prebuild for iOS
+        run: npx expo prebuild --platform ios
+
+      - name: Build Xcode Archive (Unsigned)
+        run: |
+          cd ios
+          xcodebuild -workspace *.xcworkspace \
+            -scheme kapelaiosandroid \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/kapela.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            archive
+
+      - name: Package into IPA for Sideloadly
+        run: |
+          cd ios
+          mkdir -p build/Payload
+          cp -r build/kapela.xcarchive/Products/Applications/*.app build/Payload/
+          cd build
+          zip -r kapela-unsigned.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kapela-ios-unsigned-ipa
+          path: ios/build/kapela-unsigned.ipa
+          retention-days: 7
