@@ -23,7 +23,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.ios.kapela"
+      "package": "com.ios.kapela",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
