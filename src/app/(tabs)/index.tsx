@@ -974,10 +974,15 @@ const styles = StyleSheet.create({
   },
   adminInlineBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, paddingVertical: Spacing.half, paddingHorizontal: Spacing.two, borderRadius: Spacing.two, backgroundColor: 'rgba(150,150,150,0.2)' },
   attBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
     borderWidth: 1,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
   },
   attBtnInactive: {
     backgroundColor: 'rgba(150,150,150,0.15)',

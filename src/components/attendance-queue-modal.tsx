@@ -293,7 +293,7 @@ export function AttendanceQueueModal() {
             >
               <SymbolView name={{ ios: 'xmark.circle.fill', android: 'cancel', web: 'cancel' }} size={20} tintColor="#fff" />
               <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 15 }}>
-                Nemůžu (Nejdu)
+                Nemůžu
               </ThemedText>
             </Pressable>
 
@@ -304,7 +304,7 @@ export function AttendanceQueueModal() {
             >
               <SymbolView name={{ ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' }} size={20} tintColor="#fff" />
               <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 15 }}>
-                Můžu (Jdu)
+                Můžu
               </ThemedText>
             </Pressable>
           </View>
