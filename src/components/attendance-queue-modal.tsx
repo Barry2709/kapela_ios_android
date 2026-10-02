@@ -17,7 +17,7 @@ import {
   subscribeToRehearsals,
   subscribeToInquiries,
 } from '@/services/firebaseService';
-import { sendExpoPushNotifications, updateAppBadgeCount } from '@/services/notificationService';
+import { sendExpoPushNotifications, updateAppBadgeCount, triggerLocalSystemNotification } from '@/services/notificationService';
 
 export interface PendingEventItem {
   id: string;
@@ -38,6 +38,7 @@ export function AttendanceQueueModal() {
   const [currentMember, setCurrentMember] = useState<BandMember | null>(null);
   const [bandMembers, setBandMembers] = useState<BandMember[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const knownPendingIdsRef = React.useRef<Set<string> | null>(null);
 
   // Načtení dat a živé naslouchání na změny docházky
   useEffect(() => {
@@ -118,6 +119,21 @@ export function AttendanceQueueModal() {
           }
         }
       });
+
+      // Detekce nově přidaných událostí přes Firebase a vyvolání lokální systémové notifikace
+      const currentIds = new Set(queue.map(q => q.id));
+      if (knownPendingIdsRef.current !== null) {
+        const newlyAdded = queue.filter(item => !knownPendingIdsRef.current?.has(item.id));
+        if (newlyAdded.length > 0) {
+          const firstNew = newlyAdded[0];
+          triggerLocalSystemNotification(
+            `🔔 Nová výzva: ${firstNew.title}`,
+            `Datum: ${firstNew.date} ${firstNew.time ? `v ${firstNew.time}` : ''}. Potvrďte docházku.`,
+            queue.length
+          );
+        }
+      }
+      knownPendingIdsRef.current = currentIds;
 
       setPendingQueue(queue);
       updateAppBadgeCount(queue.length);

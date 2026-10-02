@@ -142,3 +142,34 @@ export async function updateAppBadgeCount(count: number): Promise<void> {
     console.log("Nepodařilo se nastavit odznak na ikoně aplikace:", error);
   }
 }
+
+/**
+ * Spustí okamžitou místní systémovou notifikaci (banner + zvuk + odznak) přes expo-notifications.
+ */
+export async function triggerLocalSystemNotification(
+  title: string,
+  body: string,
+  badgeCount?: number
+): Promise<void> {
+  if (!Notifications || typeof Notifications.scheduleNotificationAsync !== 'function') {
+    return;
+  }
+
+  try {
+    if (typeof badgeCount === 'number') {
+      await updateAppBadgeCount(badgeCount);
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        sound: 'default',
+        badge: typeof badgeCount === 'number' ? badgeCount : undefined,
+      },
+      trigger: null,
+    });
+  } catch (error) {
+    console.log("Nepodařilo se zobrazit místní notifikaci:", error);
+  }
+}
