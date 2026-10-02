@@ -66,8 +66,8 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
         tokenData = await Notifications.getExpoPushTokenAsync();
       }
     } catch (e) {
-      console.log("Druhý pokus získať Expo Push Token bez projectId:", e);
-      tokenData = await Notifications.getExpoPushTokenAsync();
+      console.log("Sideloaded iOS verze neobsahuje APNs nárok (vyžaduje placený Apple Developer účet).");
+      return null;
     }
 
     const token = tokenData.data;
