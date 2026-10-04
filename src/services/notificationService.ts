@@ -113,7 +113,7 @@ export async function sendExpoPushNotifications(
   }));
 
   try {
-    await fetch('https://exp.host/--/api/v2/push/send', {
+    const response = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -122,6 +122,8 @@ export async function sendExpoPushNotifications(
       },
       body: JSON.stringify(messages),
     });
+    const result = await response.json();
+    console.log("Expo Push server odpověď:", JSON.stringify(result));
   } catch (error) {
     console.error("Chyba při odesílání Push notifikace přes Expo API:", error);
   }
