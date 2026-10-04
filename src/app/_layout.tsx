@@ -52,12 +52,17 @@ export default function RootLayout() {
           ((m as any).uid && currentUser.id && (m as any).uid === currentUser.id) ||
           (m.email && currentUser.email && m.email.toLowerCase() === currentUser.email.toLowerCase()) ||
           (m.nickname && currentUser.displayName && m.nickname.toLowerCase() === currentUser.displayName.toLowerCase()) ||
-          (m.firstName && currentUser.displayName && m.firstName.toLowerCase() === currentUser.displayName.toLowerCase())
+          (m.firstName && currentUser.displayName && m.firstName.toLowerCase() === currentUser.displayName.toLowerCase()) ||
+          (m.nickname && currentUser.email && m.nickname.toLowerCase() === currentUser.email.split('@')[0].toLowerCase())
         );
 
-        // Fallback pro admina, pokud nebyl nalezen podle konkrétního ID/emailu
-        if (!targetMember && currentUser.role === 'admin') {
-          targetMember = members.find(m => m.isAdmin) || members[0];
+        // Záložní přiřazení, aby ŽÁDNÝ uživatel nezůstal bez uloženého pushTokenu
+        if (!targetMember) {
+          if (currentUser.role === 'admin') {
+            targetMember = members.find(m => m.isAdmin) || members[0];
+          } else {
+            targetMember = members.find(m => !m.isGuest && !m.pushToken) || members.find(m => !m.isGuest) || members[0];
+          }
         }
 
         if (targetMember) {
