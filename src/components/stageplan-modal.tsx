@@ -546,7 +546,7 @@ function DraggableMember({
     })
   ).current;
 
-  const techBadges = getMemberTechBadges(member);
+  const techRequirements = getMemberTechBadges(member).filter(b => b !== member.instrument);
 
   return (
     <Animated.View
@@ -557,21 +557,12 @@ function DraggableMember({
           left: 0,
           top: 0,
           transform: pan.getTranslateTransform(),
-          backgroundColor: theme.backgroundElement,
-          borderColor: '#2196f3',
-        }
-      ]}
-    >
-        {
-          left: pan.x,
-          top: pan.y,
-          backgroundColor: theme.backgroundElement,
-          borderColor: '#2196f3',
         }
       ]}
     >
       <Pressable onLongPress={() => onRemove(item.memberId)}>
         <View style={{ alignItems: 'center' }}>
+          {/* Fotka člena */}
           {member.photoUri ? (
             <Image source={{ uri: member.photoUri }} style={styles.pinPhoto} />
           ) : (
@@ -579,25 +570,42 @@ function DraggableMember({
               <SymbolView name={{ ios: 'person.fill', android: 'person', web: 'person' }} size={16} tintColor={theme.textSecondary} />
             </View>
           )}
-          <ThemedText type="smallBold" style={{ fontSize: 11, marginTop: 2, textAlign: 'center' }}>
+
+          {/* Jméno člena */}
+          <ThemedText type="smallBold" style={{ fontSize: 11, marginTop: 1, textAlign: 'center', lineHeight: 13 }}>
             {member.nickname || member.firstName}
           </ThemedText>
 
-          {/* Zobrazení konkrétních technických požadavků člena u jeho špendlíku na stagi */}
-          {techBadges.length > 0 && (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 2, marginTop: 3, maxWidth: 110 }}>
-              {techBadges.map((badge, bIdx) => (
-                <View key={bIdx} style={styles.pinTechBadge}>
-                  <ThemedText type="small" style={{ fontSize: 8, color: '#2196f3', fontWeight: 'bold' }}>
-                    {badge}
-                  </ThemedText>
-                </View>
+          {/* Nástroj ZELENĚ pod jménem */}
+          {member.instrument ? (
+            <ThemedText type="smallBold" style={{ color: '#4caf50', fontSize: 10, textAlign: 'center', lineHeight: 12, marginTop: 1 }}>
+              {member.instrument}
+            </ThemedText>
+          ) : null}
+
+          {/* Technický setup pod sebe s minimálním řádkováním */}
+          {techRequirements.length > 0 && (
+            <View style={{ alignItems: 'center', marginTop: 1 }}>
+              {techRequirements.map((req, rIdx) => (
+                <ThemedText
+                  key={rIdx}
+                  type="small"
+                  style={{
+                    fontSize: 9,
+                    lineHeight: 11,
+                    textAlign: 'center',
+                    color: theme.textSecondary,
+                  }}
+                >
+                  {req}
+                </ThemedText>
               ))}
             </View>
           )}
         </View>
       </Pressable>
     </Animated.View>
+  );
   );
 }
 
@@ -632,15 +640,8 @@ const styles = StyleSheet.create({
   },
   memberPin: {
     position: 'absolute',
-    padding: 6,
-    borderRadius: 10,
-    borderWidth: 2,
+    padding: 2,
     alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
   },
   pinPhoto: {
     width: 32,
