@@ -491,7 +491,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   );
 }
 
-// Komponenta reprezentující jednoho člena na stageplanu (Drag and Drop s podporou dotyků i myši)
+// Komponenta reprezentující jednoho člena na stageplanu (Drag and Drop)
 function DraggableMember({
   item,
   member,
@@ -507,54 +507,39 @@ function DraggableMember({
   onUpdatePosition: (id: string, x: number, y: number) => void;
   onRemove: (id: string) => void;
 }) {
-  const initialX = (item.x / 100) * (stageSize.width || 300);
-  const initialY = (item.y / 100) * (stageSize.height || 200);
+  const px = (item.x / 100) * (stageSize.width || 300);
+  const py = (item.y / 100) * (stageSize.height || 200);
 
-  const pan = useRef(new Animated.ValueXY({ x: initialX, y: initialY })).current;
-  const startPosRef = useRef({ x: initialX, y: initialY });
+  const pan = useRef(new Animated.ValueXY({ x: px, y: py })).current;
 
   useEffect(() => {
     if (stageSize.width > 0 && stageSize.height > 0) {
-      const px = (item.x / 100) * stageSize.width;
-      const py = (item.y / 100) * stageSize.height;
-      startPosRef.current = { x: px, y: py };
+      const currentPx = (item.x / 100) * stageSize.width;
+      const currentPy = (item.y / 100) * stageSize.height;
       pan.setOffset({ x: 0, y: 0 });
-      pan.setValue({ x: px, y: py });
+      pan.setValue({ x: currentPx, y: currentPy });
     }
   }, [item.x, item.y, stageSize.width, stageSize.height]);
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onStartShouldSetPanResponderCapture: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponderCapture: () => true,
-      onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
-        pan.setOffset({
-          x: startPosRef.current.x,
-          y: startPosRef.current.y,
-        });
-        pan.setValue({ x: 0, y: 0 });
+        pan.extractOffset();
       },
       onPanResponderMove: Animated.event(
         [null, { dx: pan.x, dy: pan.y }],
         { useNativeDriver: false }
       ),
-      onPanResponderRelease: (e, gestureState) => {
+      onPanResponderRelease: () => {
         pan.flattenOffset();
-        const finalX = startPosRef.current.x + gestureState.dx;
-        const finalY = startPosRef.current.y + gestureState.dy;
+        const currentX = (pan.x as any)._value;
+        const currentY = (pan.y as any)._value;
 
         if (stageSize.width > 0 && stageSize.height > 0) {
-          const percentX = Math.max(5, Math.min(95, (finalX / stageSize.width) * 100));
-          const percentY = Math.max(5, Math.min(95, (finalY / stageSize.height) * 100));
-
-          startPosRef.current = {
-            x: (percentX / 100) * stageSize.width,
-            y: (percentY / 100) * stageSize.height
-          };
-
+          const percentX = Math.max(5, Math.min(95, (currentX / stageSize.width) * 100));
+          const percentY = Math.max(5, Math.min(95, (currentY / stageSize.height) * 100));
           onUpdatePosition(item.memberId, percentX, percentY);
         }
       }
@@ -568,6 +553,15 @@ function DraggableMember({
       {...panResponder.panHandlers}
       style={[
         styles.memberPin,
+        {
+          left: 0,
+          top: 0,
+          transform: pan.getTranslateTransform(),
+          backgroundColor: theme.backgroundElement,
+          borderColor: '#2196f3',
+        }
+      ]}
+    >
         {
           left: pan.x,
           top: pan.y,
