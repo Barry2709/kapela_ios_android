@@ -16,7 +16,7 @@ import { liveSyncService } from '@/services/liveSyncService';
 import { getSongs, addSong, updateSong, deleteSong, deleteAllSongs, getBandMembers, subscribeToSongs, getSongsPlus, addSongPlus, updateSongPlus, deleteSongPlus, deleteAllSongsPlus, uploadSongPlusTextToStorage } from '@/services/firebaseService';
 import { AddSongForm } from '@/components/add-song-form';
 import { SongLyricsViewer } from '@/components/song-lyrics-viewer';
-// import { AudioRecorder } from '@/components/audio-recorder';
+import { AudioRecorder } from '@/components/audio-recorder';
 import { fixCzechDiacritics, decodeBytesToCzechText, base64ToUint8Array, capitalizeFirstLetter, hasVocalsInProfile, getMemberDisplayName } from '@/utils/diacritics';
 
 export default function RepertoireScreen() {
@@ -865,9 +865,7 @@ export default function RepertoireScreen() {
 
           {repertoireTab === 'audio_zapisnik' && (
             <View style={{ flex: 1, marginTop: Spacing.two }}>
-              <ThemedText type="small" themeColor="textSecondary" style={{textAlign: 'center', marginTop: 20}}>
-                Nahrávání audia je dočasně v této verzi vypnuto, aby byla aplikace spustitelná v čistém Expo Go.
-              </ThemedText>
+              <AudioRecorder />
             </View>
           )}
         </ScrollView>
