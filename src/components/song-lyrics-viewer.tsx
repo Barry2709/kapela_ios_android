@@ -1177,28 +1177,28 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
           style={{ backgroundColor: 'rgba(200,200,200,0.12)', maxHeight: 46, minHeight: 46 }}
           contentContainerStyle={styles.controlsBarContent}
         >
-          {/* 1. Vizuální Metronom (Na PRVNÍM MÍSTĚ v liště) - při přehrávání se ikona změní na čísla 1, 2, 3, 4 (1. doba červená, zbytek zeleně) */}
+          {/* 1. Vizuální Metronom (Bílá ikona s bílým rámečkem a průhledným pozadím, po spuštění 1, 2, 3, 4) */}
           <Pressable
             style={[
               styles.smallCtrlBtn,
               {
-                backgroundColor: metronomeFlashColor || (isMetronomeRunning ? 'rgba(255, 152, 0, 0.4)' : 'rgba(255, 152, 0, 0.2)'),
-                borderColor: metronomeFlashColor ? '#fff' : 'rgba(255, 152, 0, 0.4)',
-                borderWidth: 1,
+                backgroundColor: metronomeFlashColor || 'transparent',
+                borderColor: '#ffffff',
+                borderWidth: 1.5,
                 width: 38,
               }
             ]}
             onPress={startVisualMetronome}
           >
             {isMetronomeRunning ? (
-              <ThemedText type="smallBold" style={{ color: metronomeFlashColor ? '#fff' : '#ff9800', fontSize: 16 }}>
+              <ThemedText type="smallBold" style={{ color: '#ffffff', fontSize: 16, fontWeight: 'bold' }}>
                 {currentMetronomeBeat}
               </ThemedText>
             ) : (
               <SymbolView
-                name={{ ios: 'timer', android: 'timer', web: 'timer' }}
-                size={18}
-                tintColor="#ff9800"
+                name={{ ios: 'metronome', android: 'timer', web: 'timer' }}
+                size={20}
+                tintColor="#ffffff"
               />
             )}
           </Pressable>
