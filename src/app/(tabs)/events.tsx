@@ -200,14 +200,18 @@ export default function EventsScreen() {
   const handleSaveConcert = async (concertData: Omit<Concert, 'id'>) => {
     if (!activeBand) return;
     try {
-      await addConcert(activeBand.id, {
-        ...concertData,
-        bandId: activeBand.id,
-      });
+      if (editingConcert) {
+        await updateConcert(activeBand.id, editingConcert.id, concertData);
+      } else {
+        await addConcert(activeBand.id, {
+          ...concertData,
+          bandId: activeBand.id,
+        });
+      }
       setShowAddConcertModal(false);
       setEditingConcert(null);
       loadConcerts();
-      Alert.alert("Úspěch", "Koncert byl úspěšně uložen.");
+      Alert.alert("Úspěch", editingConcert ? "Koncert byl úspěšně upraven." : "Koncert byl úspěšně uložen.");
     } catch (e) {
       console.error("Chyba při ukládání koncertu:", e);
       Alert.alert("Chyba", "Nepodařilo se uložit koncert.");
