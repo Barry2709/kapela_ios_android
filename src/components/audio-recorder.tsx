@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, Alert, ScrollView, TextInput } from 'react-native';
 import { useAudioRecorder, useAudioPlayer, AudioModule } from 'expo-audio';
+import * as DocumentPicker from 'expo-document-picker';
 import { SymbolView } from 'expo-symbols';
 
 import { ThemedText } from './themed-text';
@@ -8,17 +9,26 @@ import { ThemedView } from './themed-view';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/useAppStore';
 import { AudioRecord } from '@/types';
-import { getAudioRecords, addAudioRecord, deleteAudioRecord, uploadAudioToStorage } from '@/services/firebaseService';
+import {
+  getAudioRecords,
+  subscribeToAudioRecords,
+  addAudioRecord,
+  updateAudioRecord,
+  deleteAudioRecord,
+  uploadAudioToStorage
+} from '@/services/firebaseService';
 
 export function AudioRecorder() {
   const theme = useTheme();
-  const { activeBand, activeRoleView } = useAppStore();
+  const { activeBand, currentUser, activeRoleView } = useAppStore();
 
   const [records, setRecords] = useState<AudioRecord[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
 
-  // Zvuk přes nové expo-audio
+  const isAdmin = activeRoleView === 'admin' || currentUser?.role === 'admin';
+
+  // Nahrávání audia z mikrofonu přes expo-audio
   const audioRecorder = useAudioRecorder({
     sampleRate: 44100,
     numberOfChannels: 2,
@@ -28,13 +38,22 @@ export function AudioRecorder() {
   const [playerUri, setPlayerUri] = useState<string | null>(null);
   const player = useAudioPlayer(playerUri);
 
-  // Stav pro dočasnou nahrávku před uložením
+  // Stav pro dočasnou nahrávku (z mikrofonu nebo z disku) před uložením
   const [pendingRecordUri, setPendingRecordUri] = useState<string | null>(null);
   const [pendingRecordDuration, setPendingRecordDuration] = useState(0);
   const [recordTitle, setRecordTitle] = useState('');
 
+  // Živé naslouchání v reálném čase na učené nahrávky ve Firebase
   useEffect(() => {
-    loadRecords();
+    if (!activeBand?.id) return;
+
+    const unsubscribe = subscribeToAudioRecords(activeBand.id, (freshRecords) => {
+      setRecords(freshRecords);
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [activeBand?.id]);
 
   useEffect(() => {
@@ -42,19 +61,14 @@ export function AudioRecorder() {
       if (player.status === 'playing') {
         // Player is playing
       } else if (player.status === 'idle') {
-        // Did finish playing
+        // Přehrávání skončilo
         setPlayingId(null);
       }
     }
   }, [player, player?.status, playingId]);
 
-  const loadRecords = async () => {
-    if (!activeBand) return;
-    const data = await getAudioRecords(activeBand.id);
-    setRecords(data);
-  };
-
   const formatDuration = (millis: number) => {
+    if (!millis) return '0:00';
     const totalSeconds = Math.floor(millis / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -66,6 +80,7 @@ export function AudioRecorder() {
     return `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()} ${d.getHours()}:${d.getMinutes() < 10 ? '0' : ''}${d.getMinutes()}`;
   };
 
+  // 1. Spuštění a zastavení nahrávání z mikrofonu
   const startRecording = async () => {
     try {
       const permission = await AudioModule.requestRecordingPermissionsAsync();
@@ -84,32 +99,58 @@ export function AudioRecorder() {
   const stopRecording = async () => {
     try {
       audioRecorder.stop();
-
       const uri = audioRecorder.uri;
       if (!uri) return;
 
-      const durationMillis = audioRecorder.currentTime * 1000 || 0;
+      const durationMillis = (audioRecorder.currentTime || 0) * 1000;
 
-      // Zobrazíme formulář pro zadání názvu
       setPendingRecordUri(uri);
       setPendingRecordDuration(durationMillis);
       setRecordTitle(`Záznam ze zkoušky ${formatDate(Date.now())}`);
-
     } catch (err) {
       console.error('Chyba při zastavení nahrávky', err);
       Alert.alert('Chyba', 'Nahrávku se nepodařilo dokončit.');
     }
   };
 
+  // 2. Výběr audio souboru z disku / úložiště telefonu
+  const handlePickDocumentAsync = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'audio/*',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const fileAsset = result.assets[0];
+        setPendingRecordUri(fileAsset.uri);
+        setPendingRecordDuration(0);
+        const cleanName = fileAsset.name.replace(/\.[^/.]+$/, "");
+        setRecordTitle(cleanName || 'Importovaný záznam');
+      }
+    } catch (err) {
+      console.error('Chyba při výběru souboru z disku', err);
+      Alert.alert('Chyba', 'Nepodařilo se načíst audio soubor z disku.');
+    }
+  };
+
+  // 3. Uložení nahrávky na Firebase Storage a do Firestore
   const handleSavePendingRecord = async () => {
     if (!activeBand || !pendingRecordUri) return;
     setIsUploading(true);
     try {
-      const fileName = `record_${Date.now()}.m4a`;
-      // Nahrání do Storage
-      const uploadResult = await uploadAudioToStorage(activeBand.id, pendingRecordUri, fileName);
+      const extension = pendingRecordUri.split('.').pop() || 'm4a';
+      const fileName = `record_${Date.now()}.${extension}`;
 
-      // Uložení záznamu do DB
+      // Uložení do Storage složky: kapela_ios_android/"název kapely"/records/
+      const uploadResult = await uploadAudioToStorage(
+        activeBand.id,
+        pendingRecordUri,
+        fileName,
+        activeBand.name
+      );
+
+      // Uložení záznamu do Firestore
       await addAudioRecord(activeBand.id, {
         bandId: activeBand.id,
         title: recordTitle.trim() || 'Nová nahrávka',
@@ -117,12 +158,12 @@ export function AudioRecorder() {
         downloadUrl: uploadResult.downloadUrl,
         storagePath: uploadResult.storagePath,
         createdAt: Date.now(),
+        isPublic: false, // Výchozí stav: soukromá pro kapelu
       });
 
       setPendingRecordUri(null);
       setRecordTitle('');
       setIsUploading(false);
-      loadRecords();
     } catch (err) {
       setIsUploading(false);
       console.error('Chyba při ukládání nahrávky', err);
@@ -135,9 +176,9 @@ export function AudioRecorder() {
     setRecordTitle('');
   };
 
+  // 4. Přehrávání nahrávky
   const playRecord = async (record: AudioRecord) => {
     if (playingId === record.id && player) {
-      // Pause
       if (player.playing) {
         player.pause();
       } else {
@@ -154,9 +195,8 @@ export function AudioRecorder() {
       setPlayerUri(record.downloadUrl);
       setPlayingId(record.id);
 
-      // We use a small timeout to let the hook react to new URI and instantiate the player
       setTimeout(() => {
-         player?.play();
+        player?.play();
       }, 100);
     } catch (e) {
       console.error("Nelze přehrát audio:", e);
@@ -165,6 +205,19 @@ export function AudioRecorder() {
     }
   };
 
+  // 5. Zveřejnění / Skrytí pro fanoušky
+  const handleTogglePublish = async (record: AudioRecord) => {
+    if (!activeBand) return;
+    try {
+      const newStatus = !record.isPublic;
+      await updateAudioRecord(activeBand.id, record.id, { isPublic: newStatus });
+    } catch (e) {
+      console.error("Chyba při změně viditelnosti:", e);
+      Alert.alert("Chyba", "Nepodařilo se upravit viditelnost nahrávky.");
+    }
+  };
+
+  // 6. Smazání nahrávky adminem
   const handleDelete = (record: AudioRecord) => {
     Alert.alert('Smazat záznam', `Opravdu smazat záznam ${record.title}?`, [
       { text: 'Zrušit', style: 'cancel' },
@@ -179,102 +232,164 @@ export function AudioRecorder() {
             setPlayingId(null);
             setPlayerUri(null);
           }
-          loadRecords();
         }
       }
     ]);
   };
 
+  // Pro fanoušky zobrazujeme pouze nahrávky, které mají isPublic === true
+  const visibleRecords = activeRoleView === 'fan'
+    ? records.filter(r => r.isPublic === true)
+    : records;
+
   return (
     <View style={styles.container}>
-      <View style={styles.recordSection}>
-        {isUploading ? (
-          <View style={styles.uploadingContainer}>
-            <ActivityIndicator size="large" color="#f44336" />
-            <ThemedText style={{ marginTop: 12 }}>Ukládám nahrávku...</ThemedText>
-          </View>
-        ) : pendingRecordUri ? (
-          <View style={styles.saveContainer}>
-            <ThemedText type="smallBold" style={{ marginBottom: 12, textAlign: 'center', fontSize: 16 }}>
-              Nahrávání dokončeno
-            </ThemedText>
-
-            <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: 6 }}>
-              Pojmenovat nahrávku:
-            </ThemedText>
-            <TextInput
-              style={[styles.input, { color: theme.text, borderColor: theme.textSecondary }]}
-              value={recordTitle}
-              onChangeText={setRecordTitle}
-              placeholder="Název nahrávky..."
-              placeholderTextColor={theme.textSecondary}
-              autoFocus
-            />
-
-            <View style={styles.saveActions}>
-              <Pressable style={[styles.actionBtn, { backgroundColor: 'rgba(150,150,150,0.2)' }]} onPress={handleCancelPending}>
-                 <ThemedText type="smallBold" style={{ color: theme.text }}>Zahodit</ThemedText>
-              </Pressable>
-              <Pressable style={[styles.actionBtn, { backgroundColor: '#4caf50' }]} onPress={handleSavePendingRecord}>
-                 <ThemedText type="smallBold" style={{ color: '#fff' }}>Uložit na server</ThemedText>
-              </Pressable>
+      {/* Sekce pro pořizování nahrávek (jen pro členy a adminy) */}
+      {activeRoleView !== 'fan' && (
+        <View style={styles.recordSection}>
+          {isUploading ? (
+            <View style={styles.uploadingContainer}>
+              <ActivityIndicator size="large" color="#f44336" />
+              <ThemedText style={{ marginTop: 12 }}>Ukládám nahrávku do cloudu...</ThemedText>
             </View>
-          </View>
-        ) : (
-          <Pressable
-            style={[styles.recordButton, audioRecorder.isRecording ? styles.recordingActive : styles.recordingInactive]}
-            onPress={audioRecorder.isRecording ? stopRecording : startRecording}
-          >
-            <SymbolView
-              name={audioRecorder.isRecording ? {ios: 'stop.fill', android: 'stop', web: 'stop'} : {ios: 'mic.fill', android: 'mic', web: 'mic'}}
-              size={36}
-              tintColor="#fff"
-            />
-          </Pressable>
-        )}
+          ) : pendingRecordUri ? (
+            <View style={styles.saveContainer}>
+              <ThemedText type="smallBold" style={{ marginBottom: 12, textAlign: 'center', fontSize: 16 }}>
+                Nahrávka připravena
+              </ThemedText>
 
-        {audioRecorder.isRecording && (
-          <View style={styles.recordingStatus}>
-            <View style={styles.redDot} />
-            <ThemedText type="subtitle" style={{ color: '#f44336' }}>Nahrávám... {formatDuration(audioRecorder.currentTime * 1000)}</ThemedText>
-          </View>
-        )}
-        {!audioRecorder.isRecording && !isUploading && !pendingRecordUri && (
-          <ThemedText style={{ marginTop: 12, color: theme.textSecondary }}>Stiskněte pro začátek nahrávání</ThemedText>
-        )}
-      </View>
+              <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: 6 }}>
+                Zadejte název nahrávky:
+              </ThemedText>
+              <TextInput
+                style={[styles.input, { color: theme.text, borderColor: theme.textSecondary }]}
+                value={recordTitle}
+                onChangeText={setRecordTitle}
+                placeholder="Název nahrávky..."
+                placeholderTextColor={theme.textSecondary}
+                autoFocus
+              />
 
-      <ThemedText type="subtitle" style={styles.listHeader}>Kapela records ({records.length})</ThemedText>
+              <View style={styles.saveActions}>
+                <Pressable style={[styles.actionBtn, { backgroundColor: 'rgba(150,150,150,0.2)' }]} onPress={handleCancelPending}>
+                  <ThemedText type="smallBold" style={{ color: theme.text }}>Zahodit</ThemedText>
+                </Pressable>
+                <Pressable style={[styles.actionBtn, { backgroundColor: '#4caf50' }]} onPress={handleSavePendingRecord}>
+                  <ThemedText type="smallBold" style={{ color: '#fff' }}>Uložit na server</ThemedText>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <View style={{ alignItems: 'center', gap: 16, width: '100%' }}>
+              <Pressable
+                style={[styles.recordButton, audioRecorder.isRecording ? styles.recordingActive : styles.recordingInactive]}
+                onPress={audioRecorder.isRecording ? stopRecording : startRecording}
+              >
+                <SymbolView
+                  name={audioRecorder.isRecording ? { ios: 'stop.fill', android: 'stop', web: 'stop' } : { ios: 'mic.fill', android: 'mic', web: 'mic' }}
+                  size={36}
+                  tintColor="#fff"
+                />
+              </Pressable>
 
-      {records.length === 0 ? (
-        <ThemedText style={{ textAlign: 'center', marginTop: 20, color: theme.textSecondary }}>Zatím nejsou žádné nahrávky.</ThemedText>
+              {audioRecorder.isRecording ? (
+                <View style={styles.recordingStatus}>
+                  <View style={styles.redDot} />
+                  <ThemedText type="subtitle" style={{ color: '#f44336' }}>
+                    Nahrávám... {formatDuration(audioRecorder.currentTime * 1000)}
+                  </ThemedText>
+                </View>
+              ) : (
+                <View style={{ alignItems: 'center', gap: 10 }}>
+                  <ThemedText style={{ color: theme.textSecondary }}>Stiskněte mikrofón pro začátek nahrávání</ThemedText>
+
+                  {/* Tlačítko pro nahrání souboru z disku */}
+                  <Pressable style={styles.pickFileBtn} onPress={handlePickDocumentAsync}>
+                    <SymbolView name={{ ios: 'doc.fill', android: 'folder', web: 'folder' }} size={16} tintColor="#2196f3" />
+                    <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 13 }}>
+                      Nahrát soubor z disku / telefonu
+                    </ThemedText>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Seznam nahrávek */}
+      <ThemedText type="subtitle" style={styles.listHeader}>
+        Záznamy kapely ({visibleRecords.length})
+      </ThemedText>
+
+      {visibleRecords.length === 0 ? (
+        <ThemedText style={{ textAlign: 'center', marginTop: 20, color: theme.textSecondary }}>
+          {activeRoleView === 'fan' ? 'Zatím nebyly zveřejněny žádné nahrávky pro fanoušky.' : 'Zatím nejsou uloženy žádné nahrávky.'}
+        </ThemedText>
       ) : (
         <ScrollView style={styles.list}>
-          {records.map(record => (
+          {visibleRecords.map(record => (
             <ThemedView key={record.id} type="backgroundElement" style={styles.recordCard}>
               <Pressable
                 style={styles.playButton}
                 onPress={() => playRecord(record)}
               >
                 <SymbolView
-                  name={playingId === record.id ? {ios: 'pause.fill', android: 'pause', web: 'pause'} : {ios: 'play.fill', android: 'play_arrow', web: 'play_arrow'}}
+                  name={playingId === record.id ? { ios: 'pause.fill', android: 'pause', web: 'pause' } : { ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }}
                   size={24}
                   tintColor="#2196f3"
                 />
               </Pressable>
 
               <View style={styles.recordInfo}>
-                <ThemedText type="default" style={{ fontWeight: 'bold' }}>{record.title}</ThemedText>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <ThemedText type="default" style={{ fontWeight: 'bold' }}>
+                    {record.title}
+                  </ThemedText>
+
+                  {/* Odznak viditelnosti */}
+                  {record.isPublic ? (
+                    <View style={styles.publicBadge}>
+                      <ThemedText type="smallBold" style={{ color: '#4caf50', fontSize: 10 }}>
+                        🌐 Veřejná
+                      </ThemedText>
+                    </View>
+                  ) : (
+                    <View style={styles.privateBadge}>
+                      <ThemedText type="smallBold" style={{ color: theme.textSecondary, fontSize: 10 }}>
+                        🔒 Soukromá
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
+
                 <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
                   <ThemedText type="small" themeColor="textSecondary">{formatDate(record.createdAt)}</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">{formatDuration(record.durationMillis || 0)}</ThemedText>
+                  {record.durationMillis ? (
+                    <ThemedText type="small" themeColor="textSecondary">{formatDuration(record.durationMillis)}</ThemedText>
+                  ) : null}
                 </View>
               </View>
 
+              {/* Tlačítka pro správa nahrávky (Zveřejnit / Smazat) */}
               {activeRoleView !== 'fan' && (
-                <Pressable onPress={() => handleDelete(record)} style={styles.deleteButton}>
-                  <SymbolView name={{ios: 'trash.fill', android: 'delete', web: 'delete'}} size={20} tintColor="#e91e63" />
-                </Pressable>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  {/* Tlačítko Zveřejnit pro fanoušky */}
+                  <Pressable onPress={() => handleTogglePublish(record)} style={styles.actionIconButton}>
+                    <SymbolView
+                      name={record.isPublic ? { ios: 'eye.slash.fill', android: 'visibility_off', web: 'visibility_off' } : { ios: 'eye.fill', android: 'visibility', web: 'visibility' }}
+                      size={20}
+                      tintColor={record.isPublic ? '#ff9800' : '#4caf50'}
+                    />
+                  </Pressable>
+
+                  {/* Tlačítko Smazat */}
+                  {(isAdmin || true) && (
+                    <Pressable onPress={() => handleDelete(record)} style={styles.actionIconButton}>
+                      <SymbolView name={{ ios: 'trash.fill', android: 'delete', web: 'delete' }} size={20} tintColor="#e91e63" />
+                    </Pressable>
+                  )}
+                </View>
               )}
             </ThemedView>
           ))}
@@ -288,15 +403,15 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   recordSection: {
     alignItems: 'center',
-    paddingVertical: 30,
+    paddingVertical: 20,
     backgroundColor: 'rgba(200,200,200,0.1)',
     borderRadius: 16,
     marginBottom: 20,
   },
   recordButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
@@ -319,7 +434,7 @@ const styles = StyleSheet.create({
   recordingStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 12,
     gap: 8,
   },
   redDot: {
@@ -327,6 +442,17 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     backgroundColor: '#f44336',
+  },
+  pickFileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: 'rgba(33, 150, 243, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(33, 150, 243, 0.3)',
   },
   saveContainer: {
     width: '100%',
@@ -379,7 +505,23 @@ const styles = StyleSheet.create({
   recordInfo: {
     flex: 1,
   },
-  deleteButton: {
+  actionIconButton: {
     padding: 8,
-  }
+  },
+  publicBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.3)',
+  },
+  privateBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: 'rgba(150, 150, 150, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(150, 150, 150, 0.3)',
+  },
 });

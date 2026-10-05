@@ -886,6 +886,24 @@ export const getAudioRecords = async (bandId: string): Promise<import('../types'
   }
 };
 
+export const subscribeToAudioRecords = (
+  bandId: string,
+  callback: (records: import('../types').AudioRecord[]) => void
+) => {
+  if (!bandId) return () => {};
+  const colRef = collection(db, BANDS_COLLECTION, bandId, 'audio_records');
+  const q = query(colRef, orderBy('createdAt', 'desc'));
+  return onSnapshot(q, (snapshot) => {
+    const records = snapshot.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+    } as import('../types').AudioRecord));
+    callback(records);
+  }, (err) => {
+    console.error("Chyba při živém naslouchání audio nahrávek:", err);
+  });
+};
+
 export const addAudioRecord = async (bandId: string, recordData: Omit<import('../types').AudioRecord, 'id'>): Promise<string> => {
   if (!bandId) throw new Error("Chybí ID kapely.");
   const colRef = collection(db, BANDS_COLLECTION, bandId, 'audio_records');
@@ -913,18 +931,20 @@ export const deleteAudioRecord = async (bandId: string, recordId: string, storag
     }
   }
 
-  const docRef = doc(db, BANDS_COLLECTION, bandId, 'audio_records', recordId);
-  await deleteDoc(docRef);
+  const docRef = doc(doc(db, BANDS_COLLECTION, bandId, 'audio_records', recordId).path);
+  const targetRef = doc(db, BANDS_COLLECTION, bandId, 'audio_records', recordId);
+  await deleteDoc(targetRef);
 };
 
 export const uploadAudioToStorage = async (
   bandId: string,
   uri: string,
-  fileName: string
+  fileName: string,
+  bandName?: string
 ): Promise<{ downloadUrl: string; storagePath: string }> => {
   if (!bandId) throw new Error("Chybí ID kapely.");
-  // Ukládáme do složky "records" uvnitř kapely
-  const path = `${BANDS_COLLECTION}/${bandId}/records/${fileName}`;
+  const safeBandFolder = bandName ? bandName.trim().replace(/[/\\?%*:|"<>]/g, '_') : bandId;
+  const path = `${BANDS_COLLECTION}/${safeBandFolder}/records/${fileName}`;
   const storageRef = ref(storage, path);
 
   const blob: Blob = await new Promise((resolve, reject) => {

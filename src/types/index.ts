@@ -216,4 +216,5 @@ export interface AudioRecord {
   downloadUrl: string; // URL z Firebase Storage
   storagePath: string; // Cesta k souboru ve Storage
   createdAt: number;
+  isPublic?: boolean; // Zda je nahrávka přístupná fanouškům
 }
