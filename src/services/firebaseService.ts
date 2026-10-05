@@ -931,7 +931,6 @@ export const deleteAudioRecord = async (bandId: string, recordId: string, storag
     }
   }
 
-  const docRef = doc(doc(db, BANDS_COLLECTION, bandId, 'audio_records', recordId).path);
   const targetRef = doc(db, BANDS_COLLECTION, bandId, 'audio_records', recordId);
   await deleteDoc(targetRef);
 };
