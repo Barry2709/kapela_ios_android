@@ -3,14 +3,27 @@ import { View, StyleSheet, Modal, Pressable, Alert, Animated, ScrollView, Platfo
 import { SymbolView } from 'expo-symbols';
 import { Image } from 'expo-image';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Band, BandMember, StageplanMember, Concert } from '@/types';
+
+let Print: typeof import('expo-print') | null = null;
+let Sharing: typeof import('expo-sharing') | null = null;
+
+try {
+  Print = require('expo-print');
+} catch (e) {
+  Print = null;
+}
+
+try {
+  Sharing = require('expo-sharing');
+} catch (e) {
+  Sharing = null;
+}
 
 interface Props {
   visible: boolean;
@@ -195,23 +208,27 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   const handleSendViaEmail = async () => {
     setIsGeneratingPdf(true);
     try {
-      const html = generateStageplanPdfHtml();
-      const { uri } = await Print.printToFileAsync({ html });
-
-      // Načtení e-mailů pořadatelů
       const emails = concert?.organizers
         ? concert.organizers.map(o => o.email).filter(Boolean) as string[]
         : [];
+      const emailList = emails.join(',');
+      const subject = encodeURIComponent(`Stageplan & Technický Rider - ${band.name} (${concert?.title || 'Koncert'})`);
 
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: `Stageplan kapely ${band.name}`,
-          UTI: 'com.adobe.pdf',
-        });
+      if (Print && Sharing) {
+        const html = generateStageplanPdfHtml();
+        const { uri } = await Print.printToFileAsync({ html });
+
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(uri, {
+            mimeType: 'application/pdf',
+            dialogTitle: `Stageplan kapely ${band.name}`,
+            UTI: 'com.adobe.pdf',
+          });
+        } else {
+          Linking.openURL(`mailto:${emailList}?subject=${subject}`);
+        }
       } else {
-        const emailList = emails.join(',');
-        const subject = encodeURIComponent(`Stageplan & Technický Rider - ${band.name} (${concert?.title || 'Koncert'})`);
+        // Fallback pro starý build bez nativního expo-print
         Linking.openURL(`mailto:${emailList}?subject=${subject}`);
       }
 
@@ -228,17 +245,22 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   const handleSendViaWhatsApp = async () => {
     setIsGeneratingPdf(true);
     try {
-      const html = generateStageplanPdfHtml();
-      const { uri } = await Print.printToFileAsync({ html });
+      if (Print && Sharing) {
+        const html = generateStageplanPdfHtml();
+        const { uri } = await Print.printToFileAsync({ html });
 
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: `Odeslat Stageplan kapely ${band.name}`,
-          UTI: 'com.adobe.pdf',
-        });
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(uri, {
+            mimeType: 'application/pdf',
+            dialogTitle: `Odeslat Stageplan kapely ${band.name}`,
+            UTI: 'com.adobe.pdf',
+          });
+        } else {
+          Alert.alert("Sdílení nedostupné", "Sdílení souborů není na tomto zařízení dostupné.");
+        }
       } else {
-        Alert.alert("Sdílení nedostupné", "Sdílení souborů není na tomto zařízení dostupné.");
+        const textMsg = encodeURIComponent(`Ahoj, posílám kontakt a informace k akce ${concert?.title || 'Koncert'} kapely ${band.name}.`);
+        Linking.openURL(`https://wa.me/?text=${textMsg}`);
       }
 
       setShowSendModal(false);
