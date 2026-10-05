@@ -315,7 +315,17 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" supportedOrientations={['landscape', 'landscape-left', 'landscape-right']}>
-      <ThemedView style={[styles.container, { paddingTop: 2, marginTop: Platform.OS === 'android' ? -9 : 0 }]}>
+      <ThemedView
+        style={[
+          styles.container,
+          {
+            paddingTop: Math.max(insets.top, 8),
+            paddingBottom: Math.max(insets.bottom, 8),
+            paddingLeft: Math.max(insets.left, 12),
+            paddingRight: Math.max(insets.right, 12),
+          }
+        ]}
+      >
         <View style={styles.header}>
           <Pressable onPress={onClose} style={{ paddingHorizontal: Spacing.two, paddingVertical: 4 }}>
             <ThemedText type="smallBold" style={{ color: '#e91e63' }}>Zrušit</ThemedText>
@@ -497,17 +507,19 @@ function DraggableMember({
   onUpdatePosition: (id: string, x: number, y: number) => void;
   onRemove: (id: string) => void;
 }) {
-  const pan = useRef(new Animated.ValueXY({
-    x: (item.x / 100) * (stageSize.width || 300),
-    y: (item.y / 100) * (stageSize.height || 200)
-  })).current;
+  const initialX = (item.x / 100) * (stageSize.width || 300);
+  const initialY = (item.y / 100) * (stageSize.height || 200);
+
+  const pan = useRef(new Animated.ValueXY({ x: initialX, y: initialY })).current;
+  const startPosRef = useRef({ x: initialX, y: initialY });
 
   useEffect(() => {
     if (stageSize.width > 0 && stageSize.height > 0) {
-      pan.setValue({
-        x: (item.x / 100) * stageSize.width,
-        y: (item.y / 100) * stageSize.height
-      });
+      const px = (item.x / 100) * stageSize.width;
+      const py = (item.y / 100) * stageSize.height;
+      startPosRef.current = { x: px, y: py };
+      pan.setOffset({ x: 0, y: 0 });
+      pan.setValue({ x: px, y: py });
     }
   }, [item.x, item.y, stageSize.width, stageSize.height]);
 
@@ -520,8 +532,8 @@ function DraggableMember({
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
         pan.setOffset({
-          x: (pan.x as any)._value,
-          y: (pan.y as any)._value
+          x: startPosRef.current.x,
+          y: startPosRef.current.y,
         });
         pan.setValue({ x: 0, y: 0 });
       },
@@ -529,15 +541,25 @@ function DraggableMember({
         [null, { dx: pan.x, dy: pan.y }],
         { useNativeDriver: false }
       ),
-      onPanResponderRelease: () => {
+      onPanResponderRelease: (e, gestureState) => {
         pan.flattenOffset();
-        const currentX = (pan.x as any)._value;
-        const currentY = (pan.y as any)._value;
+        const finalX = startPosRef.current.x + gestureState.dx;
+        const finalY = startPosRef.current.y + gestureState.dy;
 
         if (stageSize.width > 0 && stageSize.height > 0) {
-          const percentX = Math.max(5, Math.min(95, (currentX / stageSize.width) * 100));
-          const percentY = Math.max(5, Math.min(95, (currentY / stageSize.height) * 100));
+          const percentX = Math.max(5, Math.min(95, (finalX / stageSize.width) * 100));
+          const percentY = Math.max(5, Math.min(95, (finalY / stageSize.height) * 100));
+
+          startPosRef.current = {
+            x: (percentX / 100) * stageSize.width,
+            y: (percentY / 100) * stageSize.height
+          };
+
           onUpdatePosition(item.memberId, percentX, percentY);
+        }
+      }
+    })
+  ).current;
         }
       }
     })
