@@ -25,6 +25,7 @@ export function AudioRecorder() {
   const [records, setRecords] = useState<AudioRecord[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [playbackTimeSec, setPlaybackTimeSec] = useState(0);
 
   const isAdmin = activeRoleView === 'admin' || currentUser?.role === 'admin';
 
@@ -54,19 +55,33 @@ export function AudioRecorder() {
     };
   }, [activeBand?.id]);
 
+  // Sledování stavu přehrávače a dohrání nahrávky
   useEffect(() => {
     if (player && playingId) {
       if (player.status === 'idle') {
-        // Přehrávání skončilo
+        // Přehrávání skončilo - vrátit zpět na výchozí tlačítko přehrání
         setPlayingId(null);
+        setPlaybackTimeSec(0);
       }
     }
   }, [player?.status, playingId]);
 
-  // Automatické spuštění přehrávání po vytvoření hráče pro nové URI
+  // Sledování aktuálního času přehrávání pro průběhovou lištu
+  useEffect(() => {
+    let interval: any;
+    if (player && playingId && player.playing) {
+      interval = setInterval(() => {
+        setPlaybackTimeSec(player.currentTime || 0);
+      }, 250);
+    }
+    return () => clearInterval(interval);
+  }, [player, playingId, player?.playing]);
+
+  // Automatické spuštění přehrávání po vytvoření přehrávače pro nové URI
   useEffect(() => {
     if (player && playingId && playerUri) {
       try {
+        setPlaybackTimeSec(0);
         player.play();
       } catch (e) {
         console.log("Audio play error:", e);
@@ -75,7 +90,7 @@ export function AudioRecorder() {
   }, [playerUri]);
 
   const formatDuration = (millis: number) => {
-    if (!millis) return '0:00';
+    if (!millis || millis <= 0) return '0:00';
     const totalSeconds = Math.floor(millis / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -182,7 +197,7 @@ export function AudioRecorder() {
     setRecordTitle('');
   };
 
-  // 4. Přehrávání nahrávky s kontrolou existence souboru na Storage
+  // 4. Přehrávání / Pauza / Zastavení nahrávky
   const playRecord = async (record: AudioRecord) => {
     if (!activeBand) return;
 
@@ -219,6 +234,18 @@ export function AudioRecorder() {
       Alert.alert("Chyba", "Nepodařilo se přehrát záznam.");
       setPlayingId(null);
     }
+  };
+
+  // Zastavení přehrávání a navrácení do výchozího stavu
+  const stopPlayback = () => {
+    if (player) {
+      try {
+        player.pause();
+        player.seekTo(0);
+      } catch (e) {}
+    }
+    setPlayingId(null);
+    setPlaybackTimeSec(0);
   };
 
   // 5. Zveřejnění / Skrytí pro fanoušky
@@ -344,71 +371,125 @@ export function AudioRecorder() {
         </ThemedText>
       ) : (
         <ScrollView style={styles.list}>
-          {visibleRecords.map(record => (
-            <ThemedView key={record.id} type="backgroundElement" style={styles.recordCard}>
-              <Pressable
-                style={styles.playButton}
-                onPress={() => playRecord(record)}
-              >
-                <SymbolView
-                  name={playingId === record.id ? { ios: 'pause.fill', android: 'pause', web: 'pause' } : { ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }}
-                  size={24}
-                  tintColor="#2196f3"
-                />
-              </Pressable>
+          {visibleRecords.map(record => {
+            const isCurrentPlaying = playingId === record.id;
+            const totalDurationSec = (record.durationMillis ? record.durationMillis / 1000 : 0) || (player?.duration || 0);
+            const progressPct = totalDurationSec > 0 ? Math.min(100, (playbackTimeSec / totalDurationSec) * 100) : 0;
 
-              <View style={styles.recordInfo}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <ThemedText type="default" style={{ fontWeight: 'bold' }}>
-                    {record.title}
-                  </ThemedText>
+            return (
+              <ThemedView key={record.id} type="backgroundElement" style={styles.recordCard}>
+                {/* Tlačítka přehrávání (Přehrát / Pauza + Stop) */}
+                {isCurrentPlaying ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 8 }}>
+                    {/* Tlačítko Pauza / Přehrát */}
+                    <Pressable
+                      style={styles.playButton}
+                      onPress={() => playRecord(record)}
+                    >
+                      <SymbolView
+                        name={player?.playing ? { ios: 'pause.fill', android: 'pause', web: 'pause' } : { ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }}
+                        size={22}
+                        tintColor="#2196f3"
+                      />
+                    </Pressable>
 
-                  {/* Odznak viditelnosti */}
-                  {record.isPublic ? (
-                    <View style={styles.publicBadge}>
-                      <ThemedText type="smallBold" style={{ color: '#4caf50', fontSize: 10 }}>
-                        🌐 Veřejná
-                      </ThemedText>
-                    </View>
-                  ) : (
-                    <View style={styles.privateBadge}>
-                      <ThemedText type="smallBold" style={{ color: theme.textSecondary, fontSize: 10 }}>
-                        🔒 Soukromá
-                      </ThemedText>
-                    </View>
-                  )}
-                </View>
-
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-                  <ThemedText type="small" themeColor="textSecondary">{formatDate(record.createdAt)}</ThemedText>
-                  {record.durationMillis ? (
-                    <ThemedText type="small" themeColor="textSecondary">{formatDuration(record.durationMillis)}</ThemedText>
-                  ) : null}
-                </View>
-              </View>
-
-              {/* Tlačítka pro správa nahrávky (Zveřejnit / Smazat) */}
-              {activeRoleView !== 'fan' && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  {/* Tlačítko Zveřejnit pro fanoušky */}
-                  <Pressable onPress={() => handleTogglePublish(record)} style={styles.actionIconButton}>
+                    {/* Tlačítko Stop */}
+                    <Pressable
+                      style={[styles.playButton, { backgroundColor: 'rgba(244,67,54,0.15)' }]}
+                      onPress={stopPlayback}
+                    >
+                      <SymbolView
+                        name={{ ios: 'stop.fill', android: 'stop', web: 'stop' }}
+                        size={22}
+                        tintColor="#f44336"
+                      />
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable
+                    style={styles.playButton}
+                    onPress={() => playRecord(record)}
+                  >
                     <SymbolView
-                      name={record.isPublic ? { ios: 'eye.slash.fill', android: 'visibility_off', web: 'visibility_off' } : { ios: 'eye.fill', android: 'visibility', web: 'visibility' }}
-                      size={20}
-                      tintColor={record.isPublic ? '#ff9800' : '#4caf50'}
+                      name={{ ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }}
+                      size={24}
+                      tintColor="#2196f3"
                     />
                   </Pressable>
+                )}
 
-                  {/* Tlačítko Smazat */}
-                  {(isAdmin || true) && (
-                    <Pressable onPress={() => handleDelete(record)} style={styles.actionIconButton}>
-                      <SymbolView name={{ ios: 'trash.fill', android: 'delete', web: 'delete' }} size={20} tintColor="#e91e63" />
-                    </Pressable>
+                <View style={styles.recordInfo}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <ThemedText type="default" style={{ fontWeight: 'bold' }}>
+                      {record.title}
+                    </ThemedText>
+
+                    {/* Odznak viditelnosti */}
+                    {record.isPublic ? (
+                      <View style={styles.publicBadge}>
+                        <ThemedText type="smallBold" style={{ color: '#4caf50', fontSize: 10 }}>
+                          🌐 Veřejná
+                        </ThemedText>
+                      </View>
+                    ) : (
+                      <View style={styles.privateBadge}>
+                        <ThemedText type="smallBold" style={{ color: theme.textSecondary, fontSize: 10 }}>
+                          🔒 Soukromá
+                        </ThemedText>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                    <ThemedText type="small" themeColor="textSecondary">{formatDate(record.createdAt)}</ThemedText>
+                    {record.durationMillis ? (
+                      <ThemedText type="small" themeColor="textSecondary">{formatDuration(record.durationMillis)}</ThemedText>
+                    ) : null}
+                  </View>
+
+                  {/* Zobrazení průběhu přehrávání, pokud se nahrávka právě přehrává */}
+                  {isCurrentPlaying && (
+                    <View style={{ marginTop: 8, width: '100%' }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11 }}>
+                          {formatDuration(playbackTimeSec * 1000)} / {formatDuration(totalDurationSec * 1000)}
+                        </ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11 }}>
+                          {player?.playing ? 'Přehrává se...' : 'Pozastaveno'}
+                        </ThemedText>
+                      </View>
+
+                      {/* Lišta průběhu přehrávání */}
+                      <View style={styles.progressBarTrack}>
+                        <View style={[styles.progressBarFill, { width: `${progressPct}%` }]} />
+                      </View>
+                    </View>
                   )}
                 </View>
-              )}
-            </ThemedView>
-          ))}
+
+                {/* Tlačítka pro správa nahrávky (Zveřejnit / Smazat) */}
+                {activeRoleView !== 'fan' && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    {/* Tlačítko Zveřejnit pro fanoušky */}
+                    <Pressable onPress={() => handleTogglePublish(record)} style={styles.actionIconButton}>
+                      <SymbolView
+                        name={record.isPublic ? { ios: 'eye.slash.fill', android: 'visibility_off', web: 'visibility_off' } : { ios: 'eye.fill', android: 'visibility', web: 'visibility' }}
+                        size={20}
+                        tintColor={record.isPublic ? '#ff9800' : '#4caf50'}
+                      />
+                    </Pressable>
+
+                    {/* Tlačítko Smazat */}
+                    {(isAdmin || true) && (
+                      <Pressable onPress={() => handleDelete(record)} style={styles.actionIconButton}>
+                        <SymbolView name={{ ios: 'trash.fill', android: 'delete', web: 'delete' }} size={20} tintColor="#e91e63" />
+                      </Pressable>
+                    )}
+                  </View>
+                )}
+              </ThemedView>
+            );
+          })}
         </ScrollView>
       )}
     </View>
@@ -539,5 +620,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(150, 150, 150, 0.15)',
     borderWidth: 1,
     borderColor: 'rgba(150, 150, 150, 0.3)',
+  },
+  progressBarTrack: {
+    height: 4,
+    width: '100%',
+    backgroundColor: 'rgba(150, 150, 150, 0.25)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#2196f3',
+    borderRadius: 2,
   },
 });
