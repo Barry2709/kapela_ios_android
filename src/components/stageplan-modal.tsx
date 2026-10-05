@@ -510,17 +510,22 @@ function DraggableMember({
   onUpdatePosition: (id: string, x: number, y: number) => void;
   onRemove: (id: string) => void;
 }) {
+  const isDragging = useRef(false);
+  const positionRef = useRef({ x: item.x, y: item.y });
+
   const px = (item.x / 100) * (stageSize.width || 300);
   const py = (item.y / 100) * (stageSize.height || 200);
 
   const pan = useRef(new Animated.ValueXY({ x: px, y: py })).current;
 
+  // Synchronizace při změně zvenčí (pokud zrovna neuživatel neposouvá)
   useEffect(() => {
-    if (stageSize.width > 0 && stageSize.height > 0) {
-      const currentPx = (item.x / 100) * stageSize.width;
-      const currentPy = (item.y / 100) * stageSize.height;
+    if (!isDragging.current && stageSize.width > 0 && stageSize.height > 0) {
+      const newPx = (item.x / 100) * stageSize.width;
+      const newPy = (item.y / 100) * stageSize.height;
+      positionRef.current = { x: item.x, y: item.y };
       pan.setOffset({ x: 0, y: 0 });
-      pan.setValue({ x: currentPx, y: currentPy });
+      pan.setValue({ x: newPx, y: newPy });
     }
   }, [item.x, item.y, stageSize.width, stageSize.height]);
 
@@ -529,20 +534,28 @@ function DraggableMember({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
-        pan.extractOffset();
+        isDragging.current = true;
+        const currentPx = (positionRef.current.x / 100) * stageSize.width;
+        const currentPy = (positionRef.current.y / 100) * stageSize.height;
+        pan.setOffset({ x: currentPx, y: currentPy });
+        pan.setValue({ x: 0, y: 0 });
       },
-      onPanResponderMove: Animated.event(
-        [null, { dx: pan.x, dy: pan.y }],
-        { useNativeDriver: false }
-      ),
-      onPanResponderRelease: () => {
+      onPanResponderMove: (e, gestureState) => {
+        pan.x.setValue(gestureState.dx);
+        pan.y.setValue(gestureState.dy);
+      },
+      onPanResponderRelease: (e, gestureState) => {
+        isDragging.current = false;
         pan.flattenOffset();
-        const currentX = (pan.x as any)._value;
-        const currentY = (pan.y as any)._value;
 
         if (stageSize.width > 0 && stageSize.height > 0) {
-          const percentX = Math.max(5, Math.min(95, (currentX / stageSize.width) * 100));
-          const percentY = Math.max(5, Math.min(95, (currentY / stageSize.height) * 100));
+          const finalPx = ((positionRef.current.x / 100) * stageSize.width) + gestureState.dx;
+          const finalPy = ((positionRef.current.y / 100) * stageSize.height) + gestureState.dy;
+
+          const percentX = Math.max(5, Math.min(95, (finalPx / stageSize.width) * 100));
+          const percentY = Math.max(5, Math.min(95, (finalY / stageSize.height) * 100));
+
+          positionRef.current = { x: percentX, y: percentY };
           onUpdatePosition(item.memberId, percentX, percentY);
         }
       }
