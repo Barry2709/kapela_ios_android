@@ -149,12 +149,11 @@ export function AudioRecorder() {
     try {
       const finalTitle = recordTitle.trim() || 'Nová nahrávka';
 
-      // Uložení do Storage složky: kapela_ios_android/"název kapely"/records/"název nahrávky".ext
+      // Uložení do Storage složky ve stejném adresáři kapely kde jsou i písničky: kapela_ios_android/<bandId>/records/
       const uploadResult = await uploadAudioToStorage(
         activeBand.id,
         pendingRecordUri,
-        finalTitle,
-        activeBand.name
+        finalTitle
       );
 
       // Uložení záznamu do Firestore

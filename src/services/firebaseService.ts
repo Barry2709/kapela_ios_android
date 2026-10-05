@@ -944,15 +944,15 @@ export const getAudioStorageFilename = (title: string, extension: string = 'm4a'
 export const uploadAudioToStorage = async (
   bandId: string,
   uri: string,
-  title: string,
-  bandName?: string
+  title: string
 ): Promise<{ downloadUrl: string; storagePath: string }> => {
   if (!bandId) throw new Error("Chybí ID kapely.");
-  const safeBandFolder = bandName ? bandName.trim().replace(/[/\\?%*:|"<>]/g, '_') : bandId;
   const rawExt = uri.split('.').pop()?.split('?')[0] || 'm4a';
   const fileName = getAudioStorageFilename(title || 'Nahrávka', rawExt);
 
-  const path = `${BANDS_COLLECTION}/${safeBandFolder}/records/${fileName}`;
+  // Ukládáme přesně do stejného adresáře kapely v kapela_ios_android kde jsou i songs a songs_plus:
+  // cesta: kapela_ios_android/<bandId>/records/<fileName>
+  const path = `${BANDS_COLLECTION}/${bandId}/records/${fileName}`;
   const storageRef = ref(storage, path);
 
   const blob: Blob = await new Promise((resolve, reject) => {
