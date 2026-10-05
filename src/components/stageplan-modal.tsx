@@ -560,10 +560,6 @@ function DraggableMember({
       }
     })
   ).current;
-        }
-      }
-    })
-  ).current;
 
   const techBadges = getMemberTechBadges(member);
 
