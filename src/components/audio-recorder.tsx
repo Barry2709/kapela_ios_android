@@ -56,10 +56,12 @@ export function AudioRecorder() {
     };
   }, [activeBand?.id]);
 
-  // Sledování stavu přehrávače a automatické zastavení po dohrání
+  // Sledování stavu přehrávače a automatické zastavení až PO dohrání
   useEffect(() => {
     if (player && playingId) {
-      const isFinished = player.status === 'idle' || (player.duration > 0 && player.currentTime >= player.duration - 0.2);
+      const hasStarted = (player.currentTime || 0) > 0.3;
+      const isFinished = (player.status === 'ended') || (hasStarted && player.status === 'idle') || (player.duration > 0 && hasStarted && player.currentTime >= player.duration - 0.3);
+
       if (isFinished) {
         try {
           player.pause();
