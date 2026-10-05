@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, Modal, Pressable, Alert, Animated, PanResponder, Dimensions, ScrollView, Platform } from 'react-native';
+import { View, StyleSheet, Modal, Pressable, Alert, Animated, ScrollView, Platform, ActivityIndicator, Linking } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { Image } from 'expo-image';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { Band, BandMember, StageplanMember } from '@/types';
+import { Band, BandMember, StageplanMember, Concert } from '@/types';
 
 interface Props {
   visible: boolean;
@@ -16,14 +18,17 @@ interface Props {
   band: Band;
   members: BandMember[];
   onSave: (stageplan: StageplanMember[]) => void;
+  concert?: Concert;
 }
 
-export function StageplanModal({ visible, onClose, band, members, onSave }: Props) {
+export function StageplanModal({ visible, onClose, band, members, onSave, concert }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
   const [stageplan, setStageplan] = useState<StageplanMember[]>(band.stageplan || []);
   const [showMemberPicker, setShowMemberPicker] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pickerPosition, setPickerPosition] = useState({ x: 0, y: 0 });
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
 
@@ -39,7 +44,6 @@ export function StageplanModal({ visible, onClose, band, members, onSave }: Prop
     }
 
     return () => {
-      // Ujištění o navrácení do výchozího stavu při odpojení komponenty
       ScreenOrientation.unlockAsync();
     };
   }, [visible, band.stageplan]);
@@ -68,6 +72,184 @@ export function StageplanModal({ visible, onClose, band, members, onSave }: Prop
     setShowMemberPicker(false);
   };
 
+  // Generování HTML šablony pro PDF Stageplanu & Rideru
+  const generateStageplanPdfHtml = (): string => {
+    const concertTitle = concert?.title || 'Koncert / Akce';
+    const concertDate = concert?.date || '';
+    const concertLocation = concert?.location || '';
+    const concertTime = concert?.startTime ? `v ${concert.startTime}` : '';
+
+    // Kontakty pořadatelů
+    let orgsHtml = '';
+    if (concert?.organizers && concert.organizers.length > 0) {
+      orgsHtml = `
+        <div style="margin-top: 15px;">
+          <h3 style="margin-bottom: 6px; color: #1877f2; border-bottom: 2px solid #1877f2; padding-bottom: 3px;">Kontakty na pořadatele a zvukaře:</h3>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 5px;">
+            <thead>
+              <tr style="background: #eef3fb;">
+                <th style="border: 1px solid #ccc; padding: 6px 10px; text-align: left; font-size: 11px;">Role</th>
+                <th style="border: 1px solid #ccc; padding: 6px 10px; text-align: left; font-size: 11px;">Jméno</th>
+                <th style="border: 1px solid #ccc; padding: 6px 10px; text-align: left; font-size: 11px;">Telefon</th>
+                <th style="border: 1px solid #ccc; padding: 6px 10px; text-align: left; font-size: 11px;">E-mail</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${concert.organizers.map(o => `
+                <tr>
+                  <td style="border: 1px solid #ccc; padding: 6px 10px; font-weight: bold; font-size: 11px;">${o.role || 'Kontakt'}</td>
+                  <td style="border: 1px solid #ccc; padding: 6px 10px; font-size: 11px;">${o.name}</td>
+                  <td style="border: 1px solid #ccc; padding: 6px 10px; font-size: 11px;">${o.phone || '-'}</td>
+                  <td style="border: 1px solid #ccc; padding: 6px 10px; font-size: 11px;">${o.email || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    } else if (concert?.contacts) {
+      orgsHtml = `
+        <div style="margin-top: 15px;">
+          <h3 style="margin-bottom: 6px; color: #1877f2;">Kontakty na pořadatele:</h3>
+          <p style="font-size: 12px; margin: 0; background: #f5f5f5; padding: 8px; border-radius: 4px;">${concert.contacts}</p>
+        </div>
+      `;
+    }
+
+    // Členové na stagi HTML
+    const pinsHtml = stageplan.map(s => {
+      const mem = members.find(m => m.id === s.memberId);
+      if (!mem) return '';
+      return `
+        <div style="position: absolute; left: ${s.x}%; top: ${s.y}%; transform: translate(-50%, -50%); background: #2196f3; color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3); border: 1px solid #1976d2;">
+          ${mem.nickname || mem.firstName}<br>
+          <span style="font-size: 9px; font-weight: normal; opacity: 0.95;">${mem.instrument || ''}</span>
+        </div>
+      `;
+    }).join('');
+
+    // Technický rider balíčky
+    let techPresetsHtml = '';
+    if (band.techRiderPresets && band.techRiderPresets.length > 0) {
+      techPresetsHtml = `
+        <div style="margin-top: 15px;">
+          <h3 style="margin-bottom: 6px; color: #2e7d32; border-bottom: 2px solid #2e7d32; padding-bottom: 3px;">Požadavky na techniku & zvukaře (Tech Rider):</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px;">
+            ${band.techRiderPresets.map(p => `
+              <span style="background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; padding: 5px 10px; border-radius: 12px; font-size: 11px; font-weight: bold;">
+                ✔ ${p}
+              </span>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 25px; color: #222; }
+          .header-box { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #2196f3; padding-bottom: 12px; margin-bottom: 15px; }
+          .band-title { font-size: 26px; font-weight: bold; color: #111; margin: 0; }
+          .concert-info { font-size: 14px; color: #444; margin-top: 4px; }
+          .stage-container { width: 100%; height: 260px; border: 3px solid #333; background: #fdfdfd; position: relative; margin: 15px 0; border-radius: 10px; overflow: hidden; }
+          .stage-front { position: absolute; bottom: 0; left: 0; right: 0; background: #333; color: white; text-align: center; padding: 6px 0; font-size: 11px; font-weight: bold; letter-spacing: 1px; }
+          .footer { margin-top: 30px; font-size: 11px; color: #888; text-align: center; border-top: 1px solid #eee; padding-top: 10px; }
+        </style>
+      </head>
+      <body>
+        <div class="header-box">
+          <div>
+            <h1 class="band-title">${band.name}</h1>
+            <div class="concert-info">
+              <strong>${concertTitle}</strong> • ${concertDate} ${concertTime} ${concertLocation ? `(${concertLocation})` : ''}
+            </div>
+          </div>
+          <div style="font-size: 12px; text-align: right; color: #666;">
+            Stageplan & Technický Rider<br>
+            <em>Aplikace Kapela</em>
+          </div>
+        </div>
+
+        <h3 style="margin-bottom: 5px; color: #111;">Pódiové rozmístění členů (Stageplan):</h3>
+        <div class="stage-container">
+          ${pinsHtml}
+          <div class="stage-front">▼ PŘEDNÍ HRANA PÓDIA / HLAVNÍ ZVUK (PA) ▼</div>
+        </div>
+
+        ${techPresetsHtml}
+        ${orgsHtml}
+
+        <div class="footer">
+          Tento dokument obsahuje oficiální Stageplan a Technický Rider kapely ${band.name}.
+        </div>
+      </body>
+      </html>
+    `;
+  };
+
+  // Odeslání e-mailem
+  const handleSendViaEmail = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      const html = generateStageplanPdfHtml();
+      const { uri } = await Print.printToFileAsync({ html });
+
+      // Načtení e-mailů pořadatelů
+      const emails = concert?.organizers
+        ? concert.organizers.map(o => o.email).filter(Boolean) as string[]
+        : [];
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Stageplan kapely ${band.name}`,
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        const emailList = emails.join(',');
+        const subject = encodeURIComponent(`Stageplan & Technický Rider - ${band.name} (${concert?.title || 'Koncert'})`);
+        Linking.openURL(`mailto:${emailList}?subject=${subject}`);
+      }
+
+      setShowSendModal(false);
+    } catch (e) {
+      console.error("Chyba při generování PDF:", e);
+      Alert.alert("Chyba", "Nepodařilo se vygenerovat PDF Stageplanu.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  // Odeslání přes WhatsApp / Systémové sdílení
+  const handleSendViaWhatsApp = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      const html = generateStageplanPdfHtml();
+      const { uri } = await Print.printToFileAsync({ html });
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Odeslat Stageplan kapely ${band.name}`,
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        Alert.alert("Sdílení nedostupné", "Sdílení souborů není na tomto zařízení dostupné.");
+      }
+
+      setShowSendModal(false);
+    } catch (e) {
+      console.error("Chyba při sdílení Stageplanu:", e);
+      Alert.alert("Chyba", "Nepodařilo se vygenerovat PDF Stageplanu.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" supportedOrientations={['landscape', 'landscape-left', 'landscape-right']}>
       <ThemedView style={[styles.container, { paddingTop: 2, marginTop: Platform.OS === 'android' ? -9 : 0 }]}>
@@ -75,6 +257,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave }: Prop
           <Pressable onPress={onClose} style={{ paddingHorizontal: Spacing.two, paddingVertical: 4 }}>
             <ThemedText type="smallBold" style={{ color: '#e91e63' }}>Zrušit</ThemedText>
           </Pressable>
+
           <View style={{ alignItems: 'center', flex: 1, paddingHorizontal: Spacing.two }}>
             <ThemedText type="subtitle" style={{ fontSize: 18 }}>Stageplan</ThemedText>
             <ThemedText
@@ -87,7 +270,19 @@ export function StageplanModal({ visible, onClose, band, members, onSave }: Prop
               Podržením plochy přidáte člena. Podržením člena přesouváte. Dvojitým klepnutím mažete.
             </ThemedText>
           </View>
-          <Pressable onPress={handleSave} style={{ paddingHorizontal: Spacing.two, paddingVertical: 4 }}>
+
+          {/* Tlačítko Odeslat Pořadatelům */}
+          <Pressable
+            style={styles.sendHeaderBtn}
+            onPress={() => setShowSendModal(true)}
+          >
+            <SymbolView name={{ ios: 'paperplane.fill', android: 'send', web: 'send' }} size={14} tintColor="#fff" />
+            <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 12, marginLeft: 4 }}>
+              Odeslat pořadatelům
+            </ThemedText>
+          </Pressable>
+
+          <Pressable onPress={handleSave} style={{ paddingHorizontal: Spacing.two, paddingVertical: 4, marginLeft: 8 }}>
             <ThemedText type="smallBold" style={{ color: '#4caf50' }}>Uložit</ThemedText>
           </Pressable>
         </View>
@@ -176,6 +371,48 @@ export function StageplanModal({ visible, onClose, band, members, onSave }: Prop
             </ThemedView>
           </Pressable>
         </Modal>
+
+        {/* Modal pro vybraný způsob odeslání Stageplanu pořadatelům */}
+        <Modal visible={showSendModal} transparent animationType="fade">
+          <Pressable style={styles.modalOverlay} onPress={() => setShowSendModal(false)}>
+            <ThemedView type="backgroundElement" style={styles.sendModalBox}>
+              <ThemedText type="subtitle" style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 4, textAlign: 'center' }}>
+                Odeslat Stageplan & Rider pořadatelům
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', marginBottom: 16 }}>
+                Aplikace vygeneruje oficiální PDF dokument se Stageplanem, kontakty a požadavky na techniku.
+              </ThemedText>
+
+              {isGeneratingPdf ? (
+                <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                  <ActivityIndicator size="large" color="#2196f3" />
+                  <ThemedText type="small" style={{ marginTop: 10 }}>Generuji PDF dokument...</ThemedText>
+                </View>
+              ) : (
+                <View style={{ gap: 10 }}>
+                  <Pressable style={[styles.sendOptionBtn, { backgroundColor: '#2196f3' }]} onPress={handleSendViaEmail}>
+                    <SymbolView name={{ ios: 'envelope.fill', android: 'email', web: 'email' }} size={20} tintColor="#fff" />
+                    <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 14 }}>
+                      📧 Odeslat E-mailem pořadatelům
+                    </ThemedText>
+                  </Pressable>
+
+                  <Pressable style={[styles.sendOptionBtn, { backgroundColor: '#25d366' }]} onPress={handleSendViaWhatsApp}>
+                    <SymbolView name={{ ios: 'paperplane.fill', android: 'share', web: 'share' }} size={20} tintColor="#fff" />
+                    <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 14 }}>
+                      💬 WhatsApp / Systémové sdílení
+                    </ThemedText>
+                  </Pressable>
+
+                  <Pressable onPress={() => setShowSendModal(false)} style={[styles.cancelBtn, { marginTop: 6 }]}>
+                    <ThemedText type="smallBold" themeColor="textSecondary">Zrušit</ThemedText>
+                  </Pressable>
+                </View>
+              )}
+            </ThemedView>
+          </Pressable>
+        </Modal>
+
       </ThemedView>
     </Modal>
   );
@@ -202,110 +439,69 @@ function DraggableMember({
     y: (item.y / 100) * stageSize.height
   })).current;
 
-  const [isDragging, setIsDragging] = useState(false);
-
-  // Detekce double tap
-  const lastTapTime = useRef(0);
-  const handlePress = () => {
-    const now = Date.now();
-    if (now - lastTapTime.current < 300) {
-      // Double tap
-      onRemove(item.memberId);
-    }
-    lastTapTime.current = now;
-  };
+  useEffect(() => {
+    pan.setValue({
+      x: (item.x / 100) * stageSize.width,
+      y: (item.y / 100) * stageSize.height
+    });
+  }, [item.x, item.y, stageSize]);
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false, // Nechat kliknutí/dvojitý klik fungovat
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Povolit posun jen pokud uživatel drží a táhne (nepatrný posun filtrujeme)
-        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
-      },
+      onStartShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
         pan.setOffset({
-          // @ts-ignore
-          x: pan.x._value,
-          // @ts-ignore
-          y: pan.y._value
+          x: (pan.x as any)._value,
+          y: (pan.y as any)._value
         });
         pan.setValue({ x: 0, y: 0 });
-        setIsDragging(true);
       },
       onPanResponderMove: Animated.event(
         [null, { dx: pan.x, dy: pan.y }],
         { useNativeDriver: false }
       ),
-      onPanResponderRelease: (_, gestureState) => {
+      onPanResponderRelease: () => {
         pan.flattenOffset();
-        setIsDragging(false);
+        const currentX = (pan.x as any)._value;
+        const currentY = (pan.y as any)._value;
 
-        // Přepočet zpět na procenta
-        // @ts-ignore
-        let newX = (pan.x._value / stageSize.width) * 100;
-        // @ts-ignore
-        let newY = (pan.y._value / stageSize.height) * 100;
+        const percentX = Math.max(5, Math.min(95, (currentX / stageSize.width) * 100));
+        const percentY = Math.max(5, Math.min(95, (currentY / stageSize.height) * 100));
 
-        // Udržení v rámci obrazovky
-        newX = Math.max(0, Math.min(100, newX));
-        newY = Math.max(0, Math.min(100, newY));
-
-        onUpdatePosition(item.memberId, newX, newY);
+        onUpdatePosition(item.memberId, percentX, percentY);
       }
     })
   ).current;
 
-  // Vytažení tech rideru člena
-  const activeTech = Object.entries(member.tech?.customTech || {})
-    .filter(([_, isActive]) => isActive)
-    .map(([key]) => key);
-
   return (
     <Animated.View
+      {...panResponder.panHandlers}
       style={[
-        styles.draggableItem,
+        styles.memberPin,
         {
-          transform: [{ translateX: pan.x }, { translateY: pan.y }],
-          opacity: isDragging ? 0.8 : 1,
-          zIndex: isDragging ? 100 : 1,
+          left: pan.x,
+          top: pan.y,
+          backgroundColor: theme.backgroundElement,
+          borderColor: '#2196f3',
         }
       ]}
-      {...panResponder.panHandlers}
     >
-      <Pressable onPress={handlePress}>
-        <View style={styles.memberAvatarContainer}>
+      <Pressable onLongPress={() => onRemove(item.memberId)}>
+        <View style={{ alignItems: 'center' }}>
           {member.photoUri ? (
-            <Image source={{ uri: member.photoUri }} style={styles.memberAvatar} contentFit="cover" />
+            <Image source={{ uri: member.photoUri }} style={styles.pinPhoto} />
           ) : (
-            <View style={[styles.memberAvatar, { backgroundColor: 'rgba(150,150,150,0.3)', justifyContent: 'center', alignItems: 'center' }]}>
-              <SymbolView name={{ ios: 'person.fill', android: 'person', web: 'person' }} size={24} tintColor={theme.textSecondary} />
+            <View style={[styles.pinPhoto, { backgroundColor: 'rgba(150,150,150,0.3)', justifyContent: 'center', alignItems: 'center' }]}>
+              <SymbolView name={{ ios: 'person.fill', android: 'person', web: 'person' }} size={16} tintColor={theme.textSecondary} />
             </View>
           )}
-          <View style={[styles.memberNameBadge, { backgroundColor: theme.backgroundElement }]}>
-            <ThemedText type="smallBold" style={{ fontSize: 10 }}>{member.nickname || member.firstName}</ThemedText>
-          </View>
+          <ThemedText type="smallBold" style={{ fontSize: 11, marginTop: 2, textAlign: 'center' }}>
+            {member.nickname || member.firstName}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 9, textAlign: 'center' }}>
+            {member.instrument}
+          </ThemedText>
         </View>
-
-        {/* Info o tech rideru pod fotkou */}
-        {(member.instrument || activeTech.length > 0) && (
-          <View style={[styles.techBubble, { backgroundColor: 'rgba(76, 175, 80, 0.9)' }]}>
-            {member.instrument ? (
-              <ThemedText
-                type="smallBold"
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                style={{ fontSize: 10, color: '#ffeb3b', textAlign: 'center', marginBottom: activeTech.length > 0 ? 1 : 0, lineHeight: 12 }}
-              >
-                {member.instrument}
-              </ThemedText>
-            ) : null}
-            {activeTech.map(tech => (
-              <ThemedText key={tech} type="smallBold" style={{ fontSize: 9, color: '#fff', textAlign: 'center', lineHeight: 10 }}>
-                {tech}
-              </ThemedText>
-            ))}
-          </View>
-        )}
       </Pressable>
     </Animated.View>
   );
@@ -317,20 +513,45 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingBottom: 4,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(150,150,150,0.2)',
+  },
+  sendHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#2196f3',
   },
   stageArea: {
     flex: 1,
     borderRadius: Spacing.two,
     borderWidth: 2,
     borderColor: 'rgba(150,150,150,0.3)',
-    overflow: 'hidden',
+    marginTop: Spacing.one,
     position: 'relative',
-    alignSelf: 'center',
-    width: '100%',
+    overflow: 'hidden',
+  },
+  memberPin: {
+    position: 'absolute',
+    padding: 6,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+  },
+  pinPhoto: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   modalOverlay: {
     flex: 1,
@@ -341,55 +562,35 @@ const styles = StyleSheet.create({
   },
   pickerModal: {
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 360,
     padding: Spacing.four,
     borderRadius: Spacing.three,
+  },
+  sendModalBox: {
+    width: '100%',
+    maxWidth: 380,
+    padding: Spacing.four,
+    borderRadius: Spacing.three,
+  },
+  sendOptionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    gap: 8,
   },
   pickerOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.three,
+    paddingVertical: Spacing.two,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(150,150,150,0.1)',
+    borderBottomColor: 'rgba(150,150,150,0.15)',
   },
   cancelBtn: {
+    marginTop: Spacing.three,
     alignItems: 'center',
-    paddingTop: Spacing.four,
+    paddingVertical: Spacing.two,
   },
-  draggableItem: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 80, // Rezervovaný prostor pro člena
-    marginLeft: -40, // Vycentrování na bod X
-    marginTop: -40, // Vycentrování na bod Y
-  },
-  memberAvatarContainer: {
-    alignItems: 'center',
-  },
-  memberAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    borderWidth: 2,
-    borderColor: '#fff',
-    backgroundColor: '#333',
-  },
-  memberNameBadge: {
-    position: 'absolute',
-    bottom: -8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(150,150,150,0.2)',
-  },
-  techBubble: {
-    marginTop: 10,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    borderRadius: 6,
-    alignItems: 'center',
-    maxWidth: 90,
-  }
 });

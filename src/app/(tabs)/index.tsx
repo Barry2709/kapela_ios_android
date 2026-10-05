@@ -17,6 +17,7 @@ import { getBandMembers, addBandMember, updateBand, updateBandMember, subscribeT
 import { BandHeader } from '@/components/band-header';
 import { AddMemberForm } from '@/components/add-member-form';
 import { EditBandForm } from '@/components/edit-band-form';
+import { StageplanModal } from '@/components/stageplan-modal';
 
 export default function HomeScreen() {
   const theme = useTheme();
@@ -49,6 +50,7 @@ export default function HomeScreen() {
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showEditBandModal, setShowEditBandModal] = useState(false);
   const [editingMember, setEditingMember] = useState<BandMember | null>(null);
+  const [selectedConcertForStageplan, setSelectedConcertForStageplan] = useState<Concert | null>(null);
   interface AttendanceEditState {
     member: BandMember;
     eventId: string;
@@ -820,7 +822,18 @@ export default function HomeScreen() {
 
                               {(concert.organizers && concert.organizers.length > 0) || concert.contacts ? (
                                 <View style={{ marginTop: 6, paddingTop: 4, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.15)' }}>
-                                  <ThemedText type="smallBold" themeColor="textSecondary">Kontakty na pořadatele:</ThemedText>
+                                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <ThemedText type="smallBold" themeColor="textSecondary">Kontakty na pořadatele:</ThemedText>
+                                    {activeRoleView !== 'fan' && (
+                                      <Pressable
+                                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 6, backgroundColor: 'rgba(33, 150, 243, 0.15)' }}
+                                        onPress={() => setSelectedConcertForStageplan(concert)}
+                                      >
+                                        <SymbolView name={{ ios: 'paperplane.fill', android: 'send', web: 'send' }} size={13} tintColor="#2196f3" />
+                                        <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11 }}>Odeslat Stageplan</ThemedText>
+                                      </Pressable>
+                                    )}
+                                  </View>
                                   {concert.organizers && concert.organizers.length > 0 ? (
                                     <View style={{ gap: 6, marginTop: 4 }}>
                                       {concert.organizers.map(org => (
@@ -885,6 +898,22 @@ export default function HomeScreen() {
             <AddMemberForm initialMember={editingMember || undefined} onSave={handleSaveMember} onCancel={() => setShowAddMemberModal(false)} />
          </ThemedView>
       </Modal>
+
+      {/* Modal pro zobrazení a odeslání Stageplanu z karty koncertu */}
+      {selectedConcertForStageplan && activeBand && (
+        <StageplanModal
+          visible={!!selectedConcertForStageplan}
+          onClose={() => setSelectedConcertForStageplan(null)}
+          band={activeBand}
+          members={members}
+          concert={selectedConcertForStageplan}
+          onSave={async (updatedStageplan) => {
+            const updated = await updateBand(activeBand.id, { stageplan: updatedStageplan });
+            setActiveBand(updated);
+            AsyncStorage.setItem('savedBand', JSON.stringify(updated));
+          }}
+        />
+      )}
 
       {/* Modal pro úpravu docházky člena */}
       <Modal visible={!!editAttendanceState} transparent animationType="fade">

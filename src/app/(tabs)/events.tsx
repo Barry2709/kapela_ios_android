@@ -32,6 +32,7 @@ import { AddConcertForm } from '@/components/add-concert-form';
 import { AddRehearsalForm } from '@/components/add-rehearsal-form';
 import { AddAbsenceForm } from '@/components/add-absence-form';
 import { SetlistEditorModal } from '@/components/setlist-editor-modal';
+import { StageplanModal } from '@/components/stageplan-modal';
 import { EventsCalendar } from '@/components/calendar/EventsCalendar';
 
 export default function EventsScreen() {
@@ -54,6 +55,7 @@ export default function EventsScreen() {
   const [editingRehearsal, setEditingRehearsal] = useState<Rehearsal | null>(null);
   const [editingConcert, setEditingConcert] = useState<Concert | null>(null);
   const [selectedConcertForSetlist, setSelectedConcertForSetlist] = useState<Concert | null>(null);
+  const [selectedConcertForStageplan, setSelectedConcertForStageplan] = useState<Concert | null>(null);
   const [expandedEvents, setExpandedEvents] = useState<Record<string, boolean>>({});
 
   const toggleEventExpanded = (eventId: string) => {
@@ -851,7 +853,18 @@ export default function EventsScreen() {
         {/* Kontakty na pořadatele */}
         {(concert.organizers && concert.organizers.length > 0) || concert.contacts ? (
           <View style={{ marginTop: 6, paddingTop: 4, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.15)' }}>
-            <ThemedText type="smallBold" themeColor="textSecondary">Kontakty na pořadatele:</ThemedText>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <ThemedText type="smallBold" themeColor="textSecondary">Kontakty na pořadatele:</ThemedText>
+              {activeRoleView !== 'fan' && (
+                <Pressable
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 6, backgroundColor: 'rgba(33, 150, 243, 0.15)' }}
+                  onPress={() => setSelectedConcertForStageplan(concert)}
+                >
+                  <SymbolView name={{ ios: 'paperplane.fill', android: 'send', web: 'send' }} size={13} tintColor="#2196f3" />
+                  <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11 }}>Odeslat Stageplan</ThemedText>
+                </Pressable>
+              )}
+            </View>
             {concert.organizers && concert.organizers.length > 0 ? (
               <View style={{ gap: 6, marginTop: 4 }}>
                 {concert.organizers.map(org => (
@@ -1293,6 +1306,21 @@ export default function EventsScreen() {
           concert={selectedConcertForSetlist}
           initialSetlist={selectedConcertForSetlist.setlist}
           onSaveSetlist={handleSaveSetlistFromCard}
+        />
+      )}
+
+      {/* Modal pro zobrazení a odeslání Stageplanu z karty koncertu */}
+      {selectedConcertForStageplan && activeBand && (
+        <StageplanModal
+          visible={!!selectedConcertForStageplan}
+          onClose={() => setSelectedConcertForStageplan(null)}
+          band={activeBand}
+          members={bandMembers}
+          concert={selectedConcertForStageplan}
+          onSave={async (updatedStageplan) => {
+            const updated = await updateBand(activeBand.id, { stageplan: updatedStageplan });
+            setActiveBand(updated);
+          }}
         />
       )}
 
