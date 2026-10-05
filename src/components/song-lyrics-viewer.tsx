@@ -73,6 +73,76 @@ const parseChordProLine = (line: string): LyricSegment[] => {
   return segments;
 };
 
+// Klasická pyramida mechanického metronomu s kyvadlem
+function ClassicMetronomeIcon({ size = 20, color = '#ffffff' }: { size?: number; color?: string }) {
+  const scale = size / 24;
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={{
+          width: 0,
+          height: 0,
+          borderLeftWidth: 6.5 * scale,
+          borderRightWidth: 6.5 * scale,
+          borderBottomWidth: 15 * scale,
+          borderLeftColor: 'transparent',
+          borderRightColor: 'transparent',
+          borderBottomColor: color,
+          position: 'relative',
+        }}
+      >
+        <View
+          style={{
+            position: 'absolute',
+            top: 2 * scale,
+            left: -4.5 * scale,
+            width: 0,
+            height: 0,
+            borderLeftWidth: 4.5 * scale,
+            borderRightWidth: 4.5 * scale,
+            borderBottomWidth: 11.5 * scale,
+            borderLeftColor: 'transparent',
+            borderRightColor: 'transparent',
+            borderBottomColor: '#1a1a1a',
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            top: 1 * scale,
+            left: -3 * scale,
+            width: 1.6 * scale,
+            height: 11 * scale,
+            backgroundColor: color,
+            transform: [{ rotate: '-22deg' }],
+            borderRadius: 1,
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            top: 3.5 * scale,
+            left: -4.5 * scale,
+            width: 3.8 * scale,
+            height: 2.8 * scale,
+            backgroundColor: color,
+            borderRadius: 1,
+          }}
+        />
+      </View>
+      <View
+        style={{
+          width: 15 * scale,
+          height: 2 * scale,
+          backgroundColor: color,
+          marginTop: 1 * scale,
+          borderRadius: 1,
+        }}
+      />
+    </View>
+  );
+}
+
 export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, onUpdateSong }: Props) {
   const theme = useTheme();
   const { currentUser, activeBand, activeRoleView } = useAppStore();
@@ -1195,11 +1265,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
                 {currentMetronomeBeat}
               </ThemedText>
             ) : (
-              <SymbolView
-                name={{ ios: 'metronome', android: 'timer', web: 'timer' }}
-                size={20}
-                tintColor="#ffffff"
-              />
+              <ClassicMetronomeIcon size={20} color="#ffffff" />
             )}
           </Pressable>
 
