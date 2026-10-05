@@ -606,7 +606,6 @@ function DraggableMember({
       </Pressable>
     </Animated.View>
   );
-  );
 }
 
 const styles = StyleSheet.create({
