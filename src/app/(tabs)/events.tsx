@@ -317,13 +317,6 @@ export default function EventsScreen() {
       Alert.alert("Chyba", "Nepodařilo se uložit zkoušku.");
     }
   };
-      loadRehearsals();
-      Alert.alert("Úspěch", "Zkouška byla úspěšně uložena.");
-    } catch (e) {
-      console.error("Chyba při ukládání zkoušky:", e);
-      Alert.alert("Chyba", "Nepodařilo se uložit zkoušku.");
-    }
-  };
 
   const handleToggleCancelRehearsal = async (rehearsal: Rehearsal) => {
     if (!activeBand) return;
