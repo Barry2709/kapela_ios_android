@@ -37,7 +37,7 @@ import { EventsCalendar } from '@/components/calendar/EventsCalendar';
 
 export default function EventsScreen() {
   const theme = useTheme();
-  const { activeBand, activeRoleView, eventsTab } = useAppStore();
+  const { activeBand, currentUser, activeRoleView, eventsTab } = useAppStore();
 
   const [rehearsals, setRehearsals] = useState<Rehearsal[]>([]);
   const [concerts, setConcerts] = useState<Concert[]>([]);
