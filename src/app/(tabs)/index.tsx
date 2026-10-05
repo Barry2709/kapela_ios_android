@@ -648,8 +648,10 @@ export default function HomeScreen() {
                       Linking.openURL(url);
                     }}
                   >
-                    <SymbolView name={{ ios: 'f.square.fill', android: 'facebook', web: 'facebook' }} size={16} tintColor="#1877f2" />
-                    <ThemedText type="smallBold" style={{ color: '#1877f2', fontSize: 12, marginLeft: 4 }}>
+                    <View style={{ width: 18, height: 18, borderRadius: 4, backgroundColor: '#1877f2', justifyContent: 'center', alignItems: 'center', marginRight: 4 }}>
+                      <ThemedText style={{ color: '#ffffff', fontSize: 13, fontWeight: 'bold', lineHeight: 15 }}>f</ThemedText>
+                    </View>
+                    <ThemedText type="smallBold" style={{ color: '#1877f2', fontSize: 12 }}>
                       Facebook
                     </ThemedText>
                   </Pressable>

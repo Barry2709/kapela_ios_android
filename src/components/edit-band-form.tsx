@@ -277,7 +277,14 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
                   Linking.openURL(url);
                 }}
               >
-                <SymbolView name={{ ios: 'f.square.fill', android: 'facebook', web: 'facebook' }} size={22} tintColor="#1877f2" />
+                <View style={{ width: 22, height: 22, borderRadius: 5, backgroundColor: '#1877f2', justifyContent: 'center', alignItems: 'center', marginRight: 6 }}>
+                  <ThemedText style={{ color: '#ffffff', fontSize: 15, fontWeight: 'bold', lineHeight: 17 }}>f</ThemedText>
+                </View>
+                <ThemedText type="smallBold" style={{ color: '#1877f2', textAlign: 'center' }}>
+                  Facebook: {band.facebook}
+                </ThemedText>
+              </Pressable>
+            ) : null}
                 <ThemedText type="smallBold" style={{ marginLeft: 8, color: '#1877f2', textAlign: 'center' }}>
                   Facebook: {band.facebook}
                 </ThemedText>
