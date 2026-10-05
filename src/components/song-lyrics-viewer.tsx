@@ -986,7 +986,9 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
   const [isMetronomeRunning, setIsMetronomeRunning] = useState(false);
   const [currentMetronomeBeat, setCurrentMetronomeBeat] = useState<number | null>(null);
   const [currentMeasureIndex, setCurrentMeasureIndex] = useState<number>(0);
+  const [metronomeFlashColor, setMetronomeFlashColor] = useState<string | null>(null);
   const metronomeIntervalRef = useRef<any>(null);
+  const flashTimeoutRef = useRef<any>(null);
 
   // Načtení tempa a taktu při načtení nebo změně písně
   useEffect(() => {
@@ -1033,6 +1035,21 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
     }
   };
 
+  const triggerBeatFlash = (beatNumber: number) => {
+    // 1. doba ČERVENÁ (#f44336), 2, 3, (4). doba ZELENÁ (#4caf50)
+    const color = beatNumber === 1 ? '#f44336' : '#4caf50';
+    setMetronomeFlashColor(color);
+
+    if (flashTimeoutRef.current) {
+      clearTimeout(flashTimeoutRef.current);
+    }
+
+    // Výrazné bliknutí na 140ms pro rytmický světelný efekt
+    flashTimeoutRef.current = setTimeout(() => {
+      setMetronomeFlashColor(null);
+    }, 140);
+  };
+
   const startVisualMetronome = () => {
     if (isMetronomeRunning) {
       stopVisualMetronome();
@@ -1047,6 +1064,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
     setIsMetronomeRunning(true);
     setCurrentMetronomeBeat(1);
     setCurrentMeasureIndex(1);
+    triggerBeatFlash(1);
 
     metronomeIntervalRef.current = setInterval(() => {
       count++;
@@ -1057,6 +1075,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
         const measureNum = Math.floor(count / beatsPerMeasure) + 1;
         setCurrentMetronomeBeat(beatInMeasure);
         setCurrentMeasureIndex(measureNum);
+        triggerBeatFlash(beatInMeasure);
       }
     }, msPerBeat);
   };
@@ -1066,9 +1085,14 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
       clearInterval(metronomeIntervalRef.current);
       metronomeIntervalRef.current = null;
     }
+    if (flashTimeoutRef.current) {
+      clearTimeout(flashTimeoutRef.current);
+      flashTimeoutRef.current = null;
+    }
     setIsMetronomeRunning(false);
     setCurrentMetronomeBeat(null);
     setCurrentMeasureIndex(0);
+    setMetronomeFlashColor(null);
   };
 
   useEffect(() => {
@@ -1146,6 +1170,27 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
           </View>
         </View>
 
+        {/* Výrazný blikající pás metronomu nahoře při odpočítávání 3 taktů */}
+        {isMetronomeRunning && (
+          <View
+            style={{
+              height: 32,
+              backgroundColor: metronomeFlashColor || 'rgba(0,0,0,0.6)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              flexDirection: 'row',
+              gap: 8,
+            }}
+          >
+            <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 14 }}>
+              {currentMetronomeBeat === 1 ? '🔴 DOBA 1' : `🟢 DOBA ${currentMetronomeBeat}`}
+            </ThemedText>
+            <ThemedText type="small" style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>
+              (Takt {currentMeasureIndex}/3)
+            </ThemedText>
+          </View>
+        )}
+
         {/* Ovládací lišta - Horizontálně posuvná (Metronom Ikona, Tónina, Capo, Písmo, Posun, Tempo, Takt, REC, Upravit...) */}
         <ScrollView
           horizontal
@@ -1157,21 +1202,19 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
           <Pressable
             style={[
               styles.smallCtrlBtn,
-              isMetronomeRunning
-                ? {
-                    backgroundColor: currentMetronomeBeat === 1 ? '#f44336' : '#4caf50',
-                    borderColor: '#fff',
-                    borderWidth: 1,
-                    width: 38,
-                  }
-                : { backgroundColor: 'rgba(255, 152, 0, 0.2)', borderColor: 'rgba(255, 152, 0, 0.4)', borderWidth: 1, width: 38 }
+              {
+                backgroundColor: metronomeFlashColor || (isMetronomeRunning ? 'rgba(255, 152, 0, 0.5)' : 'rgba(255, 152, 0, 0.2)'),
+                borderColor: metronomeFlashColor ? '#fff' : 'rgba(255, 152, 0, 0.4)',
+                borderWidth: 1,
+                width: 38,
+              }
             ]}
             onPress={startVisualMetronome}
           >
             <SymbolView
               name={{ ios: 'timer', android: 'timer', web: 'timer' }}
               size={18}
-              tintColor={isMetronomeRunning ? '#fff' : '#ff9800'}
+              tintColor={metronomeFlashColor ? '#fff' : '#ff9800'}
             />
           </Pressable>
 
