@@ -89,18 +89,21 @@ export function AudioRecorder() {
     return () => clearInterval(interval);
   }, [player, playingId, isPlayingState]);
 
-  // Automatické spuštění přehrávání po vytvoření hráče pro nové URI
+  // Automatické spuštění přehrávání na 1. kliknutí po vytvoření hráče pro nové URI
   useEffect(() => {
     if (player && playingId && playerUri) {
-      try {
-        setPlaybackTimeSec(0);
-        setIsPlayingState(true);
-        player.play();
-      } catch (e) {
-        console.log("Audio play error:", e);
-      }
+      setPlaybackTimeSec(0);
+      setIsPlayingState(true);
+      const timer = setTimeout(() => {
+        try {
+          player.play();
+        } catch (e) {
+          console.log("Audio play error:", e);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [playerUri]);
+  }, [playerUri, player, playingId]);
 
   const formatDuration = (millis: number) => {
     if (!millis || millis <= 0) return '0:00';
