@@ -553,7 +553,7 @@ function DraggableMember({
           const finalPy = ((positionRef.current.y / 100) * stageSize.height) + gestureState.dy;
 
           const percentX = Math.max(5, Math.min(95, (finalPx / stageSize.width) * 100));
-          const percentY = Math.max(5, Math.min(95, (finalY / stageSize.height) * 100));
+          const percentY = Math.max(5, Math.min(95, (finalPy / stageSize.height) * 100));
 
           positionRef.current = { x: percentX, y: percentY };
           onUpdatePosition(item.memberId, percentX, percentY);
