@@ -1247,7 +1247,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
           style={{ backgroundColor: 'rgba(200,200,200,0.12)', maxHeight: 46, minHeight: 46 }}
           contentContainerStyle={styles.controlsBarContent}
         >
-          {/* 1. Vizuální Metronom (Bílá ikona s bílým rámečkem a průhledným pozadím, po spuštění 1, 2, 3, 4) */}
+          {/* 1. Vizuální Metronom (Bílá ikona s bílým rámečkem a průhledným pozadím, po spuštění 1, 2, 3, 4 zarovnáno na střed) */}
           <Pressable
             style={[
               styles.smallCtrlBtn,
@@ -1256,12 +1256,20 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
                 borderColor: '#ffffff',
                 borderWidth: 1.5,
                 width: 38,
+                height: 34,
+                justifyContent: 'center',
+                alignItems: 'center',
+                paddingHorizontal: 0,
+                paddingVertical: 0,
               }
             ]}
             onPress={startVisualMetronome}
           >
             {isMetronomeRunning ? (
-              <ThemedText type="smallBold" style={{ color: '#ffffff', fontSize: 16, fontWeight: 'bold' }}>
+              <ThemedText
+                type="smallBold"
+                style={{ color: '#ffffff', fontSize: 16, fontWeight: 'bold', textAlign: 'center', lineHeight: 18 }}
+              >
                 {currentMetronomeBeat}
               </ThemedText>
             ) : (
