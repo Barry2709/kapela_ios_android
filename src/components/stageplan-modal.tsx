@@ -56,11 +56,6 @@ export const getMemberTechBadges = (m: BandMember): string[] => {
   }
   return badges;
 };
-      if (val) badges.push(key);
-    });
-  }
-  return badges;
-};
 
 export function StageplanModal({ visible, onClose, band, members, onSave, concert }: Props) {
   const theme = useTheme();
