@@ -26,6 +26,7 @@ export function AudioRecorder() {
   const [isUploading, setIsUploading] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playbackTimeSec, setPlaybackTimeSec] = useState(0);
+  const [isPlayingState, setIsPlayingState] = useState(false);
 
   const isAdmin = activeRoleView === 'admin' || currentUser?.role === 'admin';
 
@@ -58,30 +59,36 @@ export function AudioRecorder() {
   // Sledování stavu přehrávače a dohrání nahrávky
   useEffect(() => {
     if (player && playingId) {
-      if (player.status === 'idle') {
+      if (player.playing) {
+        setIsPlayingState(true);
+      } else if (player.status === 'idle') {
         // Přehrávání skončilo - vrátit zpět na výchozí tlačítko přehrání
         setPlayingId(null);
+        setIsPlayingState(false);
         setPlaybackTimeSec(0);
+      } else if (player.status === 'paused') {
+        setIsPlayingState(false);
       }
     }
-  }, [player?.status, playingId]);
+  }, [player?.status, player?.playing, playingId]);
 
   // Sledování aktuálního času přehrávání pro průběhovou lištu
   useEffect(() => {
     let interval: any;
-    if (player && playingId && player.playing) {
+    if (player && playingId && isPlayingState) {
       interval = setInterval(() => {
         setPlaybackTimeSec(player.currentTime || 0);
       }, 250);
     }
     return () => clearInterval(interval);
-  }, [player, playingId, player?.playing]);
+  }, [player, playingId, isPlayingState]);
 
-  // Automatické spuštění přehrávání po vytvoření přehrávače pro nové URI
+  // Automatické spuštění přehrávání po vytvoření hráče pro nové URI
   useEffect(() => {
     if (player && playingId && playerUri) {
       try {
         setPlaybackTimeSec(0);
+        setIsPlayingState(true);
         player.play();
       } catch (e) {
         console.log("Audio play error:", e);
@@ -216,8 +223,10 @@ export function AudioRecorder() {
     if (playingId === record.id && player) {
       if (player.playing) {
         player.pause();
+        setIsPlayingState(false);
       } else {
         player.play();
+        setIsPlayingState(true);
       }
       return;
     }
@@ -228,11 +237,13 @@ export function AudioRecorder() {
       }
 
       setPlayingId(record.id);
+      setIsPlayingState(true);
       setPlayerUri(record.downloadUrl);
     } catch (e) {
       console.error("Nelze přehrát audio:", e);
       Alert.alert("Chyba", "Nepodařilo se přehrát záznam.");
       setPlayingId(null);
+      setIsPlayingState(false);
     }
   };
 
@@ -245,6 +256,7 @@ export function AudioRecorder() {
       } catch (e) {}
     }
     setPlayingId(null);
+    setIsPlayingState(false);
     setPlaybackTimeSec(0);
   };
 
@@ -273,6 +285,7 @@ export function AudioRecorder() {
           if (playingId === record.id && player) {
             player.pause();
             setPlayingId(null);
+            setIsPlayingState(false);
             setPlayerUri(null);
           }
         }
@@ -378,29 +391,29 @@ export function AudioRecorder() {
 
             return (
               <ThemedView key={record.id} type="backgroundElement" style={styles.recordCard}>
-                {/* Tlačítka přehrávání (Přehrát / Pauza + Stop) */}
+                {/* Tlačítka přehrávání (Pauza na vrchu, pod ním Stop) */}
                 {isCurrentPlaying ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 8 }}>
+                  <View style={{ flexDirection: 'column', alignItems: 'center', gap: 6, marginRight: 12 }}>
                     {/* Tlačítko Pauza / Přehrát */}
                     <Pressable
-                      style={styles.playButton}
+                      style={styles.playButtonMini}
                       onPress={() => playRecord(record)}
                     >
                       <SymbolView
-                        name={player?.playing ? { ios: 'pause.fill', android: 'pause', web: 'pause' } : { ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }}
-                        size={22}
+                        name={isPlayingState ? { ios: 'pause.fill', android: 'pause', web: 'pause' } : { ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }}
+                        size={20}
                         tintColor="#2196f3"
                       />
                     </Pressable>
 
-                    {/* Tlačítko Stop */}
+                    {/* Tlačítko Stop umístěné POD tlačítkem Pauza */}
                     <Pressable
-                      style={[styles.playButton, { backgroundColor: 'rgba(244,67,54,0.15)' }]}
+                      style={[styles.playButtonMini, { backgroundColor: 'rgba(244,67,54,0.15)' }]}
                       onPress={stopPlayback}
                     >
                       <SymbolView
                         name={{ ios: 'stop.fill', android: 'stop', web: 'stop' }}
-                        size={22}
+                        size={20}
                         tintColor="#f44336"
                       />
                     </Pressable>
@@ -455,7 +468,7 @@ export function AudioRecorder() {
                           {formatDuration(playbackTimeSec * 1000)} / {formatDuration(totalDurationSec * 1000)}
                         </ThemedText>
                         <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11 }}>
-                          {player?.playing ? 'Přehrává se...' : 'Pozastaveno'}
+                          {isPlayingState ? 'Přehrává se...' : 'Pozastaveno'}
                         </ThemedText>
                       </View>
 
@@ -591,13 +604,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   playButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: 'rgba(33,150,243,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+  },
+  playButtonMini: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(33,150,243,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   recordInfo: {
     flex: 1,
