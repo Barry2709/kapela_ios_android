@@ -285,11 +285,6 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
                 </ThemedText>
               </Pressable>
             ) : null}
-                <ThemedText type="smallBold" style={{ marginLeft: 8, color: '#1877f2', textAlign: 'center' }}>
-                  Facebook: {band.facebook}
-                </ThemedText>
-              </Pressable>
-            ) : null}
 
             {band.instagram ? (
               <Pressable
