@@ -34,6 +34,26 @@ interface Props {
   concert?: Concert;
 }
 
+export const getMemberTechBadges = (m: BandMember): string[] => {
+  const badges: string[] = [];
+  if (m.instrument && m.instrument.trim().length > 0) {
+    badges.push(m.instrument.trim());
+  }
+  if (m.tech?.mic) badges.push('🎤 Zpěv');
+  if (m.tech?.instrumentMic) badges.push('🎙 Nástroj. mic');
+  if (m.tech?.xlr || m.tech?.comboXlr) badges.push('🎛 XLR');
+  if (m.tech?.jack || m.tech?.comboJack) badges.push('🎸 Jack');
+  if (m.tech?.monitor || m.tech?.wirelessMonitor) badges.push('🔊 Monitor');
+  if (m.tech?.power230V) badges.push('⚡ 230V');
+
+  if (m.tech?.customTech) {
+    Object.entries(m.tech.customTech).forEach(([key, val]) => {
+      if (val) badges.push(key);
+    });
+  }
+  return badges;
+};
+
 export function StageplanModal({ visible, onClose, band, members, onSave, concert }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -49,10 +69,8 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   useEffect(() => {
     if (visible) {
       setStageplan(band.stageplan || []);
-      // Zamknout na šířku při otevření
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
     } else {
-      // Při zavření vrátit na výšku
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
     }
 
@@ -71,8 +89,8 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   // Otevření výběru člena při dlouhém podržení prázdné plochy
   const handleStageLongPress = (e: any) => {
     const { locationX, locationY } = e.nativeEvent;
+    if (!stageSize.width || !stageSize.height) return;
 
-    // Uložit pozici jako procenta
     const percentX = (locationX / stageSize.width) * 100;
     const percentY = (locationY / stageSize.height) * 100;
 
@@ -85,7 +103,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     setShowMemberPicker(false);
   };
 
-  // Generování HTML šablony pro PDF Stageplanu & Rideru
+  // Generování HTML šablony pro PDF Stageplanu & Rideru s technickými požadavky jednotlivých členů
   const generateStageplanPdfHtml = (): string => {
     const concertTitle = concert?.title || 'Koncert / Akce';
     const concertDate = concert?.date || '';
@@ -129,27 +147,43 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       `;
     }
 
-    // Členové na stagi HTML
+    // Členové na stagi HTML včetně jejich konkrétních technických požadavků
     const pinsHtml = stageplan.map(s => {
       const mem = members.find(m => m.id === s.memberId);
       if (!mem) return '';
+      const badges = getMemberTechBadges(mem).join(' • ');
       return `
         <div style="position: absolute; left: ${s.x}%; top: ${s.y}%; transform: translate(-50%, -50%); background: #2196f3; color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3); border: 1px solid #1976d2;">
           ${mem.nickname || mem.firstName}<br>
-          <span style="font-size: 9px; font-weight: normal; opacity: 0.95;">${mem.instrument || ''}</span>
+          <span style="font-size: 9px; font-weight: normal; opacity: 0.95;">${badges}</span>
         </div>
       `;
     }).join('');
 
-    // Technický rider balíčky
+    // Technický rider balíčky kapely a rozpis podle členů
     let techPresetsHtml = '';
+    const memberTechListHtml = members
+      .filter(m => stageplan.some(s => s.memberId === m.id))
+      .map(m => {
+        const badges = getMemberTechBadges(m);
+        if (badges.length === 0) return '';
+        return `
+          <div style="background: #f8f9fa; border: 1px solid #e0e0e0; padding: 8px 12px; border-radius: 6px; width: 48%; box-sizing: border-box;">
+            <strong style="font-size: 12px; color: #1976d2;">${m.nickname || m.firstName} ${m.lastName || ''}</strong> (${m.instrument || ''})
+            <div style="font-size: 11px; color: #555; margin-top: 4px;">
+              ${badges.join(' • ')}
+            </div>
+          </div>
+        `;
+      }).join('');
+
     if (band.techRiderPresets && band.techRiderPresets.length > 0) {
       techPresetsHtml = `
         <div style="margin-top: 15px;">
           <h3 style="margin-bottom: 6px; color: #2e7d32; border-bottom: 2px solid #2e7d32; padding-bottom: 3px;">Požadavky na techniku & zvukaře (Tech Rider):</h3>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px;">
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; margin-bottom: 10px;">
             ${band.techRiderPresets.map(p => `
-              <span style="background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; padding: 5px 10px; border-radius: 12px; font-size: 11px; font-weight: bold;">
+              <span style="background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold;">
                 ✔ ${p}
               </span>
             `).join('')}
@@ -194,6 +228,14 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
         </div>
 
         ${techPresetsHtml}
+
+        <div style="margin-top: 15px;">
+          <h3 style="margin-bottom: 6px; color: #1976d2;">Technické požadavky jednotlivých muzikantů:</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+            ${memberTechListHtml}
+          </div>
+        </div>
+
         ${orgsHtml}
 
         <div class="footer">
@@ -228,7 +270,6 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
           Linking.openURL(`mailto:${emailList}?subject=${subject}`);
         }
       } else {
-        // Fallback pro starý build bez nativního expo-print
         Linking.openURL(`mailto:${emailList}?subject=${subject}`);
       }
 
@@ -289,7 +330,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
               adjustsFontSizeToFit
               style={{ marginTop: 2, textAlign: 'center' }}
             >
-              Podržením plochy přidáte člena. Podržením člena přesouváte. Dvojitým klepnutím mažete.
+              Podržením plochy přidáte člena. Přetažením přesouváte. Dvojitým klepnutím mažete.
             </ThemedText>
           </View>
 
@@ -440,7 +481,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   );
 }
 
-// Komponenta reprezentující jednoho člena na stageplanu (Drag and Drop)
+// Komponenta reprezentující jednoho člena na stageplanu (Drag and Drop s podporou dotyků i myši)
 function DraggableMember({
   item,
   member,
@@ -457,20 +498,26 @@ function DraggableMember({
   onRemove: (id: string) => void;
 }) {
   const pan = useRef(new Animated.ValueXY({
-    x: (item.x / 100) * stageSize.width,
-    y: (item.y / 100) * stageSize.height
+    x: (item.x / 100) * (stageSize.width || 300),
+    y: (item.y / 100) * (stageSize.height || 200)
   })).current;
 
   useEffect(() => {
-    pan.setValue({
-      x: (item.x / 100) * stageSize.width,
-      y: (item.y / 100) * stageSize.height
-    });
-  }, [item.x, item.y, stageSize]);
+    if (stageSize.width > 0 && stageSize.height > 0) {
+      pan.setValue({
+        x: (item.x / 100) * stageSize.width,
+        y: (item.y / 100) * stageSize.height
+      });
+    }
+  }, [item.x, item.y, stageSize.width, stageSize.height]);
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
+      onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
         pan.setOffset({
           x: (pan.x as any)._value,
@@ -487,13 +534,16 @@ function DraggableMember({
         const currentX = (pan.x as any)._value;
         const currentY = (pan.y as any)._value;
 
-        const percentX = Math.max(5, Math.min(95, (currentX / stageSize.width) * 100));
-        const percentY = Math.max(5, Math.min(95, (currentY / stageSize.height) * 100));
-
-        onUpdatePosition(item.memberId, percentX, percentY);
+        if (stageSize.width > 0 && stageSize.height > 0) {
+          const percentX = Math.max(5, Math.min(95, (currentX / stageSize.width) * 100));
+          const percentY = Math.max(5, Math.min(95, (currentY / stageSize.height) * 100));
+          onUpdatePosition(item.memberId, percentX, percentY);
+        }
       }
     })
   ).current;
+
+  const techBadges = getMemberTechBadges(member);
 
   return (
     <Animated.View
@@ -520,9 +570,19 @@ function DraggableMember({
           <ThemedText type="smallBold" style={{ fontSize: 11, marginTop: 2, textAlign: 'center' }}>
             {member.nickname || member.firstName}
           </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 9, textAlign: 'center' }}>
-            {member.instrument}
-          </ThemedText>
+
+          {/* Zobrazení konkrétních technických požadavků člena u jeho špendlíku na stagi */}
+          {techBadges.length > 0 && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 2, marginTop: 3, maxWidth: 110 }}>
+              {techBadges.map((badge, bIdx) => (
+                <View key={bIdx} style={styles.pinTechBadge}>
+                  <ThemedText type="small" style={{ fontSize: 8, color: '#2196f3', fontWeight: 'bold' }}>
+                    {badge}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       </Pressable>
     </Animated.View>
@@ -574,6 +634,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+  },
+  pinTechBadge: {
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+    backgroundColor: 'rgba(33, 150, 243, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(33, 150, 243, 0.3)',
   },
   modalOverlay: {
     flex: 1,
