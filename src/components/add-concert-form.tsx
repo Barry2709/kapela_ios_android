@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TextInput, ScrollView, Pressable, Alert, Platform, Switch } from 'react-native';
+import { View, StyleSheet, TextInput, ScrollView, Pressable, Alert, Platform, Switch, Modal } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -7,7 +7,7 @@ import { ThemedText } from './themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/useAppStore';
-import { Concert } from '@/types';
+import { Concert, OrganizerContact } from '@/types';
 import { SetlistEditorModal } from './setlist-editor-modal';
 
 interface Props {
@@ -27,6 +27,69 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
 
   const [setlist, setSetlist] = useState<string[]>(initialConcert?.setlist || []);
   const [showSetlistEditor, setShowSetlistEditor] = useState(false);
+
+  // Organizátoři / Kontakty na pořadatele
+  const [organizers, setOrganizers] = useState<OrganizerContact[]>(
+    initialConcert?.organizers || []
+  );
+
+  // Formular state pro nový/upravovaný kontakt na pořadatele
+  const [editingOrgId, setEditingOrgId] = useState<string | null>(null);
+  const [orgName, setOrgName] = useState('');
+  const [orgPhone, setOrgPhone] = useState('');
+  const [orgEmail, setOrgEmail] = useState('');
+  const [orgRole, setOrgRole] = useState<'Pořadatel' | 'Zvukař' | 'Kontakt'>('Pořadatel');
+  const [showOrgModal, setShowOrgModal] = useState(false);
+
+  const openAddOrganizer = () => {
+    setEditingOrgId(null);
+    setOrgName('');
+    setOrgPhone('');
+    setOrgEmail('');
+    setOrgRole('Pořadatel');
+    setShowOrgModal(true);
+  };
+
+  const openEditOrganizer = (contact: OrganizerContact) => {
+    setEditingOrgId(contact.id);
+    setOrgName(contact.name);
+    setOrgPhone(contact.phone || '');
+    setOrgEmail(contact.email || '');
+    setOrgRole((contact.role as any) || 'Pořadatel');
+    setShowOrgModal(true);
+  };
+
+  const handleSaveOrganizer = () => {
+    if (!orgName.trim()) {
+      Alert.alert('Chyba', 'Zadejte prosím jméno kontaktní osoby.');
+      return;
+    }
+
+    if (editingOrgId) {
+      setOrganizers(prev =>
+        prev.map(c =>
+          c.id === editingOrgId
+            ? { ...c, name: orgName.trim(), phone: orgPhone.trim() || undefined, email: orgEmail.trim() || undefined, role: orgRole }
+            : c
+        )
+      );
+    } else {
+      const newContact: OrganizerContact = {
+        id: 'org_' + Date.now(),
+        name: orgName.trim(),
+        phone: orgPhone.trim() || undefined,
+        email: orgEmail.trim() || undefined,
+        role: orgRole,
+      };
+      setOrganizers(prev => [...prev, newContact]);
+    }
+
+    setShowOrgModal(false);
+  };
+
+  const handleDeleteOrganizer = (id: string) => {
+    setOrganizers(prev => prev.filter(c => c.id !== id));
+  };
 
   const toggleWhatToTakeItem = (item: string) => {
     if (selectedWhatToTake.includes(item)) {
@@ -98,7 +161,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
   const [soundCheckFromObj, setSoundCheckFromObj] = useState(parseTimeStr(initialConcert?.soundCheckFrom, 18, 30));
   const [soundCheckToObj, setSoundCheckToObj] = useState(parseTimeStr(initialConcert?.soundCheckTo, 19, 30));
 
-  // Kontakty
+  // Kontakty (starý textový řádek)
   const [contacts, setContacts] = useState(initialConcert?.contacts || '');
 
   // Stav pro zobrazení aktivního Date/Time Pickera
@@ -157,6 +220,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
       soundCheckFrom: formatTime(soundCheckFromObj),
       soundCheckTo: formatTime(soundCheckToObj),
       contacts,
+      organizers,
       whatToTake: selectedWhatToTake,
       setlist,
     });
@@ -178,42 +242,32 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
         placeholderTextColor={theme.textSecondary}
       />
 
-      {/* Tlačítka pod názvem: Soukromá akce & Zrušená akce */}
+      {/* Přepínače Soukromá / Zrušená */}
       <View style={styles.switchContainer}>
         <View style={styles.switchRow}>
-          <ThemedText type="smallBold">Soukromá akce</ThemedText>
-          <Switch
-            value={isPrivate}
-            onValueChange={setIsPrivate}
-            trackColor={{ false: 'rgba(200,200,200,0.2)', true: '#2196f3' }}
-          />
+          <Switch value={isPrivate} onValueChange={setIsPrivate} trackColor={{ false: '#767577', true: '#2196f3' }} />
+          <ThemedText type="small">Soukromá akce</ThemedText>
         </View>
 
         <View style={styles.switchRow}>
-          <ThemedText type="smallBold" style={{ color: isCancelled ? '#e91e63' : theme.text }}>
-            Zrušená akce
-          </ThemedText>
-          <Switch
-            value={isCancelled}
-            onValueChange={setIsCancelled}
-            trackColor={{ false: 'rgba(200,200,200,0.2)', true: '#e91e63' }}
-          />
+          <Switch value={isCancelled} onValueChange={setIsCancelled} trackColor={{ false: '#767577', true: '#e91e63' }} />
+          <ThemedText type="small" style={{ color: isCancelled ? '#e91e63' : theme.text }}>Zrušeno</ThemedText>
         </View>
       </View>
 
-      {/* Datum akce - DatePicker */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>Datum akce *</ThemedText>
+      {/* Datum konání */}
+      <ThemedText type="smallBold">Datum akce *</ThemedText>
       <Pressable
         style={[styles.pickerButton, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         onPress={() => setActivePicker('date')}
       >
-        <SymbolView name={{ ios: 'calendar', android: 'event', web: 'event' }} size={18} tintColor={theme.textSecondary} />
-        <ThemedText type="smallBold" style={{ marginLeft: 6 }}>
-          {formatDateDDMMYYYY(dateObj)}
+        <SymbolView name={{ ios: 'calendar', android: 'event', web: 'event' }} size={20} tintColor={theme.textSecondary} />
+        <ThemedText type="smallBold" style={{ marginLeft: 8 }}>
+          📅 {formatDateDDMMYYYY(dateObj)}
         </ThemedText>
       </Pressable>
 
-      {/* Začátek a Konec akce přes TimePicker */}
+      {/* Časy Od - Do */}
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
           <ThemedText type="smallBold">Začátek *</ThemedText>
@@ -248,21 +302,21 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={location}
         onChangeText={setLocation}
-        placeholder="Např. Náměstí Klášterec, Klub Baráčník"
+        placeholder="Např. Amfiteátr, Zámecký park Klášterec"
         placeholderTextColor={theme.textSecondary}
       />
 
       {/* Cena / Honorář */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>Cena / Honorář</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>Honorář / Cena za vystoupení</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={price}
         onChangeText={setPrice}
-        placeholder="Např. 15 000 Kč, 20 000 Kč + doprava"
+        placeholder="Např. 15 000 Kč nebo Dle dohody"
         placeholderTextColor={theme.textSecondary}
       />
 
-      {/* Odjezd: Čas přes TimePicker a Místo */}
+      {/* Odjezd */}
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
           <ThemedText type="smallBold">Čas odjezdu</ThemedText>
@@ -283,13 +337,13 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
             style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             value={departureLocation}
             onChangeText={setDepartureLocation}
-            placeholder="Zkušebna"
+            placeholder="Odkud se jede"
             placeholderTextColor={theme.textSecondary}
           />
         </View>
       </View>
 
-      {/* Zvukovka od - do přes TimePicker */}
+      {/* Zvukovka Od - Do */}
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
           <ThemedText type="smallBold">Zvukovka od</ThemedText>
@@ -318,17 +372,60 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
         </View>
       </View>
 
-      {/* Kontakty */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>Kontakty na pořadatele</ThemedText>
-      <TextInput
-        style={[styles.input, styles.multilineInput, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
-        value={contacts}
-        onChangeText={setContacts}
-        placeholder="Jan Novák (pořadatel): +420 777 123 456, Zvukař Petr: +420 608..."
-        placeholderTextColor={theme.textSecondary}
-        multiline
-        numberOfLines={3}
-      />
+      {/* Kontakty na pořadatele / organizátory */}
+      <View style={{ marginTop: Spacing.three, marginBottom: Spacing.two }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <ThemedText type="smallBold">Kontakty na pořadatele / zvukaře ({organizers.length})</ThemedText>
+          <Pressable
+            style={styles.addOrgBtn}
+            onPress={openAddOrganizer}
+          >
+            <SymbolView name={{ ios: 'plus.circle.fill', android: 'add_circle', web: 'add_circle' }} size={16} tintColor="#2196f3" />
+            <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 12 }}>Přidat kontakt</ThemedText>
+          </Pressable>
+        </View>
+
+        {organizers.length === 0 ? (
+          <ThemedText type="small" themeColor="textSecondary" style={{ fontStyle: 'italic', marginBottom: 4 }}>
+            Zatím nebyly zadány žádné kontakty. Kliknutím na "+ Přidat kontakt" přidejte pořadatele, zvukaře nebo kontaktní osobu.
+          </ThemedText>
+        ) : (
+          <View style={{ gap: 8 }}>
+            {organizers.map(org => (
+              <View key={org.id} style={styles.orgContactCard}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={[styles.orgRoleBadge, { backgroundColor: org.role === 'Zvukař' ? 'rgba(255,152,0,0.2)' : (org.role === 'Pořadatel' ? 'rgba(76,175,80,0.2)' : 'rgba(33,150,243,0.2)') }]}>
+                      <ThemedText type="smallBold" style={{ color: org.role === 'Zvukař' ? '#ff9800' : (org.role === 'Pořadatel' ? '#4caf50' : '#2196f3'), fontSize: 10 }}>
+                        {org.role || 'Kontakt'}
+                      </ThemedText>
+                    </View>
+                    <ThemedText type="smallBold" style={{ fontSize: 14 }}>{org.name}</ThemedText>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
+                    {org.phone ? (
+                      <ThemedText type="small" style={{ color: '#2196f3' }}>📞 {org.phone}</ThemedText>
+                    ) : null}
+                    {org.email ? (
+                      <ThemedText type="small" style={{ color: '#2196f3' }}>✉️ {org.email}</ThemedText>
+                    ) : null}
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Pressable onPress={() => openEditOrganizer(org)} style={{ padding: 4 }}>
+                    <SymbolView name={{ ios: 'pencil', android: 'edit', web: 'edit' }} size={18} tintColor={theme.textSecondary} />
+                  </Pressable>
+                  <Pressable onPress={() => handleDeleteOrganizer(org.id)} style={{ padding: 4 }}>
+                    <SymbolView name={{ ios: 'trash.fill', android: 'delete', web: 'delete' }} size={18} tintColor="#e91e63" />
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
 
       {/* Co vzít s sebou na akci - Dynamické štítky z nastavení */}
       <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>Co vzít s sebou na akci</ThemedText>
@@ -442,6 +539,83 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
         onSaveSetlist={(updatedIds) => setSetlist(updatedIds)}
       />
 
+      {/* Modal pro přidání / úpravu jednoho pořadatele/zvukaře */}
+      <Modal visible={showOrgModal} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setShowOrgModal(false)}>
+          <Pressable style={[styles.modalBox, { backgroundColor: theme.backgroundElement }]} onPress={e => e.stopPropagation()}>
+            <ThemedText type="subtitle" style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}>
+              {editingOrgId ? 'Upravit kontakt' : 'Přidat kontakt pořadatele / zvukaře'}
+            </ThemedText>
+
+            {/* Rychlé volby role: Pořadatel, Zvukař, Kontakt */}
+            <ThemedText type="smallBold" style={{ marginBottom: 6 }}>Role / Typ kontaktu</ThemedText>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+              {(['Pořadatel', 'Zvukař', 'Kontakt'] as const).map(roleOption => {
+                const isSelected = orgRole === roleOption;
+                return (
+                  <Pressable
+                    key={roleOption}
+                    style={[
+                      styles.roleChipBtn,
+                      isSelected ? { backgroundColor: '#2196f3', borderColor: '#2196f3' } : styles.roleChipBtnInactive
+                    ]}
+                    onPress={() => setOrgRole(roleOption)}
+                  >
+                    <ThemedText type="smallBold" style={{ color: isSelected ? '#fff' : theme.text, fontSize: 12 }}>
+                      {roleOption}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Jméno */}
+            <ThemedText type="smallBold" style={{ marginBottom: 4 }}>Jméno a Příjmení *</ThemedText>
+            <TextInput
+              style={[styles.inputModal, { color: theme.text, borderColor: 'rgba(150,150,150,0.3)', backgroundColor: 'rgba(150,150,150,0.1)', marginBottom: 10 }]}
+              placeholder="Např. Jan Novák"
+              placeholderTextColor={theme.textSecondary}
+              value={orgName}
+              onChangeText={setOrgName}
+              autoFocus
+            />
+
+            {/* Telefon */}
+            <ThemedText type="smallBold" style={{ marginBottom: 4 }}>Telefonní číslo</ThemedText>
+            <TextInput
+              style={[styles.inputModal, { color: theme.text, borderColor: 'rgba(150,150,150,0.3)', backgroundColor: 'rgba(150,150,150,0.1)', marginBottom: 10 }]}
+              placeholder="Např. +420 777 123 456"
+              placeholderTextColor={theme.textSecondary}
+              keyboardType="phone-pad"
+              value={orgPhone}
+              onChangeText={setOrgPhone}
+            />
+
+            {/* Email */}
+            <ThemedText type="smallBold" style={{ marginBottom: 4 }}>E-mail</ThemedText>
+            <TextInput
+              style={[styles.inputModal, { color: theme.text, borderColor: 'rgba(150,150,150,0.3)', backgroundColor: 'rgba(150,150,150,0.1)', marginBottom: 16 }]}
+              placeholder="Např. novak@poradatel.cz"
+              placeholderTextColor={theme.textSecondary}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={orgEmail}
+              onChangeText={setOrgEmail}
+            />
+
+            {/* Tlačítka Uložit / Zrušit */}
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+              <Pressable onPress={() => setShowOrgModal(false)} style={styles.modalCancelBtn}>
+                <ThemedText type="smallBold" themeColor="textSecondary">Zrušit</ThemedText>
+              </Pressable>
+              <Pressable onPress={handleSaveOrganizer} style={styles.modalSaveBtn}>
+                <ThemedText type="smallBold" style={{ color: '#fff' }}>Uložit kontakt</ThemedText>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
     </ScrollView>
   );
 }
@@ -490,9 +664,11 @@ const styles = StyleSheet.create({
     marginTop: Spacing.one,
     fontSize: 16,
   },
-  multilineInput: {
-    height: 70,
-    textAlignVertical: 'top',
+  inputModal: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 15,
   },
   presetChip: {
     paddingVertical: 6,
@@ -503,13 +679,71 @@ const styles = StyleSheet.create({
   buttons: {
     flexDirection: 'row',
     gap: Spacing.three,
-    marginTop: Spacing.five,
+    marginTop: Spacing.four,
   },
   button: {
     flex: 1,
-    paddingVertical: Spacing.two,
+    padding: Spacing.three,
     borderRadius: Spacing.two,
     alignItems: 'center',
+  },
+  addOrgBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: 'rgba(33,150,243,0.15)',
+  },
+  orgContactCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: 'rgba(200,200,200,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(200,200,200,0.25)',
+  },
+  orgRoleBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  roleChipBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  roleChipBtnInactive: {
+    backgroundColor: 'rgba(150,150,150,0.15)',
+    borderColor: 'rgba(150,150,150,0.3)',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalBox: {
+    width: '100%',
+    maxWidth: 400,
+    padding: 20,
+    borderRadius: 12,
+  },
+  modalCancelBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  modalSaveBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#2196f3',
   },
 });

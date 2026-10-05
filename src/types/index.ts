@@ -72,6 +72,14 @@ export interface AttendanceRecord {
   updatedAt?: number;
 }
 
+export interface OrganizerContact {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  role: 'Pořadatel' | 'Zvukař' | 'Kontakt' | string;
+}
+
 export interface Concert {
   id: string;
   bandId: string;
@@ -87,7 +95,8 @@ export interface Concert {
   departureLocation?: string; // Místo odjezdu
   soundCheckFrom?: string; // Zvukovka od
   soundCheckTo?: string; // Zvukovka do
-  contacts?: string; // Kontakty na pořadatele
+  contacts?: string; // Starý textový řádek pro zpětnou kompatibilitu
+  organizers?: OrganizerContact[]; // Strukturované kontakty na pořadatele
   whatToTake?: string[]; // Dynamické položky co vzít s sebou (např. ["Banner", "Merch"])
   notes?: string;
   attendees?: Record<string, AttendanceStatus | AttendanceRecord>;
@@ -118,6 +127,7 @@ export interface Inquiry {
   endTime: string; // Čas do (povinné)
   phone?: string; // Telefon
   email?: string; // E-mail
+  organizers?: OrganizerContact[]; // Strukturované kontakty na pořadatele
   offeredPrice?: string; // Nabízená cena
   notes?: string; // Poznámka
   createdByUid?: string; // UID uživatele který poptávku vytvořil

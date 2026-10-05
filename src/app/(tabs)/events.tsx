@@ -848,6 +848,39 @@ export default function EventsScreen() {
           </ThemedText>
         </Pressable>
 
+        {/* Kontakty na pořadatele */}
+        {(concert.organizers && concert.organizers.length > 0) || concert.contacts ? (
+          <View style={{ marginTop: 6, paddingTop: 4, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.15)' }}>
+            <ThemedText type="smallBold" themeColor="textSecondary">Kontakty na pořadatele:</ThemedText>
+            {concert.organizers && concert.organizers.length > 0 ? (
+              <View style={{ gap: 6, marginTop: 4 }}>
+                {concert.organizers.map(org => (
+                  <View key={org.id} style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                    <View style={[styles.orgBadgeSmall, { backgroundColor: org.role === 'Zvukař' ? 'rgba(255,152,0,0.2)' : (org.role === 'Pořadatel' ? 'rgba(76,175,80,0.2)' : 'rgba(33,150,243,0.2)') }]}>
+                      <ThemedText type="smallBold" style={{ color: org.role === 'Zvukař' ? '#ff9800' : (org.role === 'Pořadatel' ? '#4caf50' : '#2196f3'), fontSize: 10 }}>
+                        {org.role || 'Kontakt'}
+                      </ThemedText>
+                    </View>
+                    <ThemedText type="smallBold" style={{ fontSize: 12 }}>{org.name}</ThemedText>
+                    {org.phone ? (
+                      <Pressable onPress={() => Linking.openURL(`tel:${org.phone}`)}>
+                        <ThemedText type="small" style={{ color: '#2196f3', fontSize: 12 }}>📞 {org.phone}</ThemedText>
+                      </Pressable>
+                    ) : null}
+                    {org.email ? (
+                      <Pressable onPress={() => Linking.openURL(`mailto:${org.email}`)}>
+                        <ThemedText type="small" style={{ color: '#2196f3', fontSize: 12 }}>✉️ {org.email}</ThemedText>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <ThemedText type="small" style={{ marginTop: 2 }}>{concert.contacts}</ThemedText>
+            )}
+          </View>
+        ) : null}
+
         {/* Rozpis docházky na kartě koncertu */}
         {renderAttendanceBreakdown(concert.id, concert.attendees, 'concert')}
 
@@ -1343,6 +1376,11 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   content: { paddingHorizontal: 2, paddingBottom: Spacing.six },
   sectionContainer: { marginTop: Spacing.two },
+  orgBadgeSmall: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
