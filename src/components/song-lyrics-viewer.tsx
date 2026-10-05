@@ -1146,41 +1146,83 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
           </View>
         </View>
 
-        {/* Ovládací lišta - Horizontálně posuvná (Metronom, Tempo, Takt, Tónina, Capo, Písmo, Auto-scroll, REC, Upravit...) */}
+        {/* Ovládací lišta - Horizontálně posuvná (Metronom Ikona, Tónina, Capo, Písmo, Posun, Tempo, Takt, REC, Upravit...) */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={{ backgroundColor: 'rgba(200,200,200,0.12)', maxHeight: 46, minHeight: 46 }}
           contentContainerStyle={styles.controlsBarContent}
         >
-          {/* 1. Vizuální Metronom (Na PRVNÍM MÍSTĚ v liště) - bliká 3 takty (1. doba červená, zbytek zeleně) */}
+          {/* 1. Vizuální Metronom (Na PRVNÍM MÍSTĚ v liště jako čistá IKONA) - bliká 3 takty (1. doba červená, zbytek zeleně) */}
           <Pressable
             style={[
-              styles.scrollToggleBtn,
+              styles.smallCtrlBtn,
               isMetronomeRunning
                 ? {
                     backgroundColor: currentMetronomeBeat === 1 ? '#f44336' : '#4caf50',
                     borderColor: '#fff',
                     borderWidth: 1,
+                    width: 38,
                   }
-                : { backgroundColor: 'rgba(255, 152, 0, 0.2)', borderColor: 'rgba(255, 152, 0, 0.4)', borderWidth: 1 }
+                : { backgroundColor: 'rgba(255, 152, 0, 0.2)', borderColor: 'rgba(255, 152, 0, 0.4)', borderWidth: 1, width: 38 }
             ]}
             onPress={startVisualMetronome}
           >
             <SymbolView
               name={{ ios: 'timer', android: 'timer', web: 'timer' }}
-              size={16}
+              size={18}
               tintColor={isMetronomeRunning ? '#fff' : '#ff9800'}
             />
-            <ThemedText
-              type="smallBold"
-              style={{ color: isMetronomeRunning ? '#fff' : '#ff9800', fontSize: 11, marginLeft: 4 }}
-            >
-              {isMetronomeRunning ? `${currentMetronomeBeat} (${currentMeasureIndex}/3)` : 'Metronom'}
+          </Pressable>
+
+          {/* Transpozice tóniny */}
+          <View style={styles.controlGroup}>
+            <Pressable style={styles.smallCtrlBtn} onPress={() => handleTransposeChange(transpose - 1)}>
+              <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>-</ThemedText>
+            </Pressable>
+            <ThemedText type="smallBold" style={{ color: transpose !== 0 ? '#ffc107' : effectiveTextColor, fontSize: 15, paddingHorizontal: 2 }}>
+              {getFirstKey(currentSong, transpose)}
+            </ThemedText>
+            <Pressable style={styles.smallCtrlBtn} onPress={() => handleTransposeChange(transpose + 1)}>
+              <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>+</ThemedText>
+            </Pressable>
+          </View>
+
+          {/* Ovládání Osobního Capo (C 0, C 1, C 2... max 12) */}
+          <View style={styles.controlGroup}>
+            <Pressable style={styles.smallCtrlBtn} onPress={() => handleCapoChange(Math.max(0, capo - 1))}>
+              <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>-</ThemedText>
+            </Pressable>
+            <ThemedText type="smallBold" style={{ color: capo > 0 ? '#ffc107' : effectiveTextColor, fontSize: 13, paddingHorizontal: 2 }}>
+              C {capo}
+            </ThemedText>
+            <Pressable style={styles.smallCtrlBtn} onPress={() => handleCapoChange(Math.min(12, capo + 1))}>
+              <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>+</ThemedText>
+            </Pressable>
+          </View>
+
+          {/* Velikost písma bez spodního omezení u A- */}
+          <View style={styles.controlGroup}>
+            <Pressable style={styles.smallCtrlBtn} onPress={() => handleFontSizeChange(Math.max(3, fontSize - 1))}>
+              <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>A-</ThemedText>
+            </Pressable>
+            <Pressable style={styles.smallCtrlBtn} onPress={() => handleFontSizeChange(Math.min(48, fontSize + 1))}>
+              <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>A+</ThemedText>
+            </Pressable>
+          </View>
+
+          {/* Auto-scroll (Posun) */}
+          <Pressable
+            style={[styles.scrollToggleBtn, { backgroundColor: isAutoScrolling ? '#4caf50' : 'rgba(150,150,150,0.2)' }]}
+            onPress={() => setIsAutoScrolling(!isAutoScrolling)}
+          >
+            <SymbolView name={{ ios: isAutoScrolling ? 'pause.fill' : 'play.fill', android: isAutoScrolling ? 'pause' : 'play_arrow', web: isAutoScrolling ? 'pause' : 'play_arrow' }} size={16} tintColor={isAutoScrolling ? '#fff' : effectiveTextColor} />
+            <ThemedText type="smallBold" style={{ color: isAutoScrolling ? '#fff' : effectiveTextColor, fontSize: 11, marginLeft: 4 }}>
+              {isAutoScrolling ? 'Stop' : 'Posun'}
             </ThemedText>
           </Pressable>
 
-          {/* 2. Zadání Tempa písně (BPM) */}
+          {/* Zadání Tempa písně (BPM) ZA TLAČÍTKEM POSUN */}
           <View style={styles.controlGroup}>
             <Pressable style={styles.smallCtrlBtn} onPress={() => handleTempoChange(tempoBpm - 5)}>
               <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>-</ThemedText>
@@ -1193,7 +1235,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
             </Pressable>
           </View>
 
-          {/* 3. Přepínač taktu písně (4/4 nebo 3/4) */}
+          {/* Přepínač taktu písně (4/4 nebo 3/4) ZA TEMPEM */}
           <Pressable
             style={[styles.smallCtrlBtn, { backgroundColor: 'rgba(255, 152, 0, 0.2)', paddingHorizontal: 8 }]}
             onPress={handleTimeSigToggle}
