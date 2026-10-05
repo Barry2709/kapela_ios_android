@@ -192,14 +192,18 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
     }
 
     setIsSaving(true);
-    await onSave({
-      name,
-      genre,
-      web,
-      facebook,
-      instagram,
-      logoUri: logoUri || undefined,
-    });
+    try {
+      await onSave({
+        name,
+        genre,
+        web,
+        facebook,
+        instagram,
+        logoUri: logoUri || undefined,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (activeRoleView === 'fan') {
@@ -233,7 +237,7 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
           ) : null}
 
           {/* Web a sociální sítě */}
-          <View style={{ gap: 8, marginVertical: Spacing.two }}>
+          <View style={{ gap: 8, marginTop: Spacing.two - 4, marginBottom: Spacing.two }}>
             {band.web ? (
               <Pressable
                 style={[styles.fanWebBtn, { backgroundColor: theme.backgroundElement }]}
@@ -254,7 +258,17 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
 
             {band.facebook ? (
               <Pressable
-                style={[styles.fanWebBtn, { backgroundColor: 'rgba(24, 119, 242, 0.15)', borderColor: 'rgba(24, 119, 242, 0.4)', borderWidth: 1 }]}
+                style={[
+                  styles.fanWebBtn,
+                  {
+                    backgroundColor: 'rgba(24, 119, 242, 0.15)',
+                    borderColor: 'rgba(24, 119, 242, 0.4)',
+                    borderWidth: 1,
+                    marginTop: -4,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }
+                ]}
                 onPress={() => {
                   let url = band.facebook!;
                   if (!url.startsWith('http://') && !url.startsWith('https://')) {
@@ -263,8 +277,8 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
                   Linking.openURL(url);
                 }}
               >
-                <SymbolView name={{ ios: 'f.square.fill', android: 'facebook', web: 'facebook' }} size={20} tintColor="#1877f2" />
-                <ThemedText type="smallBold" style={{ marginLeft: 8, color: '#1877f2' }}>
+                <SymbolView name={{ ios: 'f.square.fill', android: 'facebook', web: 'facebook' }} size={22} tintColor="#1877f2" />
+                <ThemedText type="smallBold" style={{ marginLeft: 8, color: '#1877f2', textAlign: 'center' }}>
                   Facebook: {band.facebook}
                 </ThemedText>
               </Pressable>
