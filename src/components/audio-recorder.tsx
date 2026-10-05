@@ -147,21 +147,20 @@ export function AudioRecorder() {
     if (!activeBand || !pendingRecordUri) return;
     setIsUploading(true);
     try {
-      const extension = pendingRecordUri.split('.').pop() || 'm4a';
-      const fileName = `record_${Date.now()}.${extension}`;
+      const finalTitle = recordTitle.trim() || 'Nová nahrávka';
 
-      // Uložení do Storage složky: kapela_ios_android/"název kapely"/records/
+      // Uložení do Storage složky: kapela_ios_android/"název kapely"/records/"název nahrávky".ext
       const uploadResult = await uploadAudioToStorage(
         activeBand.id,
         pendingRecordUri,
-        fileName,
+        finalTitle,
         activeBand.name
       );
 
       // Uložení záznamu do Firestore
       await addAudioRecord(activeBand.id, {
         bandId: activeBand.id,
-        title: recordTitle.trim() || 'Nová nahrávka',
+        title: finalTitle,
         durationMillis: pendingRecordDuration,
         downloadUrl: uploadResult.downloadUrl,
         storagePath: uploadResult.storagePath,
@@ -184,8 +183,22 @@ export function AudioRecorder() {
     setRecordTitle('');
   };
 
-  // 4. Přehrávání nahrávky
-  const playRecord = (record: AudioRecord) => {
+  // 4. Přehrávání nahrávky s kontrolou existence souboru na Storage
+  const playRecord = async (record: AudioRecord) => {
+    if (!activeBand) return;
+
+    // Kontrola zda soubor stále existuje na Storage serveru. Pokud ne, smažeme ho i z aplikace.
+    try {
+      const checkResp = await fetch(record.downloadUrl, { method: 'HEAD' });
+      if (!checkResp.ok && checkResp.status === 404) {
+        Alert.alert("Soubor nenalezen", "Tato nahrávka byla ze serveru Storage smazána. Smazáno i z databáze.");
+        await deleteAudioRecord(activeBand.id, record.id);
+        return;
+      }
+    } catch (err) {
+      // Ignorujeme dočasné síťové výpadky
+    }
+
     if (playingId === record.id && player) {
       if (player.playing) {
         player.pause();

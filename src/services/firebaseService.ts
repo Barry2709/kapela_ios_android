@@ -935,14 +935,23 @@ export const deleteAudioRecord = async (bandId: string, recordId: string, storag
   await deleteDoc(targetRef);
 };
 
+export const getAudioStorageFilename = (title: string, extension: string = 'm4a'): string => {
+  const safeTitle = title.trim().replace(/[/\\?%*:|"<>]/g, '_');
+  const safeExt = extension.replace(/^\./, '');
+  return `${safeTitle}_${Date.now()}.${safeExt}`;
+};
+
 export const uploadAudioToStorage = async (
   bandId: string,
   uri: string,
-  fileName: string,
+  title: string,
   bandName?: string
 ): Promise<{ downloadUrl: string; storagePath: string }> => {
   if (!bandId) throw new Error("Chybí ID kapely.");
   const safeBandFolder = bandName ? bandName.trim().replace(/[/\\?%*:|"<>]/g, '_') : bandId;
+  const rawExt = uri.split('.').pop()?.split('?')[0] || 'm4a';
+  const fileName = getAudioStorageFilename(title || 'Nahrávka', rawExt);
+
   const path = `${BANDS_COLLECTION}/${safeBandFolder}/records/${fileName}`;
   const storageRef = ref(storage, path);
 
@@ -966,6 +975,36 @@ export const uploadAudioToStorage = async (
     downloadUrl,
     storagePath: path,
   };
+};
+
+export const validateAndCleanupAudioRecords = async (
+  bandId: string,
+  records: import('../types').AudioRecord[]
+): Promise<import('../types').AudioRecord[]> => {
+  const validRecords: import('../types').AudioRecord[] = [];
+
+  for (const record of records) {
+    if (!record.downloadUrl) {
+      deleteAudioRecord(bandId, record.id);
+      continue;
+    }
+
+    try {
+      if (record.storagePath) {
+        const storageRef = ref(storage, record.storagePath);
+        await getDownloadURL(storageRef);
+      }
+      validRecords.push(record);
+    } catch (err: any) {
+      if (err?.code === 'storage/object-not-found' || err?.message?.includes('object-not-found')) {
+        console.log(`Nahrávka ${record.title} neexistuje na Storage, odstraňuji z databáze Firestore.`);
+        deleteAudioRecord(bandId, record.id);
+      } else {
+        validRecords.push(record);
+      }
+    }
+  }
+  return validRecords;
 };
 
 // --- FIREBASE STORAGE PRO TEXTY A SOUBORY PÍSNÍ ---
