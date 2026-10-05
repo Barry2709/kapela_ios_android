@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, Alert, ScrollView, TextInput } from 'react-native';
-import { useAudioRecorder, useAudioPlayer, AudioModule } from 'expo-audio';
+import { useAudioRecorder, useAudioRecorderState, useAudioPlayer, AudioModule, RecordingPresets } from 'expo-audio';
 import * as DocumentPicker from 'expo-document-picker';
 import { SymbolView } from 'expo-symbols';
 
@@ -29,11 +29,9 @@ export function AudioRecorder() {
   const isAdmin = activeRoleView === 'admin' || currentUser?.role === 'admin';
 
   // Nahrávání audia z mikrofonu přes expo-audio
-  const audioRecorder = useAudioRecorder({
-    sampleRate: 44100,
-    numberOfChannels: 2,
-    bitrate: 128000,
-  });
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(audioRecorder, 250);
+  const isRecording = recorderState.isRecording || audioRecorder.isRecording;
 
   const [playerUri, setPlayerUri] = useState<string | null>(null);
   const player = useAudioPlayer(playerUri);
@@ -85,6 +83,7 @@ export function AudioRecorder() {
     try {
       const permission = await AudioModule.requestRecordingPermissionsAsync();
       if (permission.status === 'granted') {
+        await audioRecorder.prepareToRecordAsync();
         audioRecorder.record();
         setPendingRecordUri(null);
       } else {
@@ -98,11 +97,11 @@ export function AudioRecorder() {
 
   const stopRecording = async () => {
     try {
-      audioRecorder.stop();
+      await audioRecorder.stop();
       const uri = audioRecorder.uri;
       if (!uri) return;
 
-      const durationMillis = (audioRecorder.currentTime || 0) * 1000;
+      const durationMillis = recorderState.durationMillis || (audioRecorder.currentTime || 0) * 1000;
 
       setPendingRecordUri(uri);
       setPendingRecordDuration(durationMillis);
@@ -282,21 +281,21 @@ export function AudioRecorder() {
           ) : (
             <View style={{ alignItems: 'center', gap: 16, width: '100%' }}>
               <Pressable
-                style={[styles.recordButton, audioRecorder.isRecording ? styles.recordingActive : styles.recordingInactive]}
-                onPress={audioRecorder.isRecording ? stopRecording : startRecording}
+                style={[styles.recordButton, isRecording ? styles.recordingActive : styles.recordingInactive]}
+                onPress={isRecording ? stopRecording : startRecording}
               >
                 <SymbolView
-                  name={audioRecorder.isRecording ? { ios: 'stop.fill', android: 'stop', web: 'stop' } : { ios: 'mic.fill', android: 'mic', web: 'mic' }}
+                  name={isRecording ? { ios: 'stop.fill', android: 'stop', web: 'stop' } : { ios: 'mic.fill', android: 'mic', web: 'mic' }}
                   size={36}
                   tintColor="#fff"
                 />
               </Pressable>
 
-              {audioRecorder.isRecording ? (
+              {isRecording ? (
                 <View style={styles.recordingStatus}>
                   <View style={styles.redDot} />
                   <ThemedText type="subtitle" style={{ color: '#f44336' }}>
-                    Nahrávám... {formatDuration(audioRecorder.currentTime * 1000)}
+                    Nahrávám... {formatDuration((recorderState.durationMillis || audioRecorder.currentTime * 1000) || 0)}
                   </ThemedText>
                 </View>
               ) : (
