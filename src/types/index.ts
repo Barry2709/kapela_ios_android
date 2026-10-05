@@ -143,6 +143,7 @@ export interface Song {
   artist?: string;
   lyrics?: string; // Text písně / Akordy
   tempo?: string; // BPM / Tempo
+  timeSignature?: '4/4' | '3/4'; // Takt (4/4 nebo 3/4)
   duration?: string; // Délka
   key?: string; // Tónina (např. C dur)
   isLive?: boolean; // true = Hrajeme (v aktivním repertoáru), false = Nehrajeme

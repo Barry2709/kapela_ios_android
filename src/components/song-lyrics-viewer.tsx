@@ -980,6 +980,103 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
     }
   };
 
+  // Metronom stav a Tempo / Takt písně
+  const [tempoBpm, setTempoBpm] = useState<number>(120);
+  const [timeSig, setTimeSig] = useState<'4/4' | '3/4'>('4/4');
+  const [isMetronomeRunning, setIsMetronomeRunning] = useState(false);
+  const [currentMetronomeBeat, setCurrentMetronomeBeat] = useState<number | null>(null);
+  const [currentMeasureIndex, setCurrentMeasureIndex] = useState<number>(0);
+  const metronomeIntervalRef = useRef<any>(null);
+
+  // Načtení tempa a taktu při načtení nebo změně písně
+  useEffect(() => {
+    if (currentSong) {
+      const parsedBpm = parseInt(currentSong.tempo || '120', 10);
+      setTempoBpm(!isNaN(parsedBpm) && parsedBpm >= 30 ? parsedBpm : 120);
+      setTimeSig(currentSong.timeSignature || '4/4');
+    }
+    stopVisualMetronome();
+  }, [currentIndex, currentSong?.id, currentSong?.tempo, currentSong?.timeSignature]);
+
+  const handleTempoChange = async (newBpm: number) => {
+    const validBpm = Math.max(30, Math.min(260, newBpm));
+    setTempoBpm(validBpm);
+    if (currentSong && activeBand) {
+      const bpmStr = `${validBpm}`;
+      setSongsList(prev => prev.map(s => s.id === currentSong.id ? { ...s, tempo: bpmStr } : s));
+      try {
+        if (onUpdateSong) {
+          await onUpdateSong(currentSong.id, { tempo: bpmStr });
+        } else {
+          await updateSong(activeBand.id, currentSong.id, { tempo: bpmStr });
+        }
+      } catch (e) {
+        console.error("Chyba při ukládání tempa:", e);
+      }
+    }
+  };
+
+  const handleTimeSigToggle = async () => {
+    const newSig: '4/4' | '3/4' = timeSig === '4/4' ? '3/4' : '4/4';
+    setTimeSig(newSig);
+    if (currentSong && activeBand) {
+      setSongsList(prev => prev.map(s => s.id === currentSong.id ? { ...s, timeSignature: newSig } : s));
+      try {
+        if (onUpdateSong) {
+          await onUpdateSong(currentSong.id, { timeSignature: newSig });
+        } else {
+          await updateSong(activeBand.id, currentSong.id, { timeSignature: newSig });
+        }
+      } catch (e) {
+        console.error("Chyba při ukládání taktu:", e);
+      }
+    }
+  };
+
+  const startVisualMetronome = () => {
+    if (isMetronomeRunning) {
+      stopVisualMetronome();
+      return;
+    }
+
+    const beatsPerMeasure = timeSig === '3/4' ? 3 : 4;
+    const totalBeats = beatsPerMeasure * 3; // Přesně 3 takty
+    const msPerBeat = Math.round((60 / tempoBpm) * 1000);
+
+    let count = 0;
+    setIsMetronomeRunning(true);
+    setCurrentMetronomeBeat(1);
+    setCurrentMeasureIndex(1);
+
+    metronomeIntervalRef.current = setInterval(() => {
+      count++;
+      if (count >= totalBeats) {
+        stopVisualMetronome();
+      } else {
+        const beatInMeasure = (count % beatsPerMeasure) + 1;
+        const measureNum = Math.floor(count / beatsPerMeasure) + 1;
+        setCurrentMetronomeBeat(beatInMeasure);
+        setCurrentMeasureIndex(measureNum);
+      }
+    }, msPerBeat);
+  };
+
+  const stopVisualMetronome = () => {
+    if (metronomeIntervalRef.current) {
+      clearInterval(metronomeIntervalRef.current);
+      metronomeIntervalRef.current = null;
+    }
+    setIsMetronomeRunning(false);
+    setCurrentMetronomeBeat(null);
+    setCurrentMeasureIndex(0);
+  };
+
+  useEffect(() => {
+    return () => {
+      stopVisualMetronome();
+    };
+  }, []);
+
   // Při přepnutí na jinou píseň zastavit a uložit nahrávku předchozí písně
   useEffect(() => {
     if (isSongRecordingRef.current && previousSongRef.current && previousSongRef.current.id !== currentSong?.id) {
@@ -1049,13 +1146,62 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
           </View>
         </View>
 
-        {/* Ovládací lišta - Horizontálně posuvná (Tónina, Capo, Písmo, Auto-scroll, Upravit, Auto-Fit, Inverze) */}
+        {/* Ovládací lišta - Horizontálně posuvná (Metronom, Tempo, Takt, Tónina, Capo, Písmo, Auto-scroll, REC, Upravit...) */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={{ backgroundColor: 'rgba(200,200,200,0.12)', maxHeight: 46, minHeight: 46 }}
           contentContainerStyle={styles.controlsBarContent}
         >
+          {/* 1. Vizuální Metronom (Na PRVNÍM MÍSTĚ v liště) - bliká 3 takty (1. doba červená, zbytek zeleně) */}
+          <Pressable
+            style={[
+              styles.scrollToggleBtn,
+              isMetronomeRunning
+                ? {
+                    backgroundColor: currentMetronomeBeat === 1 ? '#f44336' : '#4caf50',
+                    borderColor: '#fff',
+                    borderWidth: 1,
+                  }
+                : { backgroundColor: 'rgba(255, 152, 0, 0.2)', borderColor: 'rgba(255, 152, 0, 0.4)', borderWidth: 1 }
+            ]}
+            onPress={startVisualMetronome}
+          >
+            <SymbolView
+              name={{ ios: 'timer', android: 'timer', web: 'timer' }}
+              size={16}
+              tintColor={isMetronomeRunning ? '#fff' : '#ff9800'}
+            />
+            <ThemedText
+              type="smallBold"
+              style={{ color: isMetronomeRunning ? '#fff' : '#ff9800', fontSize: 11, marginLeft: 4 }}
+            >
+              {isMetronomeRunning ? `${currentMetronomeBeat} (${currentMeasureIndex}/3)` : 'Metronom'}
+            </ThemedText>
+          </Pressable>
+
+          {/* 2. Zadání Tempa písně (BPM) */}
+          <View style={styles.controlGroup}>
+            <Pressable style={styles.smallCtrlBtn} onPress={() => handleTempoChange(tempoBpm - 5)}>
+              <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>-</ThemedText>
+            </Pressable>
+            <ThemedText type="smallBold" style={{ color: '#ff9800', fontSize: 13, paddingHorizontal: 2 }}>
+              {tempoBpm} BPM
+            </ThemedText>
+            <Pressable style={styles.smallCtrlBtn} onPress={() => handleTempoChange(tempoBpm + 5)}>
+              <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>+</ThemedText>
+            </Pressable>
+          </View>
+
+          {/* 3. Přepínač taktu písně (4/4 nebo 3/4) */}
+          <Pressable
+            style={[styles.smallCtrlBtn, { backgroundColor: 'rgba(255, 152, 0, 0.2)', paddingHorizontal: 8 }]}
+            onPress={handleTimeSigToggle}
+          >
+            <ThemedText type="smallBold" style={{ color: '#ff9800', fontSize: 13 }}>
+              {timeSig}
+            </ThemedText>
+          </Pressable>
           {/* Transpozice tóniny */}
           <View style={styles.controlGroup}>
             <Pressable style={styles.smallCtrlBtn} onPress={() => handleTransposeChange(transpose - 1)}>
