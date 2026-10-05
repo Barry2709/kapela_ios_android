@@ -81,7 +81,9 @@ export const createBand = async (
   genre: string,
   web: string,
   adminPasswordHash: string,
-  logoUri: string | null
+  logoUri: string | null,
+  facebook?: string,
+  instagram?: string
 ): Promise<Band> => {
   const bandId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
 
@@ -91,18 +93,20 @@ export const createBand = async (
     finalLogoUrl = await uploadImageToStorage(logoUri, `${BANDS_COLLECTION}/${bandId}/${filename}`);
   }
 
-  const newBand = {
+  const newBand = sanitizeFirestoreData({
     id: bandId,
     name,
     genre,
     web,
+    facebook,
+    instagram,
     logoUri: finalLogoUrl,
     adminPassword: adminPasswordHash,
     createdAt: Date.now()
-  };
+  });
 
   await setDoc(doc(db, BANDS_COLLECTION, bandId), newBand);
-  return newBand;
+  return newBand as Band;
 };
 
 // Úprava existující kapely (s podporou přejmenování a migrace struktury)

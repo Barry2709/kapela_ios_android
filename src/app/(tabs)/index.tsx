@@ -636,6 +636,43 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
+            {/* Ikony Facebook a Instagram pod informací o přihlášení */}
+            {(activeBand?.facebook || activeBand?.instagram) && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6, marginBottom: 4 }}>
+                {activeBand?.facebook ? (
+                  <Pressable
+                    style={styles.socialHeaderBadge}
+                    onPress={() => {
+                      let url = activeBand.facebook!;
+                      if (!url.startsWith('http://') && !url.startsWith('https://')) url = `https://${url}`;
+                      Linking.openURL(url);
+                    }}
+                  >
+                    <SymbolView name={{ ios: 'f.square.fill', android: 'facebook', web: 'facebook' }} size={16} tintColor="#1877f2" />
+                    <ThemedText type="smallBold" style={{ color: '#1877f2', fontSize: 12, marginLeft: 4 }}>
+                      Facebook
+                    </ThemedText>
+                  </Pressable>
+                ) : null}
+
+                {activeBand?.instagram ? (
+                  <Pressable
+                    style={styles.socialHeaderBadge}
+                    onPress={() => {
+                      let url = activeBand.instagram!;
+                      if (!url.startsWith('http://') && !url.startsWith('https://')) url = `https://${url}`;
+                      Linking.openURL(url);
+                    }}
+                  >
+                    <SymbolView name={{ ios: 'camera.fill', android: 'photo_camera', web: 'camera' }} size={16} tintColor="#e1306c" />
+                    <ThemedText type="smallBold" style={{ color: '#e1306c', fontSize: 12, marginLeft: 4 }}>
+                      Instagram
+                    </ThemedText>
+                  </Pressable>
+                ) : null}
+              </View>
+            )}
+
             {/* Karta Příští zkouška - Zobrazit pouze pro Kapelníka a Členy, NE pro fanoušky */}
             {activeRoleView !== 'fan' && upcomingRehearsal && (
               <ThemedView type="backgroundElement" style={styles.nextRehearsalBox}>
@@ -902,7 +939,17 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   scrollContent: { paddingBottom: Spacing.six },
   contentPadding: { paddingHorizontal: 4 },
-  loggedInRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.four, marginTop: 3 },
+  loggedInRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.two, marginTop: 3 },
+  socialHeaderBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: 'rgba(200,200,200,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(150,150,150,0.3)',
+  },
   logoutBtnInline: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6, backgroundColor: 'rgba(150,150,150,0.2)' },
   nextRehearsalBox: {
     padding: Spacing.three,

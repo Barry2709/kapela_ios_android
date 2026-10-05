@@ -31,6 +31,8 @@ export default function OnboardingScreen() {
   const [bandName, setBandName] = useState('');
   const [genre, setGenre] = useState('');
   const [web, setWeb] = useState('');
+  const [facebook, setFacebook] = useState('');
+  const [instagram, setInstagram] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [logoUri, setLogoUri] = useState<string | null>(null);
 
@@ -128,7 +130,7 @@ export default function OnboardingScreen() {
     }
 
     try {
-      const newBand = await createBand(bandName, genre, web, adminPassword, logoUri);
+      const newBand = await createBand(bandName, genre, web, adminPassword, logoUri, facebook, instagram);
       const adminUser: UserProfile = {
         uid: 'admin-' + newBand.id,
         email: 'admin@' + newBand.id + '.cz',
@@ -409,8 +411,14 @@ export default function OnboardingScreen() {
               </Pressable>
             </View>
 
-            <ThemedText type="smallBold">Web kapely (URL)</ThemedText>
+            <ThemedText type="smallBold">Web kapely (URL) - nepovinné</ThemedText>
             <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={web} onChangeText={setWeb} placeholder="Např. www.mojekapela.cz" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
+
+            <ThemedText type="smallBold">Facebook kapely (URL) - nepovinné</ThemedText>
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={facebook} onChangeText={setFacebook} placeholder="Např. facebook.com/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
+
+            <ThemedText type="smallBold">Instagram kapely (URL) - nepovinné</ThemedText>
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={instagram} onChangeText={setInstagram} placeholder="Např. instagram.com/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
 
             <ThemedText type="smallBold">Vaše Administrátorské heslo *</ThemedText>
             <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={adminPassword} onChangeText={setAdminPassword} secureTextEntry placeholderTextColor={theme.textSecondary} />

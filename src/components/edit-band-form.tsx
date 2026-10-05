@@ -37,6 +37,8 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
   const [name, setName] = useState(band.name);
   const [genre, setGenre] = useState(band.genre || '');
   const [web, setWeb] = useState(band.web || '');
+  const [facebook, setFacebook] = useState(band.facebook || '');
+  const [instagram, setInstagram] = useState(band.instagram || '');
   const [logoUri, setLogoUri] = useState<string | null>(band.logoUri || null);
   const [isSaving, setIsSaving] = useState(false);
   const [showStageplan, setShowStageplan] = useState(false);
@@ -194,6 +196,8 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
       name,
       genre,
       web,
+      facebook,
+      instagram,
       logoUri: logoUri || undefined,
     });
   };
@@ -228,24 +232,62 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
             </ThemedView>
           ) : null}
 
-          {/* Webový odkaz */}
-          {band.web ? (
-            <Pressable
-              style={[styles.fanWebBtn, { backgroundColor: theme.backgroundElement }]}
-              onPress={() => {
-                let url = band.web!;
-                if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                  url = `https://${url}`;
-                }
-                Linking.openURL(url);
-              }}
-            >
-              <SymbolView name={{ ios: 'globe', android: 'language', web: 'language' }} size={20} tintColor={theme.text} />
-              <ThemedText type="smallBold" style={{ marginLeft: 8 }}>
-                {band.web}
-              </ThemedText>
-            </Pressable>
-          ) : null}
+          {/* Web a sociální sítě */}
+          <View style={{ gap: 8, marginVertical: Spacing.two }}>
+            {band.web ? (
+              <Pressable
+                style={[styles.fanWebBtn, { backgroundColor: theme.backgroundElement }]}
+                onPress={() => {
+                  let url = band.web!;
+                  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    url = `https://${url}`;
+                  }
+                  Linking.openURL(url);
+                }}
+              >
+                <SymbolView name={{ ios: 'globe', android: 'language', web: 'language' }} size={20} tintColor={theme.text} />
+                <ThemedText type="smallBold" style={{ marginLeft: 8 }}>
+                  {band.web}
+                </ThemedText>
+              </Pressable>
+            ) : null}
+
+            {band.facebook ? (
+              <Pressable
+                style={[styles.fanWebBtn, { backgroundColor: 'rgba(24, 119, 242, 0.15)', borderColor: 'rgba(24, 119, 242, 0.4)', borderWidth: 1 }]}
+                onPress={() => {
+                  let url = band.facebook!;
+                  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    url = `https://${url}`;
+                  }
+                  Linking.openURL(url);
+                }}
+              >
+                <SymbolView name={{ ios: 'f.square.fill', android: 'facebook', web: 'facebook' }} size={20} tintColor="#1877f2" />
+                <ThemedText type="smallBold" style={{ marginLeft: 8, color: '#1877f2' }}>
+                  Facebook: {band.facebook}
+                </ThemedText>
+              </Pressable>
+            ) : null}
+
+            {band.instagram ? (
+              <Pressable
+                style={[styles.fanWebBtn, { backgroundColor: 'rgba(225, 48, 108, 0.15)', borderColor: 'rgba(225, 48, 108, 0.4)', borderWidth: 1 }]}
+                onPress={() => {
+                  let url = band.instagram!;
+                  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    url = `https://${url}`;
+                  }
+                  Linking.openURL(url);
+                }}
+              >
+                <SymbolView name={{ ios: 'camera.fill', android: 'photo_camera', web: 'camera' }} size={20} tintColor="#e1306c" />
+                <ThemedText type="smallBold" style={{ marginLeft: 8, color: '#e1306c' }}>
+                  Instagram: {band.instagram}
+                </ThemedText>
+              </Pressable>
+            ) : null}
+          </View>
 
           {/* Seznam členů kapely (Pouze Jméno, Příjmení a Nástroj/Zpěv) */}
           <ThemedText type="subtitle" style={{ marginTop: Spacing.four, marginBottom: Spacing.three }}>
@@ -601,6 +643,12 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
 
               <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16}}>Web kapely (URL)</ThemedText>
               <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={web} onChangeText={setWeb} placeholder="www.mojekapela.cz" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
+
+              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16, marginTop: 8}}>Facebook kapely (URL)</ThemedText>
+              <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={facebook} onChangeText={setFacebook} placeholder="facebook.com/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
+
+              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16, marginTop: 8}}>Instagram kapely (URL)</ThemedText>
+              <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={instagram} onChangeText={setInstagram} placeholder="instagram.com/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
             </View>
 
             <View style={styles.buttons}>
