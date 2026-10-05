@@ -397,18 +397,24 @@ export const getRehearsals = async (bandId: string): Promise<Rehearsal[]> => {
   }
 };
 
-// Pomocná funkce pro odesílání Push notifikací aktivním členům kapely
+// Pomocná funkce pro odesílání Push notifikací aktivním členům kapely (vynechá odesílatele)
 const notifyActiveMembersAboutNewEvent = async (
   bandId: string,
   title: string,
   body: string,
   eventId: string,
-  eventType: string
+  eventType: string,
+  senderMemberId?: string
 ) => {
   try {
     const members = await getBandMembers(bandId);
     const targetTokens = members
-      .filter(m => !m.isGuest && m.isActive !== false && m.pushToken && m.pushToken.trim().length > 0)
+      .filter(m => {
+        if (m.isGuest || m.isActive === false) return false;
+        if (!m.pushToken || m.pushToken.trim().length === 0) return false;
+        if (senderMemberId && m.id === senderMemberId) return false; // Ani mu neodesílat upozornění!
+        return true;
+      })
       .map(m => m.pushToken as string);
 
     if (targetTokens.length > 0) {
@@ -426,12 +432,18 @@ export const notifyAdminsAboutAttendance = async (
   eventTitle: string,
   status: 'yes' | 'no' | 'pending',
   eventType: 'rehearsal' | 'concert' | 'inquiry',
-  note?: string
+  note?: string,
+  senderMemberId?: string
 ) => {
   try {
     const members = await getBandMembers(bandId);
     const adminTokens = members
-      .filter(m => (m.isAdmin || (m as any).role === 'admin') && m.pushToken && m.pushToken.trim().length > 0)
+      .filter(m => {
+        if (!m.isAdmin && (m as any).role !== 'admin') return false;
+        if (!m.pushToken || m.pushToken.trim().length === 0) return false;
+        if (senderMemberId && m.id === senderMemberId) return false; // Ani mu neodesílat upozornění!
+        return true;
+      })
       .map(m => m.pushToken as string);
 
     if (adminTokens.length > 0) {
@@ -448,12 +460,24 @@ export const notifyAdminsAboutAttendance = async (
   }
 };
 
-export const addRehearsal = async (bandId: string, rehearsal: Omit<Rehearsal, 'id'>): Promise<string> => {
+export const addRehearsal = async (
+  bandId: string,
+  rehearsal: Omit<Rehearsal, 'id'>,
+  creatorMemberId?: string
+): Promise<string> => {
   const colRef = collection(db, BANDS_COLLECTION, bandId, 'rehearsals');
-  const docRef = await addDoc(colRef, {
+
+  // Kdo vytvoří událost automaticky zařadit jako "můžu" (yes) a nevyžadovat potvrzení
+  const attendees = { ...(rehearsal.attendees || {}) };
+  if (creatorMemberId) {
+    attendees[creatorMemberId] = { status: 'yes', updatedAt: Date.now() } as any;
+  }
+
+  const docRef = await addDoc(colRef, sanitizeFirestoreData({
     ...rehearsal,
+    attendees,
     createdAt: Date.now(),
-  });
+  }));
   await setDoc(docRef, { id: docRef.id }, { merge: true });
 
   notifyActiveMembersAboutNewEvent(
@@ -461,15 +485,54 @@ export const addRehearsal = async (bandId: string, rehearsal: Omit<Rehearsal, 'i
     'Nová Zkouška',
     `Byla naplánována zkouška: ${rehearsal.date} v ${rehearsal.time || ''}`,
     docRef.id,
-    'rehearsal'
+    'rehearsal',
+    creatorMemberId
   );
 
   return docRef.id;
 };
 
-export const updateRehearsal = async (bandId: string, rehearsalId: string, updates: Partial<Rehearsal>): Promise<void> => {
+export const updateRehearsal = async (
+  bandId: string,
+  rehearsalId: string,
+  updates: Partial<Rehearsal>,
+  oldRehearsal?: Rehearsal,
+  editorMemberId?: string
+): Promise<void> => {
   const docRef = doc(db, BANDS_COLLECTION, bandId, 'rehearsals', rehearsalId);
-  await setDoc(docRef, sanitizeFirestoreData(updates), { merge: true });
+
+  // Kdo změní událost automaticky zařadit jako "můžu" (yes)
+  const updatedUpdates = { ...updates };
+  if (editorMemberId && updates.date !== undefined) {
+    updatedUpdates.attendees = {
+      ...(updates.attendees || oldRehearsal?.attendees || {}),
+      [editorMemberId]: { status: 'yes', updatedAt: Date.now() },
+    } as any;
+  }
+
+  await setDoc(docRef, sanitizeFirestoreData(updatedUpdates), { merge: true });
+
+  // Notifikaci odeslat POUZE pokud se změnil datum, čas nebo místo!
+  if (oldRehearsal) {
+    const newDate = updates.date ?? oldRehearsal.date;
+    const newTime = updates.time ?? oldRehearsal.time;
+    const newLocation = updates.location ?? oldRehearsal.location;
+
+    const dateChanged = oldRehearsal.date !== newDate;
+    const timeChanged = oldRehearsal.time !== newTime;
+    const locationChanged = oldRehearsal.location !== newLocation;
+
+    if (dateChanged || timeChanged || locationChanged) {
+      notifyActiveMembersAboutNewEvent(
+        bandId,
+        'Změna u zkoušky',
+        `Byla upravena zkouška (${newDate} v ${newTime || ''})`,
+        rehearsalId,
+        'rehearsal',
+        editorMemberId
+      );
+    }
+  }
 };
 
 export const deleteRehearsal = async (bandId: string, rehearsalId: string): Promise<void> => {
@@ -493,12 +556,24 @@ export const getConcerts = async (bandId: string): Promise<Concert[]> => {
   }
 };
 
-export const addConcert = async (bandId: string, concert: Omit<Concert, 'id'>): Promise<string> => {
+export const addConcert = async (
+  bandId: string,
+  concert: Omit<Concert, 'id'>,
+  creatorMemberId?: string
+): Promise<string> => {
   const colRef = collection(db, BANDS_COLLECTION, bandId, 'concerts');
-  const docRef = await addDoc(colRef, {
+
+  // Kdo vytvoří událost automaticky zařadit jako "můžu" (yes) a nevyžadovat potvrzení
+  const attendees = { ...(concert.attendees || {}) };
+  if (creatorMemberId) {
+    attendees[creatorMemberId] = { status: 'yes', updatedAt: Date.now() } as any;
+  }
+
+  const docRef = await addDoc(colRef, sanitizeFirestoreData({
     ...concert,
+    attendees,
     createdAt: Date.now(),
-  });
+  }));
   await setDoc(docRef, { id: docRef.id }, { merge: true });
 
   notifyActiveMembersAboutNewEvent(
@@ -506,15 +581,54 @@ export const addConcert = async (bandId: string, concert: Omit<Concert, 'id'>): 
     'Nový Koncert',
     `Byl přidán nový koncert: ${concert.title} (${concert.date})`,
     docRef.id,
-    'concert'
+    'concert',
+    creatorMemberId
   );
 
   return docRef.id;
 };
 
-export const updateConcert = async (bandId: string, concertId: string, updates: Partial<Concert>): Promise<void> => {
+export const updateConcert = async (
+  bandId: string,
+  concertId: string,
+  updates: Partial<Concert>,
+  oldConcert?: Concert,
+  editorMemberId?: string
+): Promise<void> => {
   const docRef = doc(db, BANDS_COLLECTION, bandId, 'concerts', concertId);
-  await setDoc(docRef, sanitizeFirestoreData(updates), { merge: true });
+
+  // Kdo změní událost automaticky zařadit jako "můžu" (yes)
+  const updatedUpdates = { ...updates };
+  if (editorMemberId && updates.date !== undefined) {
+    updatedUpdates.attendees = {
+      ...(updates.attendees || oldConcert?.attendees || {}),
+      [editorMemberId]: { status: 'yes', updatedAt: Date.now() },
+    } as any;
+  }
+
+  await setDoc(docRef, sanitizeFirestoreData(updatedUpdates), { merge: true });
+
+  // Notifikaci odeslat POUZE pokud se změnil datum, čas nebo místo!
+  if (oldConcert) {
+    const newDate = updates.date ?? oldConcert.date;
+    const newStartTime = updates.startTime ?? oldConcert.startTime;
+    const newLocation = updates.location ?? oldConcert.location;
+
+    const dateChanged = oldConcert.date !== newDate;
+    const timeChanged = oldConcert.startTime !== newStartTime;
+    const locationChanged = oldConcert.location !== newLocation;
+
+    if (dateChanged || timeChanged || locationChanged) {
+      notifyActiveMembersAboutNewEvent(
+        bandId,
+        'Změna u koncertu',
+        `Byl upraven koncert "${updates.title || oldConcert.title}" (${newDate} v ${newStartTime || ''})`,
+        concertId,
+        'concert',
+        editorMemberId
+      );
+    }
+  }
 };
 
 export const deleteConcert = async (bandId: string, concertId: string): Promise<void> => {

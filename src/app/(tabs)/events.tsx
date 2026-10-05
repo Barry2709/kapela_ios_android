@@ -64,6 +64,14 @@ export default function EventsScreen() {
 
   const [showCalendar, setShowCalendar] = useState(false);
   const [showFreeTerms, setShowFreeTerms] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const show2sToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 2000);
+  };
 
   // Kontrola pro záložku Akce
   const isAkceTab = eventsTab === 'akce' || (eventsTab as string) === 'koncerty' || (eventsTab as string) === 'zkousky' || !eventsTab;
@@ -200,18 +208,25 @@ export default function EventsScreen() {
   const handleSaveConcert = async (concertData: Omit<Concert, 'id'>) => {
     if (!activeBand) return;
     try {
+      const myMemberId = bandMembers.find(m =>
+        (currentUser?.memberId && m.id === currentUser.memberId) ||
+        (currentUser?.email && m.email && m.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+        (currentUser?.displayName && m.nickname && m.nickname.toLowerCase() === currentUser.displayName.toLowerCase())
+      )?.id || currentUser?.id;
+
       if (editingConcert) {
-        await updateConcert(activeBand.id, editingConcert.id, concertData);
+        await updateConcert(activeBand.id, editingConcert.id, concertData, editingConcert, myMemberId);
+        show2sToast("Koncert byl úspěšně upraven.");
       } else {
         await addConcert(activeBand.id, {
           ...concertData,
           bandId: activeBand.id,
-        });
+        }, myMemberId);
+        show2sToast("Koncert byl úspěšně uložen.");
       }
       setShowAddConcertModal(false);
       setEditingConcert(null);
       loadConcerts();
-      Alert.alert("Úspěch", editingConcert ? "Koncert byl úspěšně upraven." : "Koncert byl úspěšně uložen.");
     } catch (e) {
       console.error("Chyba při ukládání koncertu:", e);
       Alert.alert("Chyba", "Nepodařilo se uložit koncert.");
@@ -265,19 +280,43 @@ export default function EventsScreen() {
   const handleSaveRehearsal = async (rehearsalData: Omit<Rehearsal, 'id'>) => {
     if (!activeBand) return;
     try {
+      const myMemberId = bandMembers.find(m =>
+        (currentUser?.memberId && m.id === currentUser.memberId) ||
+        (currentUser?.email && m.email && m.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+        (currentUser?.displayName && m.nickname && m.nickname.toLowerCase() === currentUser.displayName.toLowerCase())
+      )?.id || currentUser?.id;
+
       if (editingRehearsal) {
-        await updateRehearsal(activeBand.id, editingRehearsal.id, {
-          ...rehearsalData,
-          bandId: activeBand.id,
-        });
+        await updateRehearsal(
+          activeBand.id,
+          editingRehearsal.id,
+          {
+            ...rehearsalData,
+            bandId: activeBand.id,
+          },
+          editingRehearsal,
+          myMemberId
+        );
+        show2sToast("Zkouška byla úspěšně upravena.");
       } else {
-        await addRehearsal(activeBand.id, {
-          ...rehearsalData,
-          bandId: activeBand.id,
-        });
+        await addRehearsal(
+          activeBand.id,
+          {
+            ...rehearsalData,
+            bandId: activeBand.id,
+          },
+          myMemberId
+        );
+        show2sToast("Zkouška byla úspěšně uložena.");
       }
       setShowAddRehearsalModal(false);
       setEditingRehearsal(null);
+      loadRehearsals();
+    } catch (e) {
+      console.error("Chyba při ukládání zkoušky:", e);
+      Alert.alert("Chyba", "Nepodařilo se uložit zkoušku.");
+    }
+  };
       loadRehearsals();
       Alert.alert("Úspěch", "Zkouška byla úspěšně uložena.");
     } catch (e) {
@@ -1028,6 +1067,16 @@ export default function EventsScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      {/* 2-sekundová oznamovací hláška po uložení */}
+      {toastMessage && (
+        <View style={styles.toastBanner}>
+          <SymbolView name={{ ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' }} size={20} tintColor="#fff" />
+          <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 14 }}>
+            {toastMessage}
+          </ThemedText>
+        </View>
+      )}
+
       <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
         <PageHeader title={titleMap[eventsTab] || 'Akce'} />
 
@@ -1405,6 +1454,26 @@ export default function EventsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  toastBanner: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    right: 20,
+    backgroundColor: '#4caf50',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    zIndex: 9999,
+  },
   safeArea: { flex: 1 },
   content: { paddingHorizontal: 2, paddingBottom: Spacing.six },
   sectionContainer: { marginTop: Spacing.two },
