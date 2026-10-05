@@ -56,21 +56,25 @@ export function AudioRecorder() {
     };
   }, [activeBand?.id]);
 
-  // Sledování stavu přehrávače a dohrání nahrávky
+  // Sledování stavu přehrávače a automatické zastavení po dohrání
   useEffect(() => {
     if (player && playingId) {
-      if (player.playing) {
-        setIsPlayingState(true);
-      } else if (player.status === 'idle') {
-        // Přehrávání skončilo - vrátit zpět na výchozí tlačítko přehrání
+      const isFinished = player.status === 'idle' || (player.duration > 0 && player.currentTime >= player.duration - 0.2);
+      if (isFinished) {
+        try {
+          player.pause();
+          player.seekTo(0);
+        } catch (e) {}
         setPlayingId(null);
         setIsPlayingState(false);
         setPlaybackTimeSec(0);
+      } else if (player.playing) {
+        setIsPlayingState(true);
       } else if (player.status === 'paused') {
         setIsPlayingState(false);
       }
     }
-  }, [player?.status, player?.playing, playingId]);
+  }, [player?.status, player?.playing, player?.currentTime, playingId]);
 
   // Sledování aktuálního času přehrávání pro průběhovou lištu
   useEffect(() => {
