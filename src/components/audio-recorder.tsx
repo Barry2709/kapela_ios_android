@@ -56,14 +56,23 @@ export function AudioRecorder() {
 
   useEffect(() => {
     if (player && playingId) {
-      if (player.status === 'playing') {
-        // Player is playing
-      } else if (player.status === 'idle') {
+      if (player.status === 'idle') {
         // Přehrávání skončilo
         setPlayingId(null);
       }
     }
-  }, [player, player?.status, playingId]);
+  }, [player?.status, playingId]);
+
+  // Automatické spuštění přehrávání po vytvoření hráče pro nové URI
+  useEffect(() => {
+    if (player && playingId && playerUri) {
+      try {
+        player.play();
+      } catch (e) {
+        console.log("Audio play error:", e);
+      }
+    }
+  }, [playerUri]);
 
   const formatDuration = (millis: number) => {
     if (!millis) return '0:00';
@@ -176,7 +185,7 @@ export function AudioRecorder() {
   };
 
   // 4. Přehrávání nahrávky
-  const playRecord = async (record: AudioRecord) => {
+  const playRecord = (record: AudioRecord) => {
     if (playingId === record.id && player) {
       if (player.playing) {
         player.pause();
@@ -187,16 +196,12 @@ export function AudioRecorder() {
     }
 
     try {
-      if (player) {
+      if (player && player.playing) {
         player.pause();
       }
 
-      setPlayerUri(record.downloadUrl);
       setPlayingId(record.id);
-
-      setTimeout(() => {
-        player?.play();
-      }, 100);
+      setPlayerUri(record.downloadUrl);
     } catch (e) {
       console.error("Nelze přehrát audio:", e);
       Alert.alert("Chyba", "Nepodařilo se přehrát záznam.");
