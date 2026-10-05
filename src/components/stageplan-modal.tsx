@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, Modal, Pressable, Alert, Animated, ScrollView, Platform, ActivityIndicator, Linking } from 'react-native';
+import { View, StyleSheet, Modal, Pressable, Alert, Animated, PanResponder, ScrollView, Platform, ActivityIndicator, Linking } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { Image } from 'expo-image';
 import * as ScreenOrientation from 'expo-screen-orientation';
