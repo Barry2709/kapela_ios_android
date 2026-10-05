@@ -1170,40 +1170,19 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
           </View>
         </View>
 
-        {/* Výrazný blikající pás metronomu nahoře při odpočítávání 3 taktů */}
-        {isMetronomeRunning && (
-          <View
-            style={{
-              height: 32,
-              backgroundColor: metronomeFlashColor || 'rgba(0,0,0,0.6)',
-              justifyContent: 'center',
-              alignItems: 'center',
-              flexDirection: 'row',
-              gap: 8,
-            }}
-          >
-            <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 14 }}>
-              {currentMetronomeBeat === 1 ? '🔴 DOBA 1' : `🟢 DOBA ${currentMetronomeBeat}`}
-            </ThemedText>
-            <ThemedText type="small" style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>
-              (Takt {currentMeasureIndex}/3)
-            </ThemedText>
-          </View>
-        )}
-
-        {/* Ovládací lišta - Horizontálně posuvná (Metronom Ikona, Tónina, Capo, Písmo, Posun, Tempo, Takt, REC, Upravit...) */}
+        {/* Ovládací lišta - Horizontálně posuvná (Metronom Ikona/Číslo, Tónina, Capo, Písmo, Posun, Tempo, Takt, REC, Upravit...) */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={{ backgroundColor: 'rgba(200,200,200,0.12)', maxHeight: 46, minHeight: 46 }}
           contentContainerStyle={styles.controlsBarContent}
         >
-          {/* 1. Vizuální Metronom (Na PRVNÍM MÍSTĚ v liště jako čistá IKONA) - bliká 3 takty (1. doba červená, zbytek zeleně) */}
+          {/* 1. Vizuální Metronom (Na PRVNÍM MÍSTĚ v liště) - při přehrávání se ikona změní na čísla 1, 2, 3, 4 (1. doba červená, zbytek zeleně) */}
           <Pressable
             style={[
               styles.smallCtrlBtn,
               {
-                backgroundColor: metronomeFlashColor || (isMetronomeRunning ? 'rgba(255, 152, 0, 0.5)' : 'rgba(255, 152, 0, 0.2)'),
+                backgroundColor: metronomeFlashColor || (isMetronomeRunning ? 'rgba(255, 152, 0, 0.4)' : 'rgba(255, 152, 0, 0.2)'),
                 borderColor: metronomeFlashColor ? '#fff' : 'rgba(255, 152, 0, 0.4)',
                 borderWidth: 1,
                 width: 38,
@@ -1211,11 +1190,17 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
             ]}
             onPress={startVisualMetronome}
           >
-            <SymbolView
-              name={{ ios: 'timer', android: 'timer', web: 'timer' }}
-              size={18}
-              tintColor={metronomeFlashColor ? '#fff' : '#ff9800'}
-            />
+            {isMetronomeRunning ? (
+              <ThemedText type="smallBold" style={{ color: metronomeFlashColor ? '#fff' : '#ff9800', fontSize: 16 }}>
+                {currentMetronomeBeat}
+              </ThemedText>
+            ) : (
+              <SymbolView
+                name={{ ios: 'timer', android: 'timer', web: 'timer' }}
+                size={18}
+                tintColor="#ff9800"
+              />
+            )}
           </Pressable>
 
           {/* Transpozice tóniny */}
