@@ -10,7 +10,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/useAppStore';
 import { Song } from '@/types';
 import { fixCzechDiacritics, capitalizeFirstLetter } from '@/utils/diacritics';
-import { updateSong, fetchSongTextFromStorage, subscribeToSong } from '@/services/firebaseService';
+import { useAudioRecorder, useAudioRecorderState, AudioModule, RecordingPresets } from 'expo-audio';
+import { updateSong, fetchSongTextFromStorage, subscribeToSong, addAudioRecord, uploadAudioToStorage } from '@/services/firebaseService';
 import { getPersonalSongSetting, savePersonalSongSetting, PersonalNote } from '@/utils/personalSongSettings';
 import { liveSyncService } from '@/services/liveSyncService';
 import { FloatingNoteItem } from './floating-note-item';
@@ -900,7 +901,97 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
     }
   };
 
+  // Audio nahrávání zobrazené písně přes expo-audio
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(audioRecorder, 250);
+  const isSongRecording = recorderState.isRecording || audioRecorder.isRecording;
+
+  const isSongRecordingRef = useRef(false);
+  const currentSongRef = useRef(currentSong);
+  const previousSongRef = useRef(currentSong);
+
+  isSongRecordingRef.current = isSongRecording;
+  currentSongRef.current = currentSong;
+
+  const formatDuration = (millis: number) => {
+    if (!millis || millis <= 0) return '0:00';
+    const totalSeconds = Math.floor(millis / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
+  const formatDateTime = (timestamp: number) => {
+    const d = new Date(timestamp);
+    const dateStr = `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
+    const timeStr = `${d.getHours()}:${d.getMinutes() < 10 ? '0' : ''}${d.getMinutes()}`;
+    return `${dateStr} ${timeStr}`;
+  };
+
+  const startSongRecording = async () => {
+    try {
+      const permission = await AudioModule.requestRecordingPermissionsAsync();
+      if (permission.status === 'granted') {
+        await audioRecorder.prepareToRecordAsync();
+        audioRecorder.record();
+      } else {
+        Alert.alert('Chyba', 'Aplikace nemá přístup k mikrofonu.');
+      }
+    } catch (err) {
+      console.error('Nepodařilo se spustit nahrávání písně', err);
+      Alert.alert('Chyba', 'Nepodařilo se spustit nahrávání.');
+    }
+  };
+
+  const stopAndSaveSongRecording = async (songToSave?: Song) => {
+    const targetSong = songToSave || currentSongRef.current;
+    if (!audioRecorder.isRecording || !activeBand || !targetSong) return;
+
+    try {
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
+      if (!uri) return;
+
+      const durationMillis = recorderState.durationMillis || (audioRecorder.currentTime || 0) * 1000;
+      const recordTitle = `${targetSong.title} - ${formatDateTime(Date.now())}`;
+
+      // Uložení do Storage složky: kapela_ios_android/<bandId>/records/
+      const uploadResult = await uploadAudioToStorage(
+        activeBand.id,
+        uri,
+        recordTitle,
+        activeBand.name
+      );
+
+      // Uložení záznamu do Firestore
+      await addAudioRecord(activeBand.id, {
+        bandId: activeBand.id,
+        title: recordTitle,
+        durationMillis,
+        downloadUrl: uploadResult.downloadUrl,
+        storagePath: uploadResult.storagePath,
+        createdAt: Date.now(),
+        isPublic: false,
+      });
+
+      Alert.alert('Nahrávka uložena', `Nahrávka "${recordTitle}" byla uložena do Audio zápisníku.`);
+    } catch (err) {
+      console.error('Chyba při ukládání nahrávky písně', err);
+    }
+  };
+
+  // Při přepnutí na jinou píseň zastavit a uložit nahrávku předchozí písně
+  useEffect(() => {
+    if (isSongRecordingRef.current && previousSongRef.current && previousSongRef.current.id !== currentSong?.id) {
+      stopAndSaveSongRecording(previousSongRef.current);
+    }
+    previousSongRef.current = currentSong;
+  }, [currentIndex]);
+
   const handleCloseViewer = async () => {
+    if (isSongRecordingRef.current) {
+      await stopAndSaveSongRecording();
+    }
     if (activeRoleView === 'admin' && activeBand?.id && isLiveActive) {
       await liveSyncService.endLiveSession(activeBand.id);
     }
@@ -1011,6 +1102,30 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
               {isAutoScrolling ? 'Stop' : 'Posun'}
             </ThemedText>
           </Pressable>
+
+          {/* Tlačítko REC / STOP pro rychlé nahrávání zvuku přímo z náhledu písničky */}
+          {activeRoleView !== 'fan' && (
+            <Pressable
+              style={[
+                styles.scrollToggleBtn,
+                {
+                  backgroundColor: isSongRecording ? '#f44336' : 'rgba(244,67,54,0.15)',
+                  borderColor: isSongRecording ? '#f44336' : 'rgba(244,67,54,0.4)',
+                  borderWidth: 1,
+                }
+              ]}
+              onPress={isSongRecording ? () => stopAndSaveSongRecording() : startSongRecording}
+            >
+              <SymbolView
+                name={isSongRecording ? { ios: 'stop.fill', android: 'stop', web: 'stop' } : { ios: 'mic.fill', android: 'mic', web: 'mic' }}
+                size={16}
+                tintColor={isSongRecording ? '#fff' : '#f44336'}
+              />
+              <ThemedText type="smallBold" style={{ color: isSongRecording ? '#fff' : '#f44336', fontSize: 11, marginLeft: 4 }}>
+                {isSongRecording ? `STOP (${formatDuration((recorderState.durationMillis || audioRecorder.currentTime * 1000) || 0)})` : 'REC'}
+              </ThemedText>
+            </Pressable>
+          )}
 
           {/* Tlačítko Upravit text (Tužka) za tlačítkem Posun */}
           {activeRoleView !== 'fan' && (
