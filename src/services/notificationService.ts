@@ -80,7 +80,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     const token = tokenData.data;
 
     if (Platform.OS === 'android' && Notifications.setNotificationChannelAsync) {
-      await Notifications.setNotificationChannelAsync('default', {
+      await Notifications.setNotificationChannelAsync('kapela_push_v2', {
         name: 'Kapela Notifikace',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
@@ -117,8 +117,9 @@ export async function sendExpoPushNotifications(
     body,
     data: data || {},
     priority: 'high',
-    channelId: 'default',
+    channelId: 'kapela_push_v2',
     badge: 1,
+    ttl: 86400,
     _displayInForeground: true,
   }));
 
