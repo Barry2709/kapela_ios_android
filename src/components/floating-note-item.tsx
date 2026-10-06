@@ -52,10 +52,10 @@ export function FloatingNoteItem({ note, fontSize, containerWidth, onTap, onDrag
         });
         pan.setValue({ x: 0, y: 0 });
       },
-      onPanResponderMove: Animated.event(
-        [null, { dx: pan.x, dy: pan.y }],
-        { useNativeDriver: false }
-      ),
+      onPanResponderMove: (_, gestureState) => {
+        pan.x.setValue(gestureState.dx);
+        pan.y.setValue(gestureState.dy);
+      },
       onPanResponderRelease: (_, gestureState) => {
         pan.flattenOffset();
         setIsDragging(false);
