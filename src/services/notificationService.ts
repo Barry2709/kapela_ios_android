@@ -120,6 +120,8 @@ export async function sendExpoPushNotifications(
     badge: 1,
     ttl: 86400,
     _displayInForeground: true,
+    _contentAvailable: true,
+    mutableContent: true,
   }));
 
   try {
