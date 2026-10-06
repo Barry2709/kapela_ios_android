@@ -15,6 +15,7 @@ import { GlobalLiveLyricsModal } from '@/components/global-live-lyrics-modal';
 import { AttendanceQueueModal } from '@/components/attendance-queue-modal';
 import { registerForPushNotificationsAsync } from '@/services/notificationService';
 import { getBandMembers, updateBandMember } from '@/services/firebaseService';
+import { arrayUnion } from 'firebase/firestore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -66,13 +67,13 @@ export default function RootLayout() {
         }
 
         if (targetMember) {
-          const updates: Partial<any> = {};
-          if (targetMember.pushToken !== token) updates.pushToken = token;
+          const updates: Partial<any> = {
+            pushToken: token,
+            pushTokens: arrayUnion(token),
+          };
           if (currentUser.role === 'admin' && !targetMember.isAdmin) updates.isAdmin = true;
 
-          if (Object.keys(updates).length > 0) {
-            await updateBandMember(activeBand.id, targetMember.id, updates);
-          }
+          await updateBandMember(activeBand.id, targetMember.id, updates);
         }
       } catch (err) {
         console.log("Chyba při registraci push notifikací v _layout:", err);

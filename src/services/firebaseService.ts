@@ -1,5 +1,5 @@
 import 'expo-blob';
-import { collection, doc, setDoc, getDoc, getDocs, addDoc, deleteDoc, updateDoc, onSnapshot, getDocFromCache, getDocsFromCache, query, orderBy } from 'firebase/firestore';
+import { collection, doc, setDoc, getDoc, getDocs, addDoc, deleteDoc, updateDoc, onSnapshot, getDocFromCache, getDocsFromCache, query, orderBy, arrayUnion } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, listAll, deleteObject } from 'firebase/storage';
 import { db, storage } from '@/config/firebase';
 import { Band, BandMember, Rehearsal, Concert, Inquiry, Song, Absence, LiveSessionPayload, Transaction, Vehicle, Ride } from '@/types';
@@ -397,7 +397,27 @@ export const getRehearsals = async (bandId: string): Promise<Rehearsal[]> => {
   }
 };
 
-// Pomocná funkce pro odesílání Push notifikací aktivním členům kapely (vynechá odesílatele)
+// Pomocná funkce pro získání všech tokenů (ze všech zařízení člena)
+const getAllTokensForMember = (m: BandMember, senderMemberId?: string): string[] => {
+  if (m.isGuest || m.isActive === false) return [];
+  if (senderMemberId && m.id === senderMemberId) return [];
+
+  const tokensSet = new Set<string>();
+  if (m.pushToken && m.pushToken.trim().length > 0) {
+    tokensSet.add(m.pushToken.trim());
+  }
+  const multiTokens = (m as any).pushTokens;
+  if (Array.isArray(multiTokens)) {
+    multiTokens.forEach(t => {
+      if (typeof t === 'string' && t.trim().length > 0) {
+        tokensSet.add(t.trim());
+      }
+    });
+  }
+  return Array.from(tokensSet);
+};
+
+// Pomocná funkce pro odesílání Push notifikací aktivním členům kapely na všechna jejich zařízení
 const notifyActiveMembersAboutNewEvent = async (
   bandId: string,
   title: string,
@@ -408,28 +428,26 @@ const notifyActiveMembersAboutNewEvent = async (
 ) => {
   try {
     const members = await getBandMembers(bandId);
-    const targetTokens = members
-      .filter(m => {
-        if (m.isGuest || m.isActive === false) return false;
-        if (!m.pushToken || m.pushToken.trim().length === 0) return false;
-        if (senderMemberId && m.id === senderMemberId) return false; // Ani mu neodesílat upozornění!
-        return true;
-      })
-      .map(m => m.pushToken as string);
+    const targetTokens: string[] = [];
 
-    console.log(`Nalezeno ${targetTokens.length} tokenů pro odeslání notifikace (odesílatel ${senderMemberId || 'none'} vynechán).`);
+    members.forEach(m => {
+      const memberTokens = getAllTokensForMember(m, senderMemberId);
+      targetTokens.push(...memberTokens);
+    });
+
+    console.log(`Nalezeno celkem ${targetTokens.length} zařízení (tokenů) pro odeslání notifikace (odesílatel ${senderMemberId || 'none'} vynechán).`);
 
     if (targetTokens.length > 0) {
       sendExpoPushNotifications(targetTokens, title, body, { eventId, eventType });
     } else {
-      console.log("Žádné platné tokeny u ostatních členů v databázi nebyly nalezeny.");
+      console.log("Žádné platné tokeny zařízení u ostatních členů v databázi nebyly nalezeny.");
     }
   } catch (err) {
     console.error("Chyba při odesílání push notifikace členům:", err);
   }
 };
 
-// Pomocná funkce pro odesílání Push notifikací adminům při změně docházky
+// Pomocná funkce pro odesílání Push notifikací adminům při změně docházky na všechna jejich zařízení
 export const notifyAdminsAboutAttendance = async (
   bandId: string,
   memberName: string,
@@ -441,14 +459,14 @@ export const notifyAdminsAboutAttendance = async (
 ) => {
   try {
     const members = await getBandMembers(bandId);
-    const adminTokens = members
-      .filter(m => {
-        if (!m.isAdmin && (m as any).role !== 'admin') return false;
-        if (!m.pushToken || m.pushToken.trim().length === 0) return false;
-        if (senderMemberId && m.id === senderMemberId) return false; // Ani mu neodesílat upozornění!
-        return true;
-      })
-      .map(m => m.pushToken as string);
+    const adminTokens: string[] = [];
+
+    members.forEach(m => {
+      if (m.isAdmin || (m as any).role === 'admin') {
+        const tokens = getAllTokensForMember(m, senderMemberId);
+        adminTokens.push(...tokens);
+      }
+    });
 
     if (adminTokens.length > 0) {
       const typeLabel = eventType === 'rehearsal' ? 'zkoušku' : (eventType === 'concert' ? 'koncert' : 'poptávku');
