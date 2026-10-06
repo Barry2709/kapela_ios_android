@@ -48,7 +48,13 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     let finalStatus = existingStatus;
 
     if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
+      const { status } = await Notifications.requestPermissionsAsync({
+        ios: {
+          allowAlert: true,
+          allowBadge: true,
+          allowSound: true,
+        },
+      });
       finalStatus = status;
     }
 
@@ -75,10 +81,13 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
     if (Platform.OS === 'android' && Notifications.setNotificationChannelAsync) {
       await Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
+        name: 'Kapela Notifikace',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#e91e63',
+        sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
       });
     }
 
