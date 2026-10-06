@@ -630,7 +630,7 @@ function DraggableMember({
           )}
         </View>
       </Pressable>
-    </Animated.View>
+    </View>
   );
 }
 
