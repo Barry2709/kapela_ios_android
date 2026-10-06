@@ -12,7 +12,13 @@
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.ios.kapela",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      },
+      "entitlements": {
+        "aps-environment": "development"
       }
     },
     "android": {
