@@ -417,8 +417,12 @@ const notifyActiveMembersAboutNewEvent = async (
       })
       .map(m => m.pushToken as string);
 
+    console.log(`Nalezeno ${targetTokens.length} tokenů pro odeslání notifikace (odesílatel ${senderMemberId || 'none'} vynechán).`);
+
     if (targetTokens.length > 0) {
       sendExpoPushNotifications(targetTokens, title, body, { eventId, eventType });
+    } else {
+      console.log("Žádné platné tokeny u ostatních členů v databázi nebyly nalezeny.");
     }
   } catch (err) {
     console.error("Chyba při odesílání push notifikace členům:", err);
