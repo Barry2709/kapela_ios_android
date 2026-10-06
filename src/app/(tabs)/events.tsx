@@ -96,7 +96,8 @@ export default function EventsScreen() {
     try {
       const data = await getRehearsals(activeBand.id);
 
-      const toIsoDate = (dateStr: string) => {
+      const toIsoDate = (dateStr?: string) => {
+        if (!dateStr || typeof dateStr !== 'string') return '9999-99-99';
         if (dateStr.includes('.')) {
           const parts = dateStr.split('.');
           if (parts.length === 3) {
@@ -133,7 +134,8 @@ export default function EventsScreen() {
     try {
       const data = await getConcerts(activeBand.id);
 
-      const toIsoDate = (dateStr: string) => {
+      const toIsoDate = (dateStr?: string) => {
+        if (!dateStr || typeof dateStr !== 'string') return '9999-99-99';
         if (dateStr.includes('.')) {
           const parts = dateStr.split('.');
           if (parts.length === 3) {
@@ -410,8 +412,8 @@ export default function EventsScreen() {
     );
   };
 
-  const getEventStatus = (dateStr: string, startTimeStr?: string, endTimeStr?: string) => {
-    if (!dateStr) return 'future';
+  const getEventStatus = (dateStr?: string, startTimeStr?: string, endTimeStr?: string) => {
+    if (!dateStr || typeof dateStr !== 'string') return 'future';
 
     try {
       let isoDate = dateStr;
@@ -455,8 +457,8 @@ export default function EventsScreen() {
     }
   };
 
-  const formatDateDisplay = (dateStr: string) => {
-    if (!dateStr) return '';
+  const formatDateDisplay = (dateStr?: string) => {
+    if (!dateStr || typeof dateStr !== 'string') return '';
     if (dateStr.includes('.')) return dateStr;
     const parts = dateStr.split('-');
     if (parts.length === 3) {
@@ -465,8 +467,8 @@ export default function EventsScreen() {
     return dateStr;
   };
 
-  const getSortableDateKey = (dateStr: string) => {
-    if (!dateStr) return '';
+  const getSortableDateKey = (dateStr?: string) => {
+    if (!dateStr || typeof dateStr !== 'string') return '';
     if (dateStr.includes('.')) {
       const parts = dateStr.split('.');
       if (parts.length === 3) {
