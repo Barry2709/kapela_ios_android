@@ -674,12 +674,24 @@ export const getInquiries = async (bandId: string): Promise<Inquiry[]> => {
   }
 };
 
-export const addInquiry = async (bandId: string, inquiry: Omit<Inquiry, 'id'>): Promise<string> => {
+export const addInquiry = async (
+  bandId: string,
+  inquiry: Omit<Inquiry, 'id'>,
+  creatorMemberId?: string
+): Promise<string> => {
   const colRef = collection(db, BANDS_COLLECTION, bandId, 'inquiries');
-  const docRef = await addDoc(colRef, {
+
+  // Kdo vytvoří poptávku automaticky zařadit jako "můžu" (yes)
+  const attendees = { ...(inquiry.attendees || {}) };
+  if (creatorMemberId) {
+    attendees[creatorMemberId] = { status: 'yes', updatedAt: Date.now() } as any;
+  }
+
+  const docRef = await addDoc(colRef, sanitizeFirestoreData({
     ...inquiry,
+    attendees,
     createdAt: Date.now(),
-  });
+  }));
   await setDoc(docRef, { id: docRef.id }, { merge: true });
 
   notifyActiveMembersAboutNewEvent(
@@ -687,7 +699,8 @@ export const addInquiry = async (bandId: string, inquiry: Omit<Inquiry, 'id'>): 
     'Nová Poptávka',
     `Byla vytvořena nová poptávka: ${inquiry.title} (${inquiry.date})`,
     docRef.id,
-    'inquiry'
+    'inquiry',
+    creatorMemberId
   );
 
   return docRef.id;
