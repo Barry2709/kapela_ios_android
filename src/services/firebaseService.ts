@@ -399,8 +399,14 @@ export const getRehearsals = async (bandId: string): Promise<Rehearsal[]> => {
 
 // Pomocná funkce pro získání všech tokenů (ze všech zařízení člena)
 const getAllTokensForMember = (m: BandMember, senderMemberId?: string): string[] => {
-  if (m.isGuest || m.isActive === false) return [];
-  if (senderMemberId && m.id === senderMemberId) return [];
+  if (m.isActive === false) return [];
+
+  // Vynechat pouze konkrétního odesílatele (podle ID i podle uid)
+  if (senderMemberId) {
+    if (m.id === senderMemberId || (m as any).uid === senderMemberId) {
+      return [];
+    }
+  }
 
   const tokensSet = new Set<string>();
   if (m.pushToken && m.pushToken.trim().length > 0) {
