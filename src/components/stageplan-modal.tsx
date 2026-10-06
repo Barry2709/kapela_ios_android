@@ -494,7 +494,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   );
 }
 
-// Komponenta reprezentující jednoho člena na stageplanu (Drag and Drop)
+// Komponenta reprezentující jednoho člena na stageplanu (Přímý procentuální Drag and Drop bez odskakování)
 function DraggableMember({
   item,
   member,
@@ -510,69 +510,65 @@ function DraggableMember({
   onUpdatePosition: (id: string, x: number, y: number) => void;
   onRemove: (id: string) => void;
 }) {
-  const isDragging = useRef(false);
-  const positionRef = useRef({ x: item.x, y: item.y });
+  const [localPos, setLocalPos] = useState({ x: item.x, y: item.y });
+  const localPosRef = useRef({ x: item.x, y: item.y });
+  const isDraggingRef = useRef(false);
 
-  const px = (item.x / 100) * (stageSize.width || 300);
-  const py = (item.y / 100) * (stageSize.height || 200);
-
-  const pan = useRef(new Animated.ValueXY({ x: px, y: py })).current;
-
-  // Synchronizace při změně zvenčí (pokud zrovna neuživatel neposouvá)
+  // Synchronizace při změně zvenčí (pokud uživatel neposouvá)
   useEffect(() => {
-    if (!isDragging.current && stageSize.width > 0 && stageSize.height > 0) {
-      const newPx = (item.x / 100) * stageSize.width;
-      const newPy = (item.y / 100) * stageSize.height;
-      positionRef.current = { x: item.x, y: item.y };
-      pan.setOffset({ x: 0, y: 0 });
-      pan.setValue({ x: newPx, y: newPy });
+    if (!isDraggingRef.current) {
+      setLocalPos({ x: item.x, y: item.y });
+      localPosRef.current = { x: item.x, y: item.y };
     }
-  }, [item.x, item.y, stageSize.width, stageSize.height]);
+  }, [item.x, item.y]);
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
-        isDragging.current = true;
-        const currentPx = (positionRef.current.x / 100) * stageSize.width;
-        const currentPy = (positionRef.current.y / 100) * stageSize.height;
-        pan.setOffset({ x: currentPx, y: currentPy });
-        pan.setValue({ x: 0, y: 0 });
+        isDraggingRef.current = true;
       },
-      onPanResponderMove: (e, gestureState) => {
-        pan.x.setValue(gestureState.dx);
-        pan.y.setValue(gestureState.dy);
+      onPanResponderMove: (_, gestureState) => {
+        if (!stageSize.width || !stageSize.height) return;
+
+        // Převod gesta v pixelech na relativní procenta pódia
+        const deltaXPercent = (gestureState.dx / stageSize.width) * 100;
+        const deltaYPercent = (gestureState.dy / stageSize.height) * 100;
+
+        const newX = Math.max(2, Math.min(92, localPosRef.current.x + deltaXPercent));
+        const newY = Math.max(2, Math.min(92, localPosRef.current.y + deltaYPercent));
+
+        setLocalPos({ x: newX, y: newY });
       },
-      onPanResponderRelease: (e, gestureState) => {
-        isDragging.current = false;
-        pan.flattenOffset();
+      onPanResponderRelease: (_, gestureState) => {
+        isDraggingRef.current = false;
+        if (!stageSize.width || !stageSize.height) return;
 
-        if (stageSize.width > 0 && stageSize.height > 0) {
-          const finalPx = ((positionRef.current.x / 100) * stageSize.width) + gestureState.dx;
-          const finalPy = ((positionRef.current.y / 100) * stageSize.height) + gestureState.dy;
+        const deltaXPercent = (gestureState.dx / stageSize.width) * 100;
+        const deltaYPercent = (gestureState.dy / stageSize.height) * 100;
 
-          const percentX = Math.max(5, Math.min(95, (finalPx / stageSize.width) * 100));
-          const percentY = Math.max(5, Math.min(95, (finalPy / stageSize.height) * 100));
+        const finalX = Math.max(2, Math.min(92, localPosRef.current.x + deltaXPercent));
+        const finalY = Math.max(2, Math.min(92, localPosRef.current.y + deltaYPercent));
 
-          positionRef.current = { x: percentX, y: percentY };
-          onUpdatePosition(item.memberId, percentX, percentY);
-        }
-      }
+        localPosRef.current = { x: finalX, y: finalY };
+        setLocalPos({ x: finalX, y: finalY });
+        onUpdatePosition(item.memberId, finalX, finalY);
+      },
     })
   ).current;
 
   const techRequirements = getMemberTechBadges(member).filter(b => b !== member.instrument);
 
   return (
-    <Animated.View
+    <View
       {...panResponder.panHandlers}
       style={[
         styles.memberPin,
         {
-          left: 0,
-          top: 0,
-          transform: pan.getTranslateTransform(),
+          left: `${localPos.x}%`,
+          top: `${localPos.y}%`,
+          transform: [{ translateX: -20 }, { translateY: -20 }],
         }
       ]}
     >
