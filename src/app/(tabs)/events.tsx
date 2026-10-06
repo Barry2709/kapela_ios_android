@@ -207,14 +207,27 @@ export default function EventsScreen() {
     setShowAddConcertModal(true);
   };
 
+  const getMyMemberId = (): string | undefined => {
+    let member = bandMembers.find(m =>
+      (currentUser?.memberId && m.id === currentUser.memberId) ||
+      (currentUser?.id && m.id === currentUser.id) ||
+      ((m as any).uid && currentUser?.id && (m as any).uid === currentUser.id) ||
+      (currentUser?.email && m.email && m.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+      (currentUser?.displayName && m.nickname && m.nickname.toLowerCase() === currentUser.displayName.toLowerCase()) ||
+      (currentUser?.displayName && m.firstName && m.firstName.toLowerCase() === currentUser.displayName.toLowerCase())
+    );
+
+    if (!member && (currentUser?.role === 'admin' || activeRoleView === 'admin')) {
+      member = bandMembers.find(m => m.isAdmin) || bandMembers[0];
+    }
+
+    return member?.id || currentUser?.memberId || currentUser?.id;
+  };
+
   const handleSaveConcert = async (concertData: Omit<Concert, 'id'>) => {
     if (!activeBand) return;
     try {
-      const myMemberId = bandMembers.find(m =>
-        (currentUser?.memberId && m.id === currentUser.memberId) ||
-        (currentUser?.email && m.email && m.email.toLowerCase() === currentUser.email.toLowerCase()) ||
-        (currentUser?.displayName && m.nickname && m.nickname.toLowerCase() === currentUser.displayName.toLowerCase())
-      )?.id || currentUser?.id;
+      const myMemberId = getMyMemberId();
 
       if (editingConcert) {
         await updateConcert(activeBand.id, editingConcert.id, concertData, editingConcert, myMemberId);
@@ -282,11 +295,7 @@ export default function EventsScreen() {
   const handleSaveRehearsal = async (rehearsalData: Omit<Rehearsal, 'id'>) => {
     if (!activeBand) return;
     try {
-      const myMemberId = bandMembers.find(m =>
-        (currentUser?.memberId && m.id === currentUser.memberId) ||
-        (currentUser?.email && m.email && m.email.toLowerCase() === currentUser.email.toLowerCase()) ||
-        (currentUser?.displayName && m.nickname && m.nickname.toLowerCase() === currentUser.displayName.toLowerCase())
-      )?.id || currentUser?.id;
+      const myMemberId = getMyMemberId();
 
       if (editingRehearsal) {
         await updateRehearsal(
