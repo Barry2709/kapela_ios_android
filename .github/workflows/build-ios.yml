@@ -28,8 +28,10 @@ jobs:
       - name: Build Xcode Archive (Debug Development Client)
         run: |
           cd ios
+          SCHEME_NAME=$(xcodebuild -list -json | node -e "const data=JSON.parse(require('fs').readFileSync(0)); console.log(data.workspace.schemes[0]);")
+          echo "Building scheme: $SCHEME_NAME"
           xcodebuild -workspace *.xcworkspace \
-            -scheme kapelaiosandroid \
+            -scheme "$SCHEME_NAME" \
             -configuration Debug \
             -sdk iphoneos \
             -archivePath build/kapela.xcarchive \
