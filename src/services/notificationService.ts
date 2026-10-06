@@ -85,7 +85,6 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#e91e63',
-        sound: 'default',
         enableVibrate: true,
         showBadge: true,
       });
@@ -177,7 +176,6 @@ export async function triggerLocalSystemNotification(
       content: {
         title,
         body,
-        sound: 'default',
         badge: typeof badgeCount === 'number' ? badgeCount : undefined,
       },
       trigger: null,
