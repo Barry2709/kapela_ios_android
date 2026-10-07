@@ -454,15 +454,25 @@ const notifyActiveMembersAboutNewEvent = async (
 };
 
 // Pomocná funkce pro odesílání Push notifikací adminům při změně docházky na všechna jejich zařízení
-export const notifyAdminsAboutAttendance = async (
-  bandId: string,
-  memberName: string,
-  eventTitle: string,
-  status: 'yes' | 'no' | 'pending',
-  eventType: 'rehearsal' | 'concert' | 'inquiry',
-  note?: string,
-  senderMemberId?: string
-) => {
+export const removeInvalidPushTokenFromBandMembers = async (bandId: string, invalidToken: string) => {
+  if (!bandId || !invalidToken) return;
+  try {
+    const members = await getBandMembers(bandId);
+    for (const m of members) {
+      if (m.pushToken === invalidToken || (Array.isArray((m as any).pushTokens) && (m as any).pushTokens.includes(invalidToken))) {
+        const updatedTokens = (Array.isArray((m as any).pushTokens) ? (m as any).pushTokens : []).filter((t: string) => t !== invalidToken);
+        const updates: Record<string, any> = { pushTokens: updatedTokens };
+        if (m.pushToken === invalidToken) {
+          updates.pushToken = updatedTokens.length > 0 ? updatedTokens[0] : '';
+        }
+        await updateBandMember(bandId, m.id, updates);
+        console.log(`Automaticky odstraněn neplatný token u člena ${m.nickname || m.firstName}`);
+      }
+    }
+  } catch (e) {
+    console.error("Chyba při mazání neplatného tokenu:", e);
+  }
+};
   try {
     const members = await getBandMembers(bandId);
     const adminTokens: string[] = [];
