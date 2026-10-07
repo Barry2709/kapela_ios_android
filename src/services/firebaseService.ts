@@ -470,13 +470,23 @@ export const removeInvalidPushTokenFromBandMembers = async (bandId: string, inva
     console.error("Chyba při mazání neplatného tokenu:", e);
   }
 };
+// Pomocná funkce pro odesílání Push notifikací adminům při změně docházky na všechna jejich zařízení
+export const notifyAdminsAboutAttendance = async (
+  bandId: string,
+  memberName: string,
+  eventTitle: string,
+  status: 'yes' | 'no' | 'pending',
+  eventType: 'rehearsal' | 'concert' | 'inquiry',
+  note?: string,
+  senderToken?: string
+) => {
   try {
     const members = await getBandMembers(bandId);
     const adminTokens: string[] = [];
 
     members.forEach(m => {
       if (m.isAdmin || (m as any).role === 'admin') {
-        const tokens = getAllTokensForMember(m, senderMemberId);
+        const tokens = getAllTokensForMember(m, senderToken);
         adminTokens.push(...tokens);
       }
     });
