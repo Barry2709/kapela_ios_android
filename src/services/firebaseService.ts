@@ -398,22 +398,23 @@ export const getRehearsals = async (bandId: string): Promise<Rehearsal[]> => {
 };
 
 // Pomocná funkce pro získání všech tokenů (ze všech zařízení člena)
-const getAllTokensForMember = (m: BandMember, senderToken?: string): string[] => {
+const getAllTokensForMember = (m: BandMember, senderMemberId?: string): string[] => {
   if (m.isActive === false) return [];
+
+  // Pokud je to člen/tvůrce, který událost vytvořil, vynechat ho (neposílat zakladateli na žádné z jeho zařízení)
+  if (senderMemberId && (m.id === senderMemberId || (m as any).uid === senderMemberId)) {
+    return [];
+  }
 
   const tokensSet = new Set<string>();
   if (m.pushToken && m.pushToken.trim().length > 0) {
-    if (!senderToken || m.pushToken.trim() !== senderToken.trim()) {
-      tokensSet.add(m.pushToken.trim());
-    }
+    tokensSet.add(m.pushToken.trim());
   }
   const multiTokens = (m as any).pushTokens;
   if (Array.isArray(multiTokens)) {
     multiTokens.forEach(t => {
       if (typeof t === 'string' && t.trim().length > 0) {
-        if (!senderToken || t.trim() !== senderToken.trim()) {
-          tokensSet.add(t.trim());
-        }
+        tokensSet.add(t.trim());
       }
     });
   }
@@ -427,23 +428,23 @@ const notifyActiveMembersAboutNewEvent = async (
   body: string,
   eventId: string,
   eventType: string,
-  senderToken?: string
+  senderMemberId?: string
 ) => {
   try {
     const members = await getBandMembers(bandId);
     const targetTokens: string[] = [];
 
     members.forEach(m => {
-      const memberTokens = getAllTokensForMember(m, senderToken);
+      const memberTokens = getAllTokensForMember(m, senderMemberId);
       targetTokens.push(...memberTokens);
     });
 
-    console.log(`Nalezeno celkem ${targetTokens.length} zařízení (tokenů) pro odeslání notifikace.`);
+    console.log(`Nalezeno celkem ${targetTokens.length} zařízení (tokenů) ostatních členů pro odeslání notifikace (tvůrce ${senderMemberId || 'none'} vynechán).`);
 
     if (targetTokens.length > 0) {
       sendExpoPushNotifications(targetTokens, title, body, { eventId, eventType });
     } else {
-      console.log("Žádné platné tokeny zařízení v databázi nebyly nalezeny.");
+      console.log("Žádné platné tokeny zařízení u ostatních členů v databázi nebyly nalezeny.");
     }
   } catch (err) {
     console.error("Chyba při odesílání push notifikace členům:", err);
