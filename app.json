@@ -73,9 +73,7 @@
       ],
       "@react-native-community/datetimepicker",
       "expo-audio",
-      "expo-sharing",
-      "@react-native-firebase/app",
-      "@react-native-firebase/messaging"
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true

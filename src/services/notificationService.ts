@@ -3,7 +3,6 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 
 let Notifications: typeof import('expo-notifications') | null = null;
-let messaging: typeof import('@react-native-firebase/messaging').default | null = null;
 
 try {
   // Dynamické načtení pro ochranu před pádem v Expo Go SDK 53+ na Androidu
@@ -22,27 +21,6 @@ try {
 } catch (e) {
   console.log("Expo Notifications modul nebylo možné načíst v tomto prostředí.");
   Notifications = null;
-}
-
-try {
-  messaging = require('@react-native-firebase/messaging').default;
-
-  // Registrace nativního Firebase background posluchače pro doručení při VYPNUTÉ aplikaci
-  if (messaging && typeof messaging().setBackgroundMessageHandler === 'function') {
-    messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-      console.log('Firebase Native Background Push přijat:', remoteMessage);
-      if (remoteMessage.notification) {
-        const title = remoteMessage.notification.title || 'Kapela Upozornění';
-        const body = remoteMessage.notification.body || '';
-        if (triggerLocalSystemNotification) {
-          await triggerLocalSystemNotification(title, body, 1);
-        }
-      }
-    });
-  }
-} catch (e) {
-  console.log("Firebase messaging modul nebylo možné načíst:", e);
-  messaging = null;
 }
 
 /**
