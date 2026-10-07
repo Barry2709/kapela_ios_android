@@ -120,7 +120,6 @@ export async function sendExpoPushNotifications(
     badge: 1,
     ttl: 86400,
     _displayInForeground: true,
-    interruptionLevel: 'active',
   }));
 
   try {
@@ -135,6 +134,26 @@ export async function sendExpoPushNotifications(
     });
     const result = await response.json();
     console.log("Expo Push server odpověď:", JSON.stringify(result));
+
+    // Kontrola doručení z Apple APNs / Google FCM po 3 sekundách
+    if (result && Array.isArray(result.data)) {
+      const ticketIds = result.data.map((ticket: any) => ticket?.id).filter(Boolean);
+      if (ticketIds.length > 0) {
+        setTimeout(async () => {
+          try {
+            const receiptResp = await fetch('https://exp.host/--/api/v2/push/getReceipts', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ids: ticketIds }),
+            });
+            const receiptData = await receiptResp.json();
+            console.log("Výsledek doručení od Apple APNs / Google FCM (Receipts):", JSON.stringify(receiptData));
+          } catch (err) {
+            console.log("Chyba při zjišťování doručení Apple/Google:", err);
+          }
+        }, 3000);
+      }
+    }
   } catch (error) {
     console.error("Chyba při odesílání Push notifikace přes Expo API:", error);
   }
