@@ -659,20 +659,6 @@ function DraggableMember({
     })
   ).current;
 
-  const lastTapRef = useRef(0);
-
-  const handlePress = () => {
-    const now = Date.now();
-    const DOUBLE_TAP_DELAY = 350;
-
-    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
-      onRemove(item.memberId);
-      lastTapRef.current = 0;
-    } else {
-      lastTapRef.current = now;
-    }
-  };
-
   const techRequirements = getMemberTechBadges(member);
 
   return (
@@ -687,7 +673,7 @@ function DraggableMember({
         }
       ]}
     >
-      <Pressable onPress={handlePress} onLongPress={() => onRemove(item.memberId)}>
+      <Pressable onLongPress={() => onRemove(item.memberId)}>
         <View style={{ alignItems: 'center' }}>
           {/* Fotka člena */}
           {member.photoUri ? (
