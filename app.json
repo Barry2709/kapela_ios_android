@@ -3,6 +3,12 @@
     "name": "Kapela",
     "slug": "kapela_ios_android",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a86f8275-679e-4dac-88ba-219ed454b5de"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "kapelaiosandroid",
