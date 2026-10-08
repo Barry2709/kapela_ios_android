@@ -263,14 +263,8 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       const sharingModule = getNativeSharingModule();
 
       let fileSystemModule: any = null;
-      let webBrowserModule: any = null;
-
       try {
         fileSystemModule = require('expo-file-system');
-      } catch (e) {}
-
-      try {
-        webBrowserModule = require('expo-web-browser');
       } catch (e) {}
 
       if (printModule && printModule.printToFileAsync) {
@@ -282,7 +276,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
         // Uložení do složky dokumentů s přehledným názvem
         if (fileSystemModule && fileSystemModule.documentDirectory) {
-          const cleanBandName = band.name.replace(/[^a-zA-Z0-9]/g, '_');
+          const cleanBandName = (band?.name || 'Kapela').replace(/[^a-zA-Z0-9]/g, '_');
           const targetPath = `${fileSystemModule.documentDirectory}Stageplan_${cleanBandName}.pdf`;
           try {
             await fileSystemModule.copyAsync({ from: uri, to: targetPath });
@@ -293,24 +287,18 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
           }
         }
 
-        // Pokus o přímé otevření prohlížečem / prohlížečem PDF
-        let isOpened = false;
-        if (webBrowserModule && webBrowserModule.openBrowserAsync) {
-          try {
-            await webBrowserModule.openBrowserAsync(finalPdfUri);
-            isOpened = true;
-          } catch (browserErr) {}
-        }
-
-        if (!isOpened && sharingModule && sharingModule.shareAsync) {
+        // Bezpečné nativní otevření / sdílení PDF přes expo-sharing (funkční na Androidu i iOS)
+        if (sharingModule && sharingModule.shareAsync) {
           await sharingModule.shareAsync(finalPdfUri, {
             mimeType: 'application/pdf',
-            dialogTitle: `Otevřít / Uložit Stageplan kapely ${band.name}`,
+            dialogTitle: `Otevřít / Uložit Stageplan kapely ${band?.name || 'Kapela'}`,
             UTI: 'com.adobe.pdf',
           });
+        } else {
+          Alert.alert("PDF Vygenerováno", `Soubor byl uložen v dočasné složce telefonu:\n${finalPdfUri}`);
         }
       } else {
-        Alert.alert("PDF Nedostupné", "Generování PDF vyžaduje zkompilovaný balíček (např. v novém buildu).");
+        Alert.alert("PDF Nedostupné", "Generování PDF vyžaduje zkompilovaný balíček.");
       }
 
       setShowSendModal(false);
