@@ -259,12 +259,19 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       const emailList = emails.join(',');
       const subject = encodeURIComponent(`Stageplan & Technický Rider - ${band.name} (${concert?.title || 'Koncert'})`);
 
-      if (Print && Sharing) {
-        const html = generateStageplanPdfHtml();
-        const { uri } = await Print.printToFileAsync({ html });
+      let printModule = Print;
+      let sharingModule = Sharing;
+      try {
+        if (!printModule) printModule = require('expo-print');
+        if (!sharingModule) sharingModule = require('expo-sharing');
+      } catch (err) {}
 
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(uri, {
+      if (printModule && sharingModule) {
+        const html = generateStageplanPdfHtml();
+        const { uri } = await printModule.printToFileAsync({ html });
+
+        if (await sharingModule.isAvailableAsync()) {
+          await sharingModule.shareAsync(uri, {
             mimeType: 'application/pdf',
             dialogTitle: `Stageplan kapely ${band.name}`,
             UTI: 'com.adobe.pdf',
@@ -277,9 +284,9 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       }
 
       setShowSendModal(false);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Chyba při generování PDF:", e);
-      Alert.alert("Chyba", "Nepodařilo se vygenerovat PDF Stageplanu.");
+      Alert.alert("Chyba PDF", e?.message || "Nepodařilo se vygenerovat PDF Stageplanu.");
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -289,12 +296,19 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   const handleSendViaWhatsApp = async () => {
     setIsGeneratingPdf(true);
     try {
-      if (Print && Sharing) {
-        const html = generateStageplanPdfHtml();
-        const { uri } = await Print.printToFileAsync({ html });
+      let printModule = Print;
+      let sharingModule = Sharing;
+      try {
+        if (!printModule) printModule = require('expo-print');
+        if (!sharingModule) sharingModule = require('expo-sharing');
+      } catch (err) {}
 
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(uri, {
+      if (printModule && sharingModule) {
+        const html = generateStageplanPdfHtml();
+        const { uri } = await printModule.printToFileAsync({ html });
+
+        if (await sharingModule.isAvailableAsync()) {
+          await sharingModule.shareAsync(uri, {
             mimeType: 'application/pdf',
             dialogTitle: `Odeslat Stageplan kapely ${band.name}`,
             UTI: 'com.adobe.pdf',
@@ -308,9 +322,9 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       }
 
       setShowSendModal(false);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Chyba při sdílení Stageplanu:", e);
-      Alert.alert("Chyba", "Nepodařilo se vygenerovat PDF Stageplanu.");
+      Alert.alert("Chyba PDF", e?.message || "Nepodařilo se vygenerovat PDF Stageplanu.");
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -375,7 +389,8 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
               delayLongPress={500}
             />
 
-            {stageSize.width > 0 && stageplan.map((item, index) => {
+            {/* Vykreslení členů na stageplanu */}
+            {stageplan.map((item) => {
               const member = members.find(m => m.id === item.memberId);
               if (!member) return null;
 
@@ -384,7 +399,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
                   key={item.memberId}
                   item={item}
                   member={member}
-                  stageSize={stageSize}
+                  stageSize={stageSize.width > 0 ? stageSize : { width: 320, height: 220 }}
                   theme={theme}
                   onUpdatePosition={(id, x, y) => {
                     setStageplan(prev => prev.map(p => p.memberId === id ? { ...p, x, y } : p));
@@ -398,6 +413,10 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
                         onPress: () => setStageplan(prev => prev.filter(p => p.memberId !== id))
                       }
                     ]);
+                  }}
+                />
+              );
+            })}
                   }}
                 />
               );

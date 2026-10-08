@@ -640,7 +640,7 @@ export default function HomeScreen() {
 
             {/* Ikony Facebook a Instagram pod informací o přihlášení */}
             {(activeBand?.facebook || activeBand?.instagram) && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6, marginBottom: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2, marginBottom: 4 }}>
                 {activeBand?.facebook ? (
                   <Pressable
                     style={styles.socialHeaderBadge}
