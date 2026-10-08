@@ -257,22 +257,11 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   const handleGenerateAndOpenPdf = async () => {
     setIsGeneratingPdf(true);
     try {
-      let printModule: any = null;
-      let sharingModule: any = null;
+      const printModule = getNativePrintModule();
+      const sharingModule = getNativeSharingModule();
+
       let fileSystemModule: any = null;
       let webBrowserModule: any = null;
-
-      try {
-        if (NativeModulesProxy && NativeModulesProxy.ExpoPrint) {
-          printModule = require('expo-print');
-        }
-      } catch (e) {}
-
-      try {
-        if (NativeModulesProxy && NativeModulesProxy.ExpoSharing) {
-          sharingModule = require('expo-sharing');
-        }
-      } catch (e) {}
 
       try {
         fileSystemModule = require('expo-file-system');
