@@ -236,20 +236,20 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
   const getNativePrintModule = () => {
     try {
-      if (NativeModules.ExpoPrint || (global as any).ExpoModules?.ExpoPrint) {
-        return require('expo-print');
-      }
-    } catch (e) {}
-    return null;
+      return require('expo-print');
+    } catch (e) {
+      console.log("ExpoPrint modul není v tomto buildu dostupný:", e);
+      return null;
+    }
   };
 
   const getNativeSharingModule = () => {
     try {
-      if (NativeModules.ExpoSharing || (global as any).ExpoModules?.ExpoSharing) {
-        return require('expo-sharing');
-      }
-    } catch (e) {}
-    return null;
+      return require('expo-sharing');
+    } catch (e) {
+      console.log("ExpoSharing modul není v tomto buildu dostupný:", e);
+      return null;
+    }
   };
 
   // Odeslání e-mailem
@@ -268,6 +268,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       if (printModule && sharingModule) {
         const html = generateStageplanPdfHtml();
         const { uri } = await printModule.printToFileAsync({ html });
+        console.log("Vygenerovaný PDF soubor:", uri);
 
         if (await sharingModule.isAvailableAsync()) {
           await sharingModule.shareAsync(uri, {
@@ -301,6 +302,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       if (printModule && sharingModule) {
         const html = generateStageplanPdfHtml();
         const { uri } = await printModule.printToFileAsync({ html });
+        console.log("Vygenerovaný PDF soubor:", uri);
 
         if (await sharingModule.isAvailableAsync()) {
           await sharingModule.shareAsync(uri, {
