@@ -244,11 +244,11 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       const emailList = emails.join(',');
       const subject = encodeURIComponent(`Stageplan & Technický Rider - ${band.name} (${concert?.title || 'Koncert'})`);
 
-      let printModule = Print;
-      let sharingModule = Sharing;
+      let printModule: any = null;
+      let sharingModule: any = null;
       try {
-        if (!printModule) printModule = require('expo-print');
-        if (!sharingModule) sharingModule = require('expo-sharing');
+        printModule = require('expo-print');
+        sharingModule = require('expo-sharing');
       } catch (err) {}
 
       if (printModule && sharingModule) {
@@ -281,11 +281,11 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   const handleSendViaWhatsApp = async () => {
     setIsGeneratingPdf(true);
     try {
-      let printModule = Print;
-      let sharingModule = Sharing;
+      let printModule: any = null;
+      let sharingModule: any = null;
       try {
-        if (!printModule) printModule = require('expo-print');
-        if (!sharingModule) sharingModule = require('expo-sharing');
+        printModule = require('expo-print');
+        sharingModule = require('expo-sharing');
       } catch (err) {}
 
       if (printModule && sharingModule) {
