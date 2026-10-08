@@ -253,6 +253,84 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     return null;
   };
 
+  // Vygenerování a okamžité uložení / otevření PDF dokumentu
+  const handleGenerateAndOpenPdf = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      let printModule: any = null;
+      let sharingModule: any = null;
+      let fileSystemModule: any = null;
+      let webBrowserModule: any = null;
+
+      try {
+        if (NativeModulesProxy && NativeModulesProxy.ExpoPrint) {
+          printModule = require('expo-print');
+        }
+      } catch (e) {}
+
+      try {
+        if (NativeModulesProxy && NativeModulesProxy.ExpoSharing) {
+          sharingModule = require('expo-sharing');
+        }
+      } catch (e) {}
+
+      try {
+        fileSystemModule = require('expo-file-system');
+      } catch (e) {}
+
+      try {
+        webBrowserModule = require('expo-web-browser');
+      } catch (e) {}
+
+      if (printModule && printModule.printToFileAsync) {
+        const html = generateStageplanPdfHtml();
+        const { uri } = await printModule.printToFileAsync({ html });
+        console.log("PDF vygenerováno v dočasné složce:", uri);
+
+        let finalPdfUri = uri;
+
+        // Uložení do složky dokumentů s přehledným názvem
+        if (fileSystemModule && fileSystemModule.documentDirectory) {
+          const cleanBandName = band.name.replace(/[^a-zA-Z0-9]/g, '_');
+          const targetPath = `${fileSystemModule.documentDirectory}Stageplan_${cleanBandName}.pdf`;
+          try {
+            await fileSystemModule.copyAsync({ from: uri, to: targetPath });
+            finalPdfUri = targetPath;
+            console.log("PDF úspěšně uloženo do složky dokumentů:", targetPath);
+          } catch (copyErr) {
+            console.log("Kopírování souboru selhalo, používám původní uri:", copyErr);
+          }
+        }
+
+        // Pokus o přímé otevření prohlížečem / prohlížečem PDF
+        let isOpened = false;
+        if (webBrowserModule && webBrowserModule.openBrowserAsync) {
+          try {
+            await webBrowserModule.openBrowserAsync(finalPdfUri);
+            isOpened = true;
+          } catch (browserErr) {}
+        }
+
+        if (!isOpened && sharingModule && sharingModule.shareAsync) {
+          await sharingModule.shareAsync(finalPdfUri, {
+            mimeType: 'application/pdf',
+            dialogTitle: `Otevřít / Uložit Stageplan kapely ${band.name}`,
+            UTI: 'com.adobe.pdf',
+          });
+        }
+      } else {
+        Alert.alert("PDF Nedostupné", "Generování PDF vyžaduje zkompilovaný balíček (např. v novém buildu).");
+      }
+
+      setShowSendModal(false);
+    } catch (e: any) {
+      console.error("Chyba při generování a otvírání PDF:", e);
+      Alert.alert("Chyba PDF", e?.message || "Nepodařilo se vygenerovat PDF Stageplanu.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   // Odeslání e-mailem
   const handleSendViaEmail = async () => {
     setIsGeneratingPdf(true);
@@ -475,10 +553,17 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
               {isGeneratingPdf ? (
                 <View style={{ paddingVertical: 20, alignItems: 'center' }}>
                   <ActivityIndicator size="large" color="#2196f3" />
-                  <ThemedText type="small" style={{ marginTop: 10 }}>Generuji PDF dokument...</ThemedText>
+                  <ThemedText type="small" style={{ marginTop: 10 }}>Generuji a ukládám PDF dokument...</ThemedText>
                 </View>
               ) : (
                 <View style={{ gap: 10 }}>
+                  <Pressable style={[styles.sendOptionBtn, { backgroundColor: '#ff9800' }]} onPress={handleGenerateAndOpenPdf}>
+                    <SymbolView name={{ ios: 'doc.fill', android: 'description', web: 'description' }} size={20} tintColor="#fff" />
+                    <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 14 }}>
+                      📄 Vygenerovat & Uložit / Otevřít PDF
+                    </ThemedText>
+                  </Pressable>
+
                   <Pressable style={[styles.sendOptionBtn, { backgroundColor: '#2196f3' }]} onPress={handleSendViaEmail}>
                     <SymbolView name={{ ios: 'envelope.fill', android: 'email', web: 'email' }} size={20} tintColor="#fff" />
                     <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 14 }}>
