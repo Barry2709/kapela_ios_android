@@ -640,7 +640,7 @@ export default function HomeScreen() {
 
             {/* Ikony Facebook a Instagram pod informací o přihlášení */}
             {(activeBand?.facebook || activeBand?.instagram) && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2, marginBottom: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -2, marginBottom: 4 }}>
                 {activeBand?.facebook ? (
                   <Pressable
                     style={styles.socialHeaderBadge}
@@ -714,7 +714,7 @@ export default function HomeScreen() {
                   </ThemedText>
                 </View>
 
-                <View style={{ gap: Spacing.two, marginTop: Spacing.two }}>
+                <View style={{ gap: Spacing.two, marginTop: Spacing.two + 2 }}>
                   {concerts.map(concert => {
 
                     const status = getEventStatus(concert.date, concert.startTime, concert.endTime);
