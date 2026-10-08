@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, Modal, Pressable, Alert, Animated, PanResponder, ScrollView, Platform, ActivityIndicator, Linking } from 'react-native';
+import { View, StyleSheet, Modal, Pressable, Alert, Animated, PanResponder, ScrollView, Platform, ActivityIndicator, Linking, NativeModules } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { Image } from 'expo-image';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -234,6 +234,24 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     `;
   };
 
+  const getNativePrintModule = () => {
+    try {
+      if (NativeModules.ExpoPrint || (global as any).ExpoModules?.ExpoPrint) {
+        return require('expo-print');
+      }
+    } catch (e) {}
+    return null;
+  };
+
+  const getNativeSharingModule = () => {
+    try {
+      if (NativeModules.ExpoSharing || (global as any).ExpoModules?.ExpoSharing) {
+        return require('expo-sharing');
+      }
+    } catch (e) {}
+    return null;
+  };
+
   // Odeslání e-mailem
   const handleSendViaEmail = async () => {
     setIsGeneratingPdf(true);
@@ -244,12 +262,8 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       const emailList = emails.join(',');
       const subject = encodeURIComponent(`Stageplan & Technický Rider - ${band.name} (${concert?.title || 'Koncert'})`);
 
-      let printModule: any = null;
-      let sharingModule: any = null;
-      try {
-        printModule = require('expo-print');
-        sharingModule = require('expo-sharing');
-      } catch (err) {}
+      const printModule = getNativePrintModule();
+      const sharingModule = getNativeSharingModule();
 
       if (printModule && sharingModule) {
         const html = generateStageplanPdfHtml();
@@ -281,12 +295,8 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   const handleSendViaWhatsApp = async () => {
     setIsGeneratingPdf(true);
     try {
-      let printModule: any = null;
-      let sharingModule: any = null;
-      try {
-        printModule = require('expo-print');
-        sharingModule = require('expo-sharing');
-      } catch (err) {}
+      const printModule = getNativePrintModule();
+      const sharingModule = getNativeSharingModule();
 
       if (printModule && sharingModule) {
         const html = generateStageplanPdfHtml();
