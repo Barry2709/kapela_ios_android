@@ -40,9 +40,14 @@ export function SetlistEditorModal({ visible, onClose, concert, initialSetlist, 
   }, [visible, activeBand?.id]);
 
   const initialConcertSetlist = () => {
-    if (initialSetlist && initialSetlist.length > 0) return initialSetlist;
-    if (concert?.setlist && concert.setlist.length > 0) return concert.setlist;
-    return [];
+    const raw = initialSetlist && initialSetlist.length > 0 ? initialSetlist : (concert?.setlist || []);
+    const uniqueIds: string[] = [];
+    raw.forEach(id => {
+      if (id.startsWith('pauza_') || !uniqueIds.includes(id)) {
+        uniqueIds.push(id);
+      }
+    });
+    return uniqueIds;
   };
 
   const createPauseSong = (id: string): Song => ({

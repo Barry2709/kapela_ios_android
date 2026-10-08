@@ -80,11 +80,12 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
   // Otevření výběru člena při dlouhém podržení prázdné plochy
   const handleStageLongPress = (e: any) => {
+    if (!e || !e.nativeEvent) return;
     const { locationX, locationY } = e.nativeEvent;
-    if (!stageSize.width || !stageSize.height) return;
+    if (!stageSize.width || !stageSize.height || stageSize.width <= 0 || stageSize.height <= 0) return;
 
-    const percentX = (locationX / stageSize.width) * 100;
-    const percentY = (locationY / stageSize.height) * 100;
+    const percentX = Math.max(5, Math.min(95, (locationX / stageSize.width) * 100));
+    const percentY = Math.max(5, Math.min(95, (locationY / stageSize.height) * 100));
 
     setPickerPosition({ x: percentX, y: percentY });
     setShowMemberPicker(true);
@@ -602,12 +603,16 @@ function DraggableMember({
     }
   }, [item.x, item.y]);
 
+  const lastTapRef = useRef(0);
+  const grantTimeRef = useRef(0);
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
         isDraggingRef.current = true;
+        grantTimeRef.current = Date.now();
       },
       onPanResponderMove: (_, gestureState) => {
         if (!stageSize.width || !stageSize.height) return;
@@ -624,6 +629,22 @@ function DraggableMember({
       onPanResponderRelease: (_, gestureState) => {
         isDraggingRef.current = false;
         if (!stageSize.width || !stageSize.height) return;
+
+        const moveDistance = Math.hypot(gestureState.dx, gestureState.dy);
+
+        // Pokud to bylo klepnutí bez výrazného posunu (pohyb < 6px)
+        if (moveDistance < 6) {
+          const now = Date.now();
+          const DOUBLE_TAP_DELAY = 400; // 400ms okno pro dvojité poklepání
+
+          if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+            onRemove(item.memberId);
+            lastTapRef.current = 0;
+            return;
+          } else {
+            lastTapRef.current = now;
+          }
+        }
 
         const deltaXPercent = (gestureState.dx / stageSize.width) * 100;
         const deltaYPercent = (gestureState.dy / stageSize.height) * 100;
