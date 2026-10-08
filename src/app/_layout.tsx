@@ -25,6 +25,26 @@ export default function RootLayout() {
   const router = useRouter();
   const [isReady, setIsReady] = useState(false);
 
+  // Automatická kontrola a okamžitá instalace bezdrátových OTA aktualizací (EAS Update) při startu
+  useEffect(() => {
+    async function checkForOtaUpdates() {
+      if (__DEV__) return;
+      try {
+        const Updates = require('expo-updates');
+        if (Updates && typeof Updates.checkForUpdateAsync === 'function') {
+          const update = await Updates.checkForUpdateAsync();
+          if (update.isAvailable) {
+            await Updates.fetchUpdateAsync();
+            await Updates.reloadAsync();
+          }
+        }
+      } catch (e) {
+        console.log("Kontrola OTA aktualizace:", e);
+      }
+    }
+    checkForOtaUpdates();
+  }, []);
+
   // Automatické spuštění Live Sync pro aktivní kapelu na pozadí
   useEffect(() => {
     if (activeBand?.id) {
