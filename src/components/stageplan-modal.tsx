@@ -4,7 +4,7 @@ import { SymbolView } from 'expo-symbols';
 import { Image } from 'expo-image';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { NativeModulesProxy } from 'expo-modules-core';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 import { Spacing } from '@/constants/theme';
@@ -237,20 +237,22 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
   const getNativePrintModule = () => {
     try {
-      return require('expo-print');
-    } catch (e) {
-      console.log("ExpoPrint modul není v tomto buildu dostupný:", e);
-      return null;
-    }
+      const nativeModule = requireOptionalNativeModule('ExpoPrint');
+      if (nativeModule) {
+        return require('expo-print');
+      }
+    } catch (e) {}
+    return null;
   };
 
   const getNativeSharingModule = () => {
     try {
-      return require('expo-sharing');
-    } catch (e) {
-      console.log("ExpoSharing modul není v tomto buildu dostupný:", e);
-      return null;
-    }
+      const nativeModule = requireOptionalNativeModule('ExpoSharing');
+      if (nativeModule) {
+        return require('expo-sharing');
+      }
+    } catch (e) {}
+    return null;
   };
 
   // Vygenerování a okamžité uložení / otevření PDF dokumentu
