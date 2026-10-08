@@ -640,7 +640,7 @@ export default function HomeScreen() {
 
             {/* Ikony Facebook a Instagram pod informací o přihlášení */}
             {(activeBand?.facebook || activeBand?.instagram) && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -2, marginBottom: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -2, marginBottom: Spacing.two }}>
                 {activeBand?.facebook ? (
                   <Pressable
                     style={styles.socialHeaderBadge}
@@ -704,9 +704,9 @@ export default function HomeScreen() {
               </ThemedView>
             )}
 
-            {/* Sekce Koncerty a akce na hlavní stránce pod zkouškami (posunuto o 10px nahoru) */}
+            {/* Sekce Koncerty a akce na hlavní stránce pod zkouškami */}
             {concerts.length > 0 && (
-              <View style={{ marginTop: -10 }}>
+              <View style={{ marginTop: upcomingRehearsal ? -10 : 0 }}>
                 <View style={styles.sectionHeaderRow}>
                   <SymbolView name={{ ios: 'music.mic', android: 'confirmation_number', web: 'confirmation_number' }} size={18} tintColor={theme.text} />
                   <ThemedText type="subtitle" style={{ fontSize: 18, marginLeft: 6 }}>
