@@ -556,7 +556,7 @@ export default function HomeScreen() {
       [
         { text: 'Zrušit', style: 'cancel' },
         {
-          text: 'Odhlásit se',
+          text: 'Odhlásit',
           style: 'destructive',
           onPress: async () => {
             await AsyncStorage.removeItem('savedUser');
@@ -633,7 +633,7 @@ export default function HomeScreen() {
               </ThemedText>
               <Pressable onPress={handleLogout} style={styles.logoutBtnInline}>
                 <ThemedText type="smallBold" style={{ color: theme.text }}>
-                  Odhlásit se
+                  Odhlásit
                 </ThemedText>
               </Pressable>
             </View>
