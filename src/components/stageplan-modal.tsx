@@ -22,21 +22,24 @@ interface Props {
 
 export const getMemberTechBadges = (m: BandMember): string[] => {
   const badges: string[] = [];
-  if (m.instrument && m.instrument.trim().length > 0) {
-    badges.push(m.instrument.trim());
-  }
-  if (m.tech?.mic) badges.push('Zpěv');
-  if (m.tech?.instrumentMic) badges.push('Nástroj. mic');
-  if (m.tech?.xlr || m.tech?.comboXlr) badges.push('XLR');
-  if (m.tech?.jack || m.tech?.comboJack) badges.push('Jack');
-  if (m.tech?.monitor || m.tech?.wirelessMonitor) badges.push('Monitor');
-  if (m.tech?.power230V) badges.push('230V');
+  if (!m || !m.tech) return badges;
 
-  if (m.tech?.customTech) {
+  if (m.tech.mic) badges.push('Zpěv. mikrofon');
+  if (m.tech.instrumentMic) badges.push('Nástroj. mikrofon');
+  if (m.tech.xlr || m.tech.comboXlr) badges.push('XLR linka');
+  if (m.tech.jack || m.tech.comboJack) badges.push('Jack 6.3mm');
+  if (m.tech.monitor) badges.push('Odposlech');
+  if (m.tech.wirelessMonitor) badges.push('In-Ear monitor');
+  if (m.tech.power230V) badges.push('230V zásuvka');
+  if (m.tech.pedalboard) badges.push('Pedalboard');
+
+  if (m.tech.customTech) {
     Object.entries(m.tech.customTech).forEach(([key, val]) => {
       if (val) {
         const cleanVal = key.replace(/[\u{1F300}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
-        if (cleanVal) badges.push(cleanVal);
+        if (cleanVal && !badges.includes(cleanVal)) {
+          badges.push(cleanVal);
+        }
       }
     });
   }
@@ -649,7 +652,7 @@ function DraggableMember({
     }
   };
 
-  const techRequirements = getMemberTechBadges(member).filter(b => b !== member.instrument);
+  const techRequirements = getMemberTechBadges(member);
 
   return (
     <View
