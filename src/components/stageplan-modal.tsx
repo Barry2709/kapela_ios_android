@@ -417,10 +417,6 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
                 />
               );
             })}
-                  }}
-                />
-              );
-            })}
           </View>
         </View>
 
