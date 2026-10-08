@@ -638,9 +638,9 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
-            {/* Ikony Facebook a Instagram pod informací o přihlášení */}
-            {(activeBand?.facebook || activeBand?.instagram) && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -2, marginBottom: Spacing.two }}>
+            {/* Ikony Facebook, Instagram a Bandzone pod informací o přihlášení */}
+            {(activeBand?.facebook || activeBand?.instagram || activeBand?.bandzone) && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -2, marginBottom: Spacing.two, flexWrap: 'wrap' }}>
                 {activeBand?.facebook ? (
                   <Pressable
                     style={styles.socialHeaderBadge}
@@ -671,6 +671,24 @@ export default function HomeScreen() {
                     <SymbolView name={{ ios: 'camera.fill', android: 'photo_camera', web: 'camera' }} size={16} tintColor="#e1306c" />
                     <ThemedText type="smallBold" style={{ color: '#e1306c', fontSize: 12, marginLeft: 4 }}>
                       Instagram
+                    </ThemedText>
+                  </Pressable>
+                ) : null}
+
+                {activeBand?.bandzone ? (
+                  <Pressable
+                    style={styles.socialHeaderBadge}
+                    onPress={() => {
+                      let url = activeBand.bandzone!;
+                      if (!url.startsWith('http://') && !url.startsWith('https://')) url = `https://${url}`;
+                      Linking.openURL(url);
+                    }}
+                  >
+                    <View style={{ width: 18, height: 18, borderRadius: 4, backgroundColor: '#ff5722', justifyContent: 'center', alignItems: 'center', marginRight: 4 }}>
+                      <ThemedText style={{ color: '#ffffff', fontSize: 11, fontWeight: 'bold', lineHeight: 13 }}>BZ</ThemedText>
+                    </View>
+                    <ThemedText type="smallBold" style={{ color: '#ff5722', fontSize: 12 }}>
+                      Bandzone
                     </ThemedText>
                   </Pressable>
                 ) : null}

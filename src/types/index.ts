@@ -18,6 +18,7 @@ export interface Band {
   web?: string; // Odkaz na web kapely
   facebook?: string; // Odkaz na Facebook
   instagram?: string; // Odkaz na Instagram
+  bandzone?: string; // Odkaz na Bandzone
   techRiderPresets?: string[]; // Předvolby pro technický rider
   whatToTakePresets?: string[]; // Předvolby pro co vzít s sebou
   stageplan?: StageplanMember[]; // Rozmístění členů na stage

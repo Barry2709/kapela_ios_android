@@ -83,7 +83,8 @@ export const createBand = async (
   adminPasswordHash: string,
   logoUri: string | null,
   facebook?: string,
-  instagram?: string
+  instagram?: string,
+  bandzone?: string
 ): Promise<Band> => {
   const bandId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
 
@@ -100,6 +101,7 @@ export const createBand = async (
     web,
     facebook,
     instagram,
+    bandzone,
     logoUri: finalLogoUrl,
     adminPassword: adminPasswordHash,
     createdAt: Date.now()

@@ -39,6 +39,7 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
   const [web, setWeb] = useState(band.web || '');
   const [facebook, setFacebook] = useState(band.facebook || '');
   const [instagram, setInstagram] = useState(band.instagram || '');
+  const [bandzone, setBandzone] = useState(band.bandzone || '');
   const [logoUri, setLogoUri] = useState<string | null>(band.logoUri || null);
   const [isSaving, setIsSaving] = useState(false);
   const [showStageplan, setShowStageplan] = useState(false);
@@ -199,6 +200,7 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
         web,
         facebook,
         instagram,
+        bandzone,
         logoUri: logoUri || undefined,
       });
     } finally {
@@ -300,6 +302,26 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
                 <SymbolView name={{ ios: 'camera.fill', android: 'photo_camera', web: 'camera' }} size={20} tintColor="#e1306c" />
                 <ThemedText type="smallBold" style={{ marginLeft: 8, color: '#e1306c' }}>
                   Instagram: {band.instagram}
+                </ThemedText>
+              </Pressable>
+            ) : null}
+
+            {band.bandzone ? (
+              <Pressable
+                style={[styles.fanWebBtn, { backgroundColor: 'rgba(255, 87, 34, 0.15)', borderColor: 'rgba(255, 87, 34, 0.4)', borderWidth: 1 }]}
+                onPress={() => {
+                  let url = band.bandzone!;
+                  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    url = `https://${url}`;
+                  }
+                  Linking.openURL(url);
+                }}
+              >
+                <View style={{ width: 22, height: 22, borderRadius: 5, backgroundColor: '#ff5722', justifyContent: 'center', alignItems: 'center', marginRight: 6 }}>
+                  <ThemedText style={{ color: '#ffffff', fontSize: 13, fontWeight: 'bold', lineHeight: 15 }}>BZ</ThemedText>
+                </View>
+                <ThemedText type="smallBold" style={{ color: '#ff5722', textAlign: 'center' }}>
+                  Bandzone: {band.bandzone}
                 </ThemedText>
               </Pressable>
             ) : null}
@@ -665,6 +687,9 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
 
               <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16, marginTop: 8}}>Instagram kapely (URL)</ThemedText>
               <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={instagram} onChangeText={setInstagram} placeholder="instagram.com/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
+
+              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16, marginTop: 8}}>Bandzone kapely (URL)</ThemedText>
+              <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={bandzone} onChangeText={setBandzone} placeholder="bandzone.cz/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
             </View>
 
             <View style={styles.buttons}>
