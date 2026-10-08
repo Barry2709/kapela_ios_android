@@ -10,21 +10,6 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Band, BandMember, StageplanMember, Concert } from '@/types';
 
-let Print: typeof import('expo-print') | null = null;
-let Sharing: typeof import('expo-sharing') | null = null;
-
-try {
-  Print = require('expo-print');
-} catch (e) {
-  Print = null;
-}
-
-try {
-  Sharing = require('expo-sharing');
-} catch (e) {
-  Sharing = null;
-}
-
 interface Props {
   visible: boolean;
   onClose: () => void;
