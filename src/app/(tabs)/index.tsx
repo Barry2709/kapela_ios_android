@@ -994,7 +994,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
   scrollContent: { paddingBottom: Spacing.six },
-  contentPadding: { paddingHorizontal: 4 },
+  contentPadding: { paddingHorizontal: 3 },
   loggedInRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.two, marginTop: 3 },
   socialHeaderBadge: {
     flexDirection: 'row',
@@ -1008,7 +1008,8 @@ const styles = StyleSheet.create({
   },
   logoutBtnInline: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 6, backgroundColor: 'rgba(150,150,150,0.2)' },
   nextRehearsalBox: {
-    padding: Spacing.three,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: 3,
     borderRadius: Spacing.three,
     marginBottom: Spacing.four,
     borderWidth: 1,
@@ -1024,7 +1025,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   concertCard: {
-    padding: Spacing.three,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: 3,
     borderRadius: Spacing.three,
   },
   futureCard: {
