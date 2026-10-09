@@ -304,10 +304,10 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
         let finalPdfUri = uri;
 
-        // Uložení do složky dokumentů s přehledným názvem Naplech_Stagelist.pdf
+        // Uložení do složky dokumentů s přehledným názvem "{NázevKapely}_Stageplan.pdf"
         if (fileSystemModule && fileSystemModule.documentDirectory) {
-          const cleanBandName = (band?.name || 'Naplech').replace(/[^a-zA-Z0-9]/g, '_');
-          const targetPath = `${fileSystemModule.documentDirectory}${cleanBandName}_Stagelist.pdf`;
+          const cleanBandName = (band?.name || 'Kapela').replace(/[^a-zA-Z0-9_-]/g, '_');
+          const targetPath = `${fileSystemModule.documentDirectory}${cleanBandName}_Stageplan.pdf`;
           try {
             await fileSystemModule.copyAsync({ from: uri, to: targetPath });
             finalPdfUri = targetPath;
