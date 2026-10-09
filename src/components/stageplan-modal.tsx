@@ -519,8 +519,8 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
           </View>
         </View>
 
-        {/* Modal s výběrem člena */}
-        <Modal visible={showMemberPicker} transparent animationType="fade">
+        {/* Vrstva s výběrem člena */}
+        {showMemberPicker && (
           <Pressable style={styles.modalOverlay} onPress={() => setShowMemberPicker(false)}>
             <ThemedView type="backgroundElement" style={styles.pickerModal}>
               <ThemedText type="subtitle" style={{ marginBottom: Spacing.three, textAlign: 'center' }}>
@@ -560,10 +560,10 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
               </Pressable>
             </ThemedView>
           </Pressable>
-        </Modal>
+        )}
 
-        {/* Modal pro vybraný způsob odeslání Stageplanu pořadatelům */}
-        <Modal visible={showSendModal} transparent animationType="fade">
+        {/* Vrstva pro vybraný způsob odeslání Stageplanu pořadatelům */}
+        {showSendModal && (
           <Pressable style={styles.modalOverlay} onPress={() => setShowSendModal(false)}>
             <ThemedView type="backgroundElement" style={styles.sendModalBox}>
               <ThemedText type="subtitle" style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 4, textAlign: 'center' }}>
@@ -608,7 +608,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
               )}
             </ThemedView>
           </Pressable>
-        </Modal>
+        )}
 
       </ThemedView>
     </Modal>
@@ -809,11 +809,17 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(33, 150, 243, 0.3)',
   },
   modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.four,
+    zIndex: 99999,
+    elevation: 99,
   },
   pickerModal: {
     width: '100%',
