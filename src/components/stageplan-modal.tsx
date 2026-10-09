@@ -24,16 +24,8 @@ export const getMemberTechBadges = (m: BandMember): string[] => {
   const badges: string[] = [];
   if (!m || !m.tech) return badges;
 
-  if (m.tech.mic) badges.push('Zpěv. mikrofon');
-  if (m.tech.instrumentMic) badges.push('Nástroj. mikrofon');
-  if (m.tech.xlr || m.tech.comboXlr) badges.push('XLR linka');
-  if (m.tech.jack || m.tech.comboJack) badges.push('Jack 6.3mm');
-  if (m.tech.monitor) badges.push('Odposlech');
-  if (m.tech.wirelessMonitor) badges.push('In-Ear monitor');
-  if (m.tech.power230V) badges.push('230V zásuvka');
-  if (m.tech.pedalboard) badges.push('Pedalboard');
-
-  if (m.tech.customTech) {
+  // 1. Přidat přesně a pouze ty položky technického setupu, které má člen zaškrtnuté ve svém profilu
+  if (m.tech.customTech && typeof m.tech.customTech === 'object') {
     Object.entries(m.tech.customTech).forEach(([key, val]) => {
       if (val) {
         const cleanVal = key.replace(/[\u{1F300}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
@@ -43,6 +35,18 @@ export const getMemberTechBadges = (m: BandMember): string[] => {
       }
     });
   }
+
+  // 2. Pokud nemá žádné customTech položky, zobrazíme základní zaškrtnuté přepínače
+  if (badges.length === 0) {
+    if (m.tech.mic) badges.push('Zpěv mic');
+    if (m.tech.instrumentMic) badges.push('Nástroj mic');
+    if (m.tech.comboXlr || m.tech.xlr) badges.push('Combo XLR');
+    if (m.tech.comboJack || m.tech.jack) badges.push('Jack 6.3mm');
+    if (m.tech.wirelessMonitor || m.tech.monitor) badges.push('IN-EAR');
+    if (m.tech.power230V) badges.push('230V');
+    if (m.tech.pedalboard) badges.push('Pedalboard');
+  }
+
   return badges;
 };
 
