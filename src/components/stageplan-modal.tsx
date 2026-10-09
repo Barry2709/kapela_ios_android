@@ -344,11 +344,12 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   const handleSendViaEmail = async () => {
     setIsGeneratingPdf(true);
     try {
+      const bandName = band?.name || 'Kapela';
       const emails = concert?.organizers
         ? concert.organizers.map(o => o.email).filter(Boolean) as string[]
         : [];
       const emailList = emails.join(',');
-      const subject = encodeURIComponent(`Stageplan & Technický Rider - ${band.name} (${concert?.title || 'Koncert'})`);
+      const subject = encodeURIComponent(`Stageplan & Technický Rider - ${bandName} (${concert?.title || 'Koncert'})`);
 
       const printModule = getNativePrintModule();
       const sharingModule = getNativeSharingModule();
@@ -361,14 +362,22 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
         if (await sharingModule.isAvailableAsync()) {
           await sharingModule.shareAsync(uri, {
             mimeType: 'application/pdf',
-            dialogTitle: `Stageplan kapely ${band.name}`,
+            dialogTitle: `Stageplan kapely ${bandName}`,
             UTI: 'com.adobe.pdf',
           });
         } else {
-          Linking.openURL(`mailto:${emailList}?subject=${subject}`);
+          try {
+            await Linking.openURL(`mailto:${emailList}?subject=${subject}`);
+          } catch (linkErr) {
+            Alert.alert("E-mail klient nedostupný", "Nepodařilo se otevřít e-mailový klient.");
+          }
         }
       } else {
-        Linking.openURL(`mailto:${emailList}?subject=${subject}`);
+        try {
+          await Linking.openURL(`mailto:${emailList}?subject=${subject}`);
+        } catch (linkErr) {
+          Alert.alert("E-mail klient nedostupný", "Nepodařilo se otevřít e-mailový klient.");
+        }
       }
 
       setShowSendModal(false);
@@ -384,6 +393,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   const handleSendViaWhatsApp = async () => {
     setIsGeneratingPdf(true);
     try {
+      const bandName = band?.name || 'Kapela';
       const printModule = getNativePrintModule();
       const sharingModule = getNativeSharingModule();
 
@@ -395,15 +405,19 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
         if (await sharingModule.isAvailableAsync()) {
           await sharingModule.shareAsync(uri, {
             mimeType: 'application/pdf',
-            dialogTitle: `Odeslat Stageplan kapely ${band.name}`,
+            dialogTitle: `Odeslat Stageplan kapely ${bandName}`,
             UTI: 'com.adobe.pdf',
           });
         } else {
           Alert.alert("Sdílení nedostupné", "Sdílení souborů není na tomto zařízení dostupné.");
         }
       } else {
-        const textMsg = encodeURIComponent(`Ahoj, posílám kontakt a informace k akce ${concert?.title || 'Koncert'} kapely ${band.name}.`);
-        Linking.openURL(`https://wa.me/?text=${textMsg}`);
+        const textMsg = encodeURIComponent(`Ahoj, posílám kontakt a informace k akce ${concert?.title || 'Koncert'} kapely ${bandName}.`);
+        try {
+          await Linking.openURL(`https://wa.me/?text=${textMsg}`);
+        } catch (linkErr) {
+          Alert.alert("Aplikace nedostupná", "Nepodařilo se otevřít WhatsApp.");
+        }
       }
 
       setShowSendModal(false);
