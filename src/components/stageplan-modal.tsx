@@ -344,43 +344,57 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     }
   };
 
-  // Odeslání e-mailem
+  // Odeslání e-mailem s předvyplněným předmětem, textem, příjemci a přiloženým PDF
   const handleSendViaEmail = async () => {
     setIsGeneratingPdf(true);
     try {
-      const bandName = band?.name || 'Kapela';
+      const bandName = band?.name || 'Naplech';
       const emails = concert?.organizers
         ? concert.organizers.map(o => o.email).filter(Boolean) as string[]
         : [];
-      const emailList = emails.join(',');
-      const subject = encodeURIComponent(`Stageplan & Technický Rider - ${bandName} (${concert?.title || 'Koncert'})`);
+      const subject = `Stageplan & Technický Rider - ${bandName} (${concert?.title || 'Koncert'})`;
+      const bodyText = `Ahoj,\n\nv příloze posílám oficiální Stageplan a Technický Rider kapely ${bandName} pro akci ${concert?.title || 'Koncert'}.\n\nS pozdravem,\nKapela ${bandName}`;
 
-      const sharingModule = getNativeSharingModule();
-
+      let mailComposerModule: any = null;
       try {
-        const pdfUri = await generateNamedPdfFile();
-        console.log("Vygenerovaný pojmenovaný PDF soubor pro e-mail:", pdfUri);
+        mailComposerModule = require('expo-mail-composer');
+      } catch (e) {}
 
-        if (sharingModule && (await sharingModule.isAvailableAsync())) {
-          await sharingModule.shareAsync(pdfUri, {
-            mimeType: 'application/pdf',
-            dialogTitle: `Stageplan kapely ${bandName}`,
-            UTI: 'com.adobe.pdf',
+      const pdfUri = await generateNamedPdfFile();
+
+      if (mailComposerModule && mailComposerModule.composeAsync) {
+        const isAvailable = await mailComposerModule.isAvailableAsync();
+        if (isAvailable) {
+          await mailComposerModule.composeAsync({
+            recipients: emails.length > 0 ? emails : undefined,
+            subject: subject,
+            body: bodyText,
+            attachments: [pdfUri],
           });
         } else {
-          await Linking.openURL(`mailto:${emailList}?subject=${subject}`);
+          const sharingModule = getNativeSharingModule();
+          if (sharingModule && sharingModule.shareAsync) {
+            await sharingModule.shareAsync(pdfUri, {
+              mimeType: 'application/pdf',
+              dialogTitle: subject,
+              UTI: 'com.adobe.pdf',
+            });
+          }
         }
-      } catch (pdfErr) {
-        try {
-          await Linking.openURL(`mailto:${emailList}?subject=${subject}`);
-        } catch (linkErr) {
-          Alert.alert("E-mail klient nedostupný", "Nepodařilo se otevřít e-mailový klient.");
+      } else {
+        const sharingModule = getNativeSharingModule();
+        if (sharingModule && sharingModule.shareAsync) {
+          await sharingModule.shareAsync(pdfUri, {
+            mimeType: 'application/pdf',
+            dialogTitle: subject,
+            UTI: 'com.adobe.pdf',
+          });
         }
       }
 
       setShowSendModal(false);
     } catch (e: any) {
-      console.error("Chyba při generování PDF:", e);
+      console.error("Chyba při odesílání e-mailu s přílohou:", e);
       Alert.alert("Chyba PDF", e?.message || "Nepodařilo se vygenerovat PDF Stageplanu.");
     } finally {
       setIsGeneratingPdf(false);
