@@ -102,6 +102,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
   // Generování HTML šablony pro PDF Stageplanu & Rideru s technickými požadavky jednotlivých členů
   const generateStageplanPdfHtml = (): string => {
+    const bandName = band?.name || 'Naplech';
     const concertTitle = concert?.title || 'Koncert / Akce';
     const concertDate = concert?.date || '';
     const concertLocation = concert?.location || '';
@@ -109,7 +110,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
     // Kontakty pořadatelů
     let orgsHtml = '';
-    if (concert?.organizers && concert.organizers.length > 0) {
+    if (concert?.organizers && Array.isArray(concert.organizers) && concert.organizers.length > 0) {
       orgsHtml = `
         <div style="margin-top: 15px;">
           <h3 style="margin-bottom: 6px; color: #1877f2; border-bottom: 2px solid #1877f2; padding-bottom: 3px;">Kontakty na pořadatele a zvukaře:</h3>
@@ -125,10 +126,10 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
             <tbody>
               ${concert.organizers.map(o => `
                 <tr>
-                  <td style="border: 1px solid #ccc; padding: 6px 10px; font-weight: bold; font-size: 11px;">${o.role || 'Kontakt'}</td>
-                  <td style="border: 1px solid #ccc; padding: 6px 10px; font-size: 11px;">${o.name}</td>
-                  <td style="border: 1px solid #ccc; padding: 6px 10px; font-size: 11px;">${o.phone || '-'}</td>
-                  <td style="border: 1px solid #ccc; padding: 6px 10px; font-size: 11px;">${o.email || '-'}</td>
+                  <td style="border: 1px solid #ccc; padding: 6px 10px; font-weight: bold; font-size: 11px;">${o?.role || 'Kontakt'}</td>
+                  <td style="border: 1px solid #ccc; padding: 6px 10px; font-size: 11px;">${o?.name || ''}</td>
+                  <td style="border: 1px solid #ccc; padding: 6px 10px; font-size: 11px;">${o?.phone || '-'}</td>
+                  <td style="border: 1px solid #ccc; padding: 6px 10px; font-size: 11px;">${o?.email || '-'}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -144,50 +145,68 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       `;
     }
 
-    // Členové na stagi HTML včetně jejich konkrétních technických požadavků
-    const pinsHtml = stageplan.map(s => {
-      const mem = members.find(m => m.id === s.memberId);
+    const safeMembers = Array.isArray(members) ? members : [];
+    const safeStageplan = Array.isArray(stageplan) ? stageplan : [];
+
+    // Členové na stagi HTML (požadavky svisle pod sebou)
+    const pinsHtml = safeStageplan.map(s => {
+      const mem = safeMembers.find(m => m.id === s.memberId);
       if (!mem) return '';
-      const badges = getMemberTechBadges(mem).join(' • ');
+      const badges = getMemberTechBadges(mem);
       return `
-        <div style="position: absolute; left: ${s.x}%; top: ${s.y}%; transform: translate(-50%, -50%); background: #2196f3; color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3); border: 1px solid #1976d2;">
-          ${mem.nickname || mem.firstName}<br>
-          <span style="font-size: 9px; font-weight: normal; opacity: 0.95;">${badges}</span>
+        <div style="position: absolute; left: ${s.x || 50}%; top: ${s.y || 50}%; transform: translate(-50%, -50%); background: #2196f3; color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3); border: 1px solid #1976d2;">
+          <strong style="font-size: 12px;">${mem.nickname || mem.firstName || 'Člen'}</strong><br>
+          <span style="font-size: 10px; color: #e8f5e9; font-weight: bold;">${mem.instrument || ''}</span>
+          <div style="font-size: 9px; font-weight: normal; opacity: 0.95; margin-top: 2px; line-height: 1.1;">
+            ${badges.map(b => `<div>${b}</div>`).join('')}
+          </div>
         </div>
       `;
     }).join('');
 
-    // Technický rider balíčky kapely a rozpis podle členů
-    let techPresetsHtml = '';
-    const memberTechListHtml = members
-      .filter(m => stageplan.some(s => s.memberId === m.id))
+    // Součet počtu jednotlivých technických položek na stagi
+    const techCounts: Record<string, number> = {};
+    safeMembers
+      .filter(m => safeStageplan.some(s => s.memberId === m.id))
+      .forEach(m => {
+        const badges = getMemberTechBadges(m);
+        badges.forEach(badge => {
+          techCounts[badge] = (techCounts[badge] || 0) + 1;
+        });
+      });
+
+    if (band?.techRiderPresets && Array.isArray(band.techRiderPresets)) {
+      band.techRiderPresets.forEach(preset => {
+        if (!techCounts[preset]) {
+          techCounts[preset] = 1;
+        }
+      });
+    }
+
+    const techCountsHtml = Object.entries(techCounts).map(([item, count]) => `
+      <span style="background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; padding: 5px 12px; border-radius: 12px; font-size: 11px; font-weight: bold;">
+        ✔ ${item} (${count}x)
+      </span>
+    `).join('');
+
+    // Technické požadavky jednotlivých muzikantů (Přezdívka nahoře, pod ní malé Jméno a Příjmení)
+    const memberTechListHtml = safeMembers
+      .filter(m => safeStageplan.some(s => s.memberId === m.id))
       .map(m => {
         const badges = getMemberTechBadges(m);
-        if (badges.length === 0) return '';
+        const nickname = m.nickname || m.firstName || 'Člen';
+        const fullName = `${m.firstName || ''} ${m.lastName || ''}`.trim();
         return `
-          <div style="background: #f8f9fa; border: 1px solid #e0e0e0; padding: 8px 12px; border-radius: 6px; width: 48%; box-sizing: border-box;">
-            <strong style="font-size: 12px; color: #1976d2;">${m.nickname || m.firstName} ${m.lastName || ''}</strong> (${m.instrument || ''})
-            <div style="font-size: 11px; color: #555; margin-top: 4px;">
-              ${badges.join(' • ')}
+          <div style="background: #f8f9fa; border: 1px solid #e0e0e0; padding: 10px 14px; border-radius: 8px; width: 48%; box-sizing: border-box; margin-bottom: 10px;">
+            <div style="font-size: 14px; font-weight: bold; color: #1976d2;">${nickname}</div>
+            <div style="font-size: 10px; color: #666; margin-bottom: 4px;">${fullName}</div>
+            <div style="font-size: 11px; font-weight: bold; color: #2e7d32; margin-bottom: 4px;">${m.instrument || ''}</div>
+            <div style="font-size: 10px; color: #444; line-height: 1.3;">
+              ${badges.map(b => `<div>• ${b}</div>`).join('')}
             </div>
           </div>
         `;
       }).join('');
-
-    if (band.techRiderPresets && band.techRiderPresets.length > 0) {
-      techPresetsHtml = `
-        <div style="margin-top: 15px;">
-          <h3 style="margin-bottom: 6px; color: #2e7d32; border-bottom: 2px solid #2e7d32; padding-bottom: 3px;">Požadavky na techniku & zvukaře (Tech Rider):</h3>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; margin-bottom: 10px;">
-            ${band.techRiderPresets.map(p => `
-              <span style="background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold;">
-                ✔ ${p}
-              </span>
-            `).join('')}
-          </div>
-        </div>
-      `;
-    }
 
     return `
       <!DOCTYPE html>
@@ -207,7 +226,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       <body>
         <div class="header-box">
           <div>
-            <h1 class="band-title">${band.name}</h1>
+            <h1 class="band-title">${bandName}</h1>
             <div class="concert-info">
               <strong>${concertTitle}</strong> • ${concertDate} ${concertTime} ${concertLocation ? `(${concertLocation})` : ''}
             </div>
@@ -224,7 +243,12 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
           <div class="stage-front">▼ PŘEDNÍ HRANA PÓDIA / HLAVNÍ ZVUK (PA) ▼</div>
         </div>
 
-        ${techPresetsHtml}
+        <div style="margin-top: 15px;">
+          <h3 style="margin-bottom: 6px; color: #2e7d32; border-bottom: 2px solid #2e7d32; padding-bottom: 3px;">Požadavky na techniku & zvukaře (Souhrn položek):</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; margin-bottom: 10px;">
+            ${techCountsHtml}
+          </div>
+        </div>
 
         <div style="margin-top: 15px;">
           <h3 style="margin-bottom: 6px; color: #1976d2;">Technické požadavky jednotlivých muzikantů:</h3>
@@ -236,7 +260,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
         ${orgsHtml}
 
         <div class="footer">
-          Tento dokument obsahuje oficiální Stageplan a Technický Rider kapely ${band.name}.
+          Tento dokument obsahuje oficiální Stageplan a Technický Rider kapely ${bandName}.
         </div>
       </body>
       </html>
@@ -282,10 +306,10 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
         let finalPdfUri = uri;
 
-        // Uložení do složky dokumentů s přehledným názvem
+        // Uložení do složky dokumentů s přehledným názvem Naplech_Stagelist.pdf
         if (fileSystemModule && fileSystemModule.documentDirectory) {
-          const cleanBandName = (band?.name || 'Kapela').replace(/[^a-zA-Z0-9]/g, '_');
-          const targetPath = `${fileSystemModule.documentDirectory}Stageplan_${cleanBandName}.pdf`;
+          const cleanBandName = (band?.name || 'Naplech').replace(/[^a-zA-Z0-9]/g, '_');
+          const targetPath = `${fileSystemModule.documentDirectory}${cleanBandName}_Stagelist.pdf`;
           try {
             await fileSystemModule.copyAsync({ from: uri, to: targetPath });
             finalPdfUri = targetPath;
