@@ -269,22 +269,20 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
   const getNativePrintModule = () => {
     try {
-      const nativeModule = requireOptionalNativeModule('ExpoPrint');
-      if (nativeModule) {
-        return require('expo-print');
-      }
-    } catch (e) {}
-    return null;
+      return require('expo-print');
+    } catch (e) {
+      console.log("ExpoPrint nebyl v tomto buildu nalezen:", e);
+      return null;
+    }
   };
 
   const getNativeSharingModule = () => {
     try {
-      const nativeModule = requireOptionalNativeModule('ExpoSharing');
-      if (nativeModule) {
-        return require('expo-sharing');
-      }
-    } catch (e) {}
-    return null;
+      return require('expo-sharing');
+    } catch (e) {
+      console.log("ExpoSharing nebyl v tomto buildu nalezen:", e);
+      return null;
+    }
   };
 
   // Vygenerování a okamžité uložení / otevření PDF dokumentu
