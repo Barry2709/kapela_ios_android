@@ -285,50 +285,54 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     }
   };
 
+  // Pomocná funkce pro vygenerování a pojmenování PDF souboru
+  const generateNamedPdfFile = async (): Promise<string> => {
+    const printModule = getNativePrintModule();
+    if (!printModule || !printModule.printToFileAsync) {
+      throw new Error("Modul pro generování PDF není k dispozici.");
+    }
+
+    const html = generateStageplanPdfHtml();
+    const { uri } = await printModule.printToFileAsync({ html });
+
+    let fileSystemModule: any = null;
+    try {
+      fileSystemModule = require('expo-file-system');
+    } catch (e) {}
+
+    if (fileSystemModule && (fileSystemModule.cacheDirectory || fileSystemModule.documentDirectory)) {
+      const cleanBandName = (band?.name || 'Naplech').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const baseDir = fileSystemModule.cacheDirectory || fileSystemModule.documentDirectory;
+      const targetPath = `${baseDir}${cleanBandName}_Stageplan.pdf`;
+      try {
+        try {
+          await fileSystemModule.deleteAsync(targetPath, { idempotent: true });
+        } catch (e) {}
+        await fileSystemModule.copyAsync({ from: uri, to: targetPath });
+        return targetPath;
+      } catch (err) {
+        console.log("Kopírování souboru selhalo:", err);
+      }
+    }
+    return uri;
+  };
+
   // Vygenerování a okamžité uložení / otevření PDF dokumentu
   const handleGenerateAndOpenPdf = async () => {
     setIsGeneratingPdf(true);
     try {
-      const printModule = getNativePrintModule();
       const sharingModule = getNativeSharingModule();
+      const pdfUri = await generateNamedPdfFile();
+      console.log("Vygenerovaný pojmenovaný PDF soubor:", pdfUri);
 
-      let fileSystemModule: any = null;
-      try {
-        fileSystemModule = require('expo-file-system');
-      } catch (e) {}
-
-      if (printModule && printModule.printToFileAsync) {
-        const html = generateStageplanPdfHtml();
-        const { uri } = await printModule.printToFileAsync({ html });
-        console.log("PDF vygenerováno v dočasné složce:", uri);
-
-        let finalPdfUri = uri;
-
-        // Uložení do složky dokumentů s přehledným názvem "{NázevKapely}_Stageplan.pdf"
-        if (fileSystemModule && fileSystemModule.documentDirectory) {
-          const cleanBandName = (band?.name || 'Kapela').replace(/[^a-zA-Z0-9_-]/g, '_');
-          const targetPath = `${fileSystemModule.documentDirectory}${cleanBandName}_Stageplan.pdf`;
-          try {
-            await fileSystemModule.copyAsync({ from: uri, to: targetPath });
-            finalPdfUri = targetPath;
-            console.log("PDF úspěšně uloženo do složky dokumentů:", targetPath);
-          } catch (copyErr) {
-            console.log("Kopírování souboru selhalo, používám původní uri:", copyErr);
-          }
-        }
-
-        // Bezpečné nativní otevření / sdílení PDF přes expo-sharing (funkční na Androidu i iOS)
-        if (sharingModule && sharingModule.shareAsync) {
-          await sharingModule.shareAsync(finalPdfUri, {
-            mimeType: 'application/pdf',
-            dialogTitle: `Otevřít / Uložit Stageplan kapely ${band?.name || 'Kapela'}`,
-            UTI: 'com.adobe.pdf',
-          });
-        } else {
-          Alert.alert("PDF Vygenerováno", `Soubor byl uložen v dočasné složce telefonu:\n${finalPdfUri}`);
-        }
+      if (sharingModule && sharingModule.shareAsync) {
+        await sharingModule.shareAsync(pdfUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Otevřít / Uložit Stageplan kapely ${band?.name || 'Kapela'}`,
+          UTI: 'com.adobe.pdf',
+        });
       } else {
-        Alert.alert("PDF Nedostupné", "Generování PDF vyžaduje zkompilovaný balíček.");
+        Alert.alert("PDF Vygenerováno", `Soubor byl uložen:\n${pdfUri}`);
       }
 
       setShowSendModal(false);
@@ -351,28 +355,22 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       const emailList = emails.join(',');
       const subject = encodeURIComponent(`Stageplan & Technický Rider - ${bandName} (${concert?.title || 'Koncert'})`);
 
-      const printModule = getNativePrintModule();
       const sharingModule = getNativeSharingModule();
 
-      if (printModule && sharingModule) {
-        const html = generateStageplanPdfHtml();
-        const { uri } = await printModule.printToFileAsync({ html });
-        console.log("Vygenerovaný PDF soubor:", uri);
+      try {
+        const pdfUri = await generateNamedPdfFile();
+        console.log("Vygenerovaný pojmenovaný PDF soubor pro e-mail:", pdfUri);
 
-        if (await sharingModule.isAvailableAsync()) {
-          await sharingModule.shareAsync(uri, {
+        if (sharingModule && (await sharingModule.isAvailableAsync())) {
+          await sharingModule.shareAsync(pdfUri, {
             mimeType: 'application/pdf',
             dialogTitle: `Stageplan kapely ${bandName}`,
             UTI: 'com.adobe.pdf',
           });
         } else {
-          try {
-            await Linking.openURL(`mailto:${emailList}?subject=${subject}`);
-          } catch (linkErr) {
-            Alert.alert("E-mail klient nedostupný", "Nepodařilo se otevřít e-mailový klient.");
-          }
+          await Linking.openURL(`mailto:${emailList}?subject=${subject}`);
         }
-      } else {
+      } catch (pdfErr) {
         try {
           await Linking.openURL(`mailto:${emailList}?subject=${subject}`);
         } catch (linkErr) {
@@ -394,16 +392,14 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     setIsGeneratingPdf(true);
     try {
       const bandName = band?.name || 'Kapela';
-      const printModule = getNativePrintModule();
       const sharingModule = getNativeSharingModule();
 
-      if (printModule && sharingModule) {
-        const html = generateStageplanPdfHtml();
-        const { uri } = await printModule.printToFileAsync({ html });
-        console.log("Vygenerovaný PDF soubor:", uri);
+      try {
+        const pdfUri = await generateNamedPdfFile();
+        console.log("Vygenerovaný pojmenovaný PDF soubor pro WhatsApp:", pdfUri);
 
-        if (await sharingModule.isAvailableAsync()) {
-          await sharingModule.shareAsync(uri, {
+        if (sharingModule && (await sharingModule.isAvailableAsync())) {
+          await sharingModule.shareAsync(pdfUri, {
             mimeType: 'application/pdf',
             dialogTitle: `Odeslat Stageplan kapely ${bandName}`,
             UTI: 'com.adobe.pdf',
@@ -411,7 +407,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
         } else {
           Alert.alert("Sdílení nedostupné", "Sdílení souborů není na tomto zařízení dostupné.");
         }
-      } else {
+      } catch (pdfErr) {
         const textMsg = encodeURIComponent(`Ahoj, posílám kontakt a informace k akce ${concert?.title || 'Koncert'} kapely ${bandName}.`);
         try {
           await Linking.openURL(`https://wa.me/?text=${textMsg}`);
