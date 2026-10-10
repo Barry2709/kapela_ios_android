@@ -10,6 +10,7 @@ import { ThemedView } from './themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Band, BandMember, StageplanMember, Concert } from '@/types';
+import { uploadImageToStorage, updateBand } from '@/services/firebaseService';
 
 interface Props {
   visible: boolean;
@@ -317,22 +318,36 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     return uri;
   };
 
-  // Vygenerování a okamžité uložení / otevření PDF dokumentu
+  // Vygenerování, uložení na disk & do Firebase a okamžité otevření
   const handleGenerateAndOpenPdf = async () => {
     setIsGeneratingPdf(true);
     try {
       const sharingModule = getNativeSharingModule();
       const pdfUri = await generateNamedPdfFile();
-      console.log("Vygenerovaný pojmenovaný PDF soubor:", pdfUri);
+      const cleanBandName = (band?.name || 'Naplech').replace(/[^a-zA-Z0-9_-]/g, '_');
 
+      // 1. Nahrání na Firebase Storage pod složku "kapela_ios_android/{bandId}/stageplan/{cleanBandName}_Stageplan.pdf"
+      let firestorePdfUrl = '';
+      try {
+        const storagePath = `kapela_ios_android/${band?.id || 'band'}/stageplan/${cleanBandName}_Stageplan.pdf`;
+        firestorePdfUrl = await uploadImageToStorage(pdfUri, storagePath);
+        if (band?.id) {
+          await updateBand(band.id, { stageplanPdfUrl: firestorePdfUrl } as any);
+        }
+        console.log("PDF nahráno na Firebase Storage:", firestorePdfUrl);
+      } catch (uploadErr) {
+        console.log("Nahrání na Firebase Storage selhalo:", uploadErr);
+      }
+
+      // 2. Otevření / Sdílení pojmenovaného PDF souboru
       if (sharingModule && sharingModule.shareAsync) {
         await sharingModule.shareAsync(pdfUri, {
           mimeType: 'application/pdf',
-          dialogTitle: `Otevřít / Uložit Stageplan kapely ${band?.name || 'Kapela'}`,
+          dialogTitle: `Otevřít / Uložit ${cleanBandName}_Stageplan.pdf`,
           UTI: 'com.adobe.pdf',
         });
       } else {
-        Alert.alert("PDF Vygenerováno", `Soubor byl uložen:\n${pdfUri}`);
+        Alert.alert("PDF Vygenerováno", `Soubor ${cleanBandName}_Stageplan.pdf byl vygenerován a uložen.`);
       }
 
       setShowSendModal(false);
