@@ -434,21 +434,25 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       }
 
       if (!sentViaComposer) {
-        const sharingModule = getNativeSharingModule();
-        if (sharingModule && sharingModule.shareAsync) {
-          await sharingModule.shareAsync(pdfUri, {
-            mimeType: 'application/pdf',
-            dialogTitle: subject,
-            UTI: 'com.adobe.pdf',
-          });
-        } else {
-          const emailList = emails.join(',');
-          const encSubject = encodeURIComponent(subject);
-          const encBody = encodeURIComponent(bodyText);
-          try {
-            await Linking.openURL(`mailto:${emailList}?subject=${encSubject}&body=${encBody}`);
-          } catch (linkErr) {
-            Alert.alert("E-mail klient nedostupný", "Nepodařilo se otevřít e-mailový klient.");
+        const emailList = emails.join(',');
+        const encSubject = encodeURIComponent(subject);
+        const encBody = encodeURIComponent(bodyText);
+        let openedMailto = false;
+        try {
+          await Linking.openURL(`mailto:${emailList}?subject=${encSubject}&body=${encBody}`);
+          openedMailto = true;
+        } catch (linkErr) {
+          console.log("mailto URL selhalo:", linkErr);
+        }
+
+        if (!openedMailto) {
+          const sharingModule = getNativeSharingModule();
+          if (sharingModule && sharingModule.shareAsync) {
+            await sharingModule.shareAsync(pdfUri, {
+              mimeType: 'application/pdf',
+              dialogTitle: subject,
+              UTI: 'com.adobe.pdf',
+            });
           }
         }
       }
