@@ -9,6 +9,7 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useAppStore } from '@/store/useAppStore';
 import { Band, BandMember, StageplanMember, Concert } from '@/types';
 import { uploadImageToStorage, updateBand } from '@/services/firebaseService';
 
@@ -54,6 +55,7 @@ export const getMemberTechBadges = (m: BandMember): string[] => {
 export function StageplanModal({ visible, onClose, band, members, onSave, concert }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { currentUser } = useAppStore();
 
   const [stageplan, setStageplan] = useState<StageplanMember[]>(band.stageplan || []);
   const [showMemberPicker, setShowMemberPicker] = useState(false);
@@ -286,8 +288,17 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     }
   };
 
+  const getPdfFileName = (): string => {
+    const cleanBand = (band?.name || 'Naplech').replace(/[^a-zA-Z0-9_-]/g, '_');
+    if (concert?.title && concert.title.trim().length > 0) {
+      const cleanConcert = concert.title.replace(/[^a-zA-Z0-9_-]/g, '_');
+      return `${cleanBand}_Stageplan_${cleanConcert}.pdf`;
+    }
+    return `${cleanBand}_Stageplan.pdf`;
+  };
+
   // Pomocná funkce pro vygenerování a pojmenování PDF souboru
-  const generateNamedPdfFile = async (): Promise<string> => {
+  const generateNamedPdfFile = async (): Promise<{ pdfUri: string; fileName: string }> => {
     const printModule = getNativePrintModule();
     if (!printModule || !printModule.printToFileAsync) {
       throw new Error("Modul pro generování PDF není k dispozici.");
@@ -295,6 +306,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
     const html = generateStageplanPdfHtml();
     const { uri } = await printModule.printToFileAsync({ html });
+    const fileName = getPdfFileName();
 
     let fileSystemModule: any = null;
     try {
@@ -302,20 +314,34 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     } catch (e) {}
 
     if (fileSystemModule && (fileSystemModule.cacheDirectory || fileSystemModule.documentDirectory)) {
-      const cleanBandName = (band?.name || 'Naplech').replace(/[^a-zA-Z0-9_-]/g, '_');
       const baseDir = fileSystemModule.cacheDirectory || fileSystemModule.documentDirectory;
-      const targetPath = `${baseDir}${cleanBandName}_Stageplan.pdf`;
+      const targetPath = `${baseDir}${fileName}`;
       try {
         try {
           await fileSystemModule.deleteAsync(targetPath, { idempotent: true });
         } catch (e) {}
         await fileSystemModule.copyAsync({ from: uri, to: targetPath });
-        return targetPath;
+        return { pdfUri: targetPath, fileName };
       } catch (err) {
         console.log("Kopírování souboru selhalo:", err);
       }
     }
-    return uri;
+    return { pdfUri: uri, fileName };
+  };
+
+  const uploadPdfToFirebaseStorage = async (localPdfUri: string, fileName: string): Promise<string> => {
+    try {
+      const storagePath = `kapela_ios_android/${band?.id || 'band'}/stageplan/${fileName}`;
+      const downloadUrl = await uploadImageToStorage(localPdfUri, storagePath);
+      if (band?.id) {
+        await updateBand(band.id, { stageplanPdfUrl: downloadUrl } as any);
+      }
+      console.log("PDF úspěšně nahráno na Firebase Storage:", downloadUrl);
+      return downloadUrl;
+    } catch (err) {
+      console.log("Nahrání na Firebase Storage selhalo:", err);
+      return '';
+    }
   };
 
   // Vygenerování, uložení na disk & do Firebase a okamžité otevření
@@ -323,31 +349,20 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     setIsGeneratingPdf(true);
     try {
       const sharingModule = getNativeSharingModule();
-      const pdfUri = await generateNamedPdfFile();
-      const cleanBandName = (band?.name || 'Naplech').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const { pdfUri, fileName } = await generateNamedPdfFile();
 
-      // 1. Nahrání na Firebase Storage pod složku "kapela_ios_android/{bandId}/stageplan/{cleanBandName}_Stageplan.pdf"
-      let firestorePdfUrl = '';
-      try {
-        const storagePath = `kapela_ios_android/${band?.id || 'band'}/stageplan/${cleanBandName}_Stageplan.pdf`;
-        firestorePdfUrl = await uploadImageToStorage(pdfUri, storagePath);
-        if (band?.id) {
-          await updateBand(band.id, { stageplanPdfUrl: firestorePdfUrl } as any);
-        }
-        console.log("PDF nahráno na Firebase Storage:", firestorePdfUrl);
-      } catch (uploadErr) {
-        console.log("Nahrání na Firebase Storage selhalo:", uploadErr);
-      }
+      // Nahrání na Firebase Storage do adresáře kapely
+      await uploadPdfToFirebaseStorage(pdfUri, fileName);
 
-      // 2. Otevření / Sdílení pojmenovaného PDF souboru
+      // Otevření / Sdílení pojmenovaného PDF souboru
       if (sharingModule && sharingModule.shareAsync) {
         await sharingModule.shareAsync(pdfUri, {
           mimeType: 'application/pdf',
-          dialogTitle: `Otevřít / Uložit ${cleanBandName}_Stageplan.pdf`,
+          dialogTitle: `Otevřít / Uložit ${fileName}`,
           UTI: 'com.adobe.pdf',
         });
       } else {
-        Alert.alert("PDF Vygenerováno", `Soubor ${cleanBandName}_Stageplan.pdf byl vygenerován a uložen.`);
+        Alert.alert("PDF Vygenerováno", `Soubor ${fileName} byl vygenerován a uložen.`);
       }
 
       setShowSendModal(false);
@@ -359,7 +374,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     }
   };
 
-  // Odeslání e-mailem s předvyplněným předmětem, textem, příjemci a přiloženým PDF
+  // Odeslání e-mailem s přesně požadovaným předmětem, textem, příjemci a přiloženým PDF
   const handleSendViaEmail = async () => {
     setIsGeneratingPdf(true);
     try {
@@ -367,15 +382,29 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       const emails = concert?.organizers
         ? concert.organizers.map(o => o.email).filter(Boolean) as string[]
         : [];
-      const subject = `Stageplan & Technický Rider - ${bandName} (${concert?.title || 'Koncert'})`;
-      const bodyText = `Ahoj,\n\nv příloze posílám oficiální Stageplan a Technický Rider kapely ${bandName} pro akci ${concert?.title || 'Koncert'}.\n\nS pozdravem,\nKapela ${bandName}`;
+
+      // Zjištění jména a příjmení odesílajícího člena
+      const senderMember = members.find(m =>
+        (currentUser?.memberId && m.id === currentUser.memberId) ||
+        (currentUser?.id && m.id === currentUser.id) ||
+        ((m as any).uid && currentUser?.id && (m as any).uid === currentUser.id) ||
+        (currentUser?.email && m.email && m.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+        (currentUser?.displayName && m.nickname && m.nickname.toLowerCase() === currentUser.displayName.toLowerCase())
+      );
+      const senderName = senderMember
+        ? `${senderMember.firstName || ''} ${senderMember.lastName || ''}`.trim()
+        : (currentUser?.displayName || 'Člen kapely');
+
+      const subject = `Stageplan "${bandName}"`;
+      const bodyText = `Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\nPřeji krásný den\nza skupinu "${bandName}"\n${senderName}`;
 
       let mailComposerModule: any = null;
       try {
         mailComposerModule = require('expo-mail-composer');
       } catch (e) {}
 
-      const pdfUri = await generateNamedPdfFile();
+      const { pdfUri, fileName } = await generateNamedPdfFile();
+      await uploadPdfToFirebaseStorage(pdfUri, fileName);
 
       if (mailComposerModule && mailComposerModule.composeAsync) {
         const isAvailable = await mailComposerModule.isAvailableAsync();
