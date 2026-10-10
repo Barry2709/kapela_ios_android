@@ -288,6 +288,16 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     }
   };
 
+  const getNativeMailComposer = () => {
+    try {
+      const nativeModule = requireOptionalNativeModule('ExpoMailComposer');
+      if (nativeModule) {
+        return require('expo-mail-composer');
+      }
+    } catch (e) {}
+    return null;
+  };
+
   const getPdfFileName = (): string => {
     const cleanBand = (band?.name || 'Naplech').replace(/[^a-zA-Z0-9_-]/g, '_');
     if (concert?.title && concert.title.trim().length > 0) {
@@ -398,34 +408,32 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       const subject = `Stageplan "${bandName}"`;
       const bodyText = `Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\nPřeji krásný den\nza skupinu "${bandName}"\n${senderName}`;
 
-      let mailComposerModule: any = null;
-      try {
-        mailComposerModule = require('expo-mail-composer');
-      } catch (e) {}
-
       const { pdfUri, fileName } = await generateNamedPdfFile();
-      await uploadPdfToFirebaseStorage(pdfUri, fileName);
+
+      // Nahrání na Firebase Storage probíhá na pozadí bez blokování uživatele
+      uploadPdfToFirebaseStorage(pdfUri, fileName).catch(console.log);
+
+      const mailComposerModule = getNativeMailComposer();
+      let sentViaComposer = false;
 
       if (mailComposerModule && mailComposerModule.composeAsync) {
-        const isAvailable = await mailComposerModule.isAvailableAsync();
-        if (isAvailable) {
-          await mailComposerModule.composeAsync({
-            recipients: emails.length > 0 ? emails : undefined,
-            subject: subject,
-            body: bodyText,
-            attachments: [pdfUri],
-          });
-        } else {
-          const sharingModule = getNativeSharingModule();
-          if (sharingModule && sharingModule.shareAsync) {
-            await sharingModule.shareAsync(pdfUri, {
-              mimeType: 'application/pdf',
-              dialogTitle: subject,
-              UTI: 'com.adobe.pdf',
+        try {
+          const isAvailable = await mailComposerModule.isAvailableAsync();
+          if (isAvailable) {
+            await mailComposerModule.composeAsync({
+              recipients: emails.length > 0 ? emails : undefined,
+              subject: subject,
+              body: bodyText,
+              attachments: [pdfUri],
             });
+            sentViaComposer = true;
           }
+        } catch (composerErr) {
+          console.log("MailComposer selhal, použije se záložní způsob:", composerErr);
         }
-      } else {
+      }
+
+      if (!sentViaComposer) {
         const sharingModule = getNativeSharingModule();
         if (sharingModule && sharingModule.shareAsync) {
           await sharingModule.shareAsync(pdfUri, {
@@ -433,6 +441,15 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
             dialogTitle: subject,
             UTI: 'com.adobe.pdf',
           });
+        } else {
+          const emailList = emails.join(',');
+          const encSubject = encodeURIComponent(subject);
+          const encBody = encodeURIComponent(bodyText);
+          try {
+            await Linking.openURL(`mailto:${emailList}?subject=${encSubject}&body=${encBody}`);
+          } catch (linkErr) {
+            Alert.alert("E-mail klient nedostupný", "Nepodařilo se otevřít e-mailový klient.");
+          }
         }
       }
 
