@@ -78,9 +78,17 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     };
   }, [visible, band.stageplan]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     onSave(stageplan);
     onClose();
+
+    // Při každém uložení vygenerovat PDF a uložit ho na Firebase Storage
+    try {
+      const { pdfUri, fileName } = await generateNamedPdfFile();
+      await uploadPdfToFirebaseStorage(pdfUri, fileName);
+    } catch (err) {
+      console.log("Nahrání na Firebase selhalo po uložení:", err);
+    }
   };
 
   const availableMembers = members.filter(m => !stageplan.some(s => s.memberId === m.id));
@@ -655,13 +663,6 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
                 </View>
               ) : (
                 <View style={{ gap: 10 }}>
-                  <Pressable style={[styles.sendOptionBtn, { backgroundColor: '#ff9800' }]} onPress={handleGenerateAndOpenPdf}>
-                    <SymbolView name={{ ios: 'doc.fill', android: 'description', web: 'description' }} size={20} tintColor="#fff" />
-                    <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 14 }}>
-                      📄 Vygenerovat & Uložit / Otevřít PDF
-                    </ThemedText>
-                  </Pressable>
-
                   <Pressable style={[styles.sendOptionBtn, { backgroundColor: '#2196f3' }]} onPress={handleSendViaEmail}>
                     <SymbolView name={{ ios: 'envelope.fill', android: 'email', web: 'email' }} size={20} tintColor="#fff" />
                     <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 14 }}>

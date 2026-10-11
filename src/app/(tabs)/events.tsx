@@ -32,7 +32,7 @@ import { AddConcertForm } from '@/components/add-concert-form';
 import { AddRehearsalForm } from '@/components/add-rehearsal-form';
 import { AddAbsenceForm } from '@/components/add-absence-form';
 import { SetlistEditorModal } from '@/components/setlist-editor-modal';
-import { StageplanModal } from '@/components/stageplan-modal';
+import { StageplanModal, sendConcertStageplanByEmail } from '@/components/stageplan-modal';
 import { EventsCalendar } from '@/components/calendar/EventsCalendar';
 
 export default function EventsScreen() {
@@ -905,7 +905,7 @@ export default function EventsScreen() {
               {activeRoleView !== 'fan' && (
                 <Pressable
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 6, backgroundColor: 'rgba(33, 150, 243, 0.15)' }}
-                  onPress={() => setSelectedConcertForStageplan(concert)}
+                  onPress={() => sendConcertStageplanByEmail({ band: activeBand, concert, members: bandMembers, currentUser })}
                 >
                   <SymbolView name={{ ios: 'paperplane.fill', android: 'send', web: 'send' }} size={13} tintColor="#2196f3" />
                   <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11 }}>Odeslat Stageplan</ThemedText>

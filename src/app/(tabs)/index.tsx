@@ -17,7 +17,7 @@ import { getBandMembers, addBandMember, updateBand, updateBandMember, subscribeT
 import { BandHeader } from '@/components/band-header';
 import { AddMemberForm } from '@/components/add-member-form';
 import { EditBandForm } from '@/components/edit-band-form';
-import { StageplanModal } from '@/components/stageplan-modal';
+import { StageplanModal, sendConcertStageplanByEmail } from '@/components/stageplan-modal';
 
 export default function HomeScreen() {
   const theme = useTheme();
@@ -845,7 +845,7 @@ export default function HomeScreen() {
                                     {activeRoleView !== 'fan' && (
                                       <Pressable
                                         style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 6, backgroundColor: 'rgba(33, 150, 243, 0.15)' }}
-                                        onPress={() => setSelectedConcertForStageplan(concert)}
+                                        onPress={() => sendConcertStageplanByEmail({ band: activeBand, concert, members, currentUser })}
                                       >
                                         <SymbolView name={{ ios: 'paperplane.fill', android: 'send', web: 'send' }} size={13} tintColor="#2196f3" />
                                         <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11 }}>Odeslat Stageplan</ThemedText>
