@@ -235,11 +235,7 @@ export async function sendConcertStageplanByEmail({
   try {
     const bandName = band?.name || 'Naplech';
     const cleanBand = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const concertTitle = concert?.title || '';
-    const cleanConcert = concertTitle.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const fileName = concertTitle.trim().length > 0
-      ? `${cleanBand}_Stageplan_${cleanConcert}.pdf`
-      : `${cleanBand}_Stageplan.pdf`;
+    const fileName = `${cleanBand}_stageplan.pdf`;
 
     // 1. Zjištění jména a příjmení odesílajícího člena
     const senderMember = (members || []).find(m =>
@@ -461,11 +457,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
   const getPdfFileName = (): string => {
     const cleanBand = (band?.name || 'Naplech').replace(/[^a-zA-Z0-9_-]/g, '_');
-    if (concert?.title && concert.title.trim().length > 0) {
-      const cleanConcert = concert.title.replace(/[^a-zA-Z0-9_-]/g, '_');
-      return `${cleanBand}_Stageplan_${cleanConcert}.pdf`;
-    }
-    return `${cleanBand}_Stageplan.pdf`;
+    return `${cleanBand}_stageplan.pdf`;
   };
 
   // Pomocná funkce pro vygenerování a pojmenování PDF souboru
@@ -484,8 +476,8 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       fileSystemModule = require('expo-file-system');
     } catch (e) {}
 
-    if (fileSystemModule && (fileSystemModule.cacheDirectory || fileSystemModule.documentDirectory)) {
-      const baseDir = fileSystemModule.cacheDirectory || fileSystemModule.documentDirectory;
+    if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
+      const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
       const targetPath = `${baseDir}${fileName}`;
       try {
         try {
@@ -631,24 +623,20 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   const handleSendViaWhatsApp = async () => {
     setIsGeneratingPdf(true);
     try {
-      const bandName = band?.name || 'Kapela';
+      const bandName = band?.name || 'Naplech';
       const sharingModule = getNativeSharingModule();
 
-      try {
-        const pdfUri = await generateNamedPdfFile();
-        console.log("Vygenerovaný pojmenovaný PDF soubor pro WhatsApp:", pdfUri);
+      const { pdfUri, fileName } = await generateNamedPdfFile();
+      uploadPdfToFirebaseStorage(pdfUri, fileName).catch(console.log);
 
-        if (sharingModule && (await sharingModule.isAvailableAsync())) {
-          await sharingModule.shareAsync(pdfUri, {
-            mimeType: 'application/pdf',
-            dialogTitle: `Odeslat Stageplan kapely ${bandName}`,
-            UTI: 'com.adobe.pdf',
-          });
-        } else {
-          Alert.alert("Sdílení nedostupné", "Sdílení souborů není na tomto zařízení dostupné.");
-        }
-      } catch (pdfErr) {
-        const textMsg = encodeURIComponent(`Ahoj, posílám kontakt a informace k akce ${concert?.title || 'Koncert'} kapely ${bandName}.`);
+      if (sharingModule && sharingModule.shareAsync) {
+        await sharingModule.shareAsync(pdfUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Posílám stageplan kapely "${bandName}"`,
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        const textMsg = encodeURIComponent(`Posílám stageplan kapely "${bandName}"`);
         try {
           await Linking.openURL(`https://wa.me/?text=${textMsg}`);
         } catch (linkErr) {
@@ -658,7 +646,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
       setShowSendModal(false);
     } catch (e: any) {
-      console.error("Chyba při sdílení Stageplanu:", e);
+      console.error("Chyba při sdílení Stageplanu přes WhatsApp:", e);
       Alert.alert("Chyba PDF", e?.message || "Nepodařilo se vygenerovat PDF Stageplanu.");
     } finally {
       setIsGeneratingPdf(false);
