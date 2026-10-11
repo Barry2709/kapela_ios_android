@@ -52,6 +52,322 @@ export const getMemberTechBadges = (m: BandMember): string[] => {
   return badges;
 };
 
+// Generování A4 1-stránkové HTML šablony pro PDF Stageplanu & Rideru
+export function generatePdfHtmlForBand(band: Band, concert?: Concert, members: BandMember[] = []): string {
+  const bandName = band?.name || 'Naplech';
+  const concertTitle = concert?.title || 'Koncert / Akce';
+  const concertDate = concert?.date || '';
+  const concertLocation = concert?.location || '';
+  const concertTime = concert?.startTime ? `v ${concert.startTime}` : '';
+
+  // Kontakty pořadatelů
+  let orgsHtml = '';
+  if (concert?.organizers && Array.isArray(concert.organizers) && concert.organizers.length > 0) {
+    orgsHtml = `
+      <div style="margin-top: 10px;">
+        <h3 style="margin-bottom: 4px; color: #1877f2; border-bottom: 2px solid #1877f2; padding-bottom: 2px; font-size: 12px;">Kontakty na pořadatele a zvukaře:</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 3px;">
+          <thead>
+            <tr style="background: #eef3fb;">
+              <th style="border: 1px solid #ccc; padding: 4px 6px; text-align: left; font-size: 10px;">Role</th>
+              <th style="border: 1px solid #ccc; padding: 4px 6px; text-align: left; font-size: 10px;">Jméno</th>
+              <th style="border: 1px solid #ccc; padding: 4px 6px; text-align: left; font-size: 10px;">Telefon</th>
+              <th style="border: 1px solid #ccc; padding: 4px 6px; text-align: left; font-size: 10px;">E-mail</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${concert.organizers.map(o => `
+              <tr>
+                <td style="border: 1px solid #ccc; padding: 3px 6px; font-weight: bold; font-size: 10px;">${o?.role || 'Kontakt'}</td>
+                <td style="border: 1px solid #ccc; padding: 3px 6px; font-size: 10px;">${o?.name || ''}</td>
+                <td style="border: 1px solid #ccc; padding: 3px 6px; font-size: 10px;">${o?.phone || '-'}</td>
+                <td style="border: 1px solid #ccc; padding: 3px 6px; font-size: 10px;">${o?.email || '-'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (concert?.contacts) {
+    orgsHtml = `
+      <div style="margin-top: 10px;">
+        <h3 style="margin-bottom: 4px; color: #1877f2; font-size: 12px;">Kontakty na pořadatele:</h3>
+        <p style="font-size: 10px; margin: 0; background: #f5f5f5; padding: 6px; border-radius: 4px;">${concert.contacts}</p>
+      </div>
+    `;
+  }
+
+  const safeMembers = Array.isArray(members) ? members : [];
+  const safeStageplan = Array.isArray(band?.stageplan) ? band.stageplan : [];
+
+  // Členové na stagi HTML (požadavky svisle pod sebou bez překrývání)
+  const pinsHtml = safeStageplan.map(s => {
+    const mem = safeMembers.find(m => m.id === s.memberId);
+    if (!mem) return '';
+    const badges = getMemberTechBadges(mem);
+    return `
+      <div style="position: absolute; left: ${s.x || 50}%; top: ${s.y || 50}%; transform: translate(-50%, -50%); background: #2196f3; color: white; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.25); border: 1px solid #1976d2; min-width: 55px; white-space: nowrap; z-index: 10;">
+        <strong style="font-size: 11px;">${mem.nickname || mem.firstName || 'Člen'}</strong><br>
+        <span style="font-size: 9px; color: #e8f5e9; font-weight: bold;">${mem.instrument || ''}</span>
+        <div style="font-size: 8px; font-weight: normal; opacity: 0.95; margin-top: 1px; line-height: 1.05;">
+          ${badges.map(b => `<div>${b}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Součet počtu jednotlivých technických položek na stagi
+  const techCounts: Record<string, number> = {};
+  safeMembers
+    .filter(m => safeStageplan.some(s => s.memberId === m.id))
+    .forEach(m => {
+      const badges = getMemberTechBadges(m);
+      badges.forEach(badge => {
+        techCounts[badge] = (techCounts[badge] || 0) + 1;
+      });
+    });
+
+  if (band?.techRiderPresets && Array.isArray(band.techRiderPresets)) {
+    band.techRiderPresets.forEach(preset => {
+      if (!techCounts[preset]) {
+        techCounts[preset] = 1;
+      }
+    });
+  }
+
+  const techCountsHtml = Object.entries(techCounts).map(([item, count]) => `
+    <span style="background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; padding: 3px 8px; border-radius: 8px; font-size: 10px; font-weight: bold; display: inline-block; margin-bottom: 3px;">
+      ✔ ${item} (${count}x)
+    </span>
+  `).join('');
+
+  // Technické požadavky jednotlivých muzikantů
+  const memberTechListHtml = safeMembers
+    .filter(m => safeStageplan.some(s => s.memberId === m.id))
+    .map(m => {
+      const badges = getMemberTechBadges(m);
+      const nickname = m.nickname || m.firstName || 'Člen';
+      const fullName = `${m.firstName || ''} ${m.lastName || ''}`.trim();
+      return `
+        <div style="background: #f8f9fa; border: 1px solid #e0e0e0; padding: 6px 10px; border-radius: 6px; width: 48%; box-sizing: border-box; margin-bottom: 6px;">
+          <div style="font-size: 12px; font-weight: bold; color: #1976d2;">${nickname}</div>
+          <div style="font-size: 9px; color: #666; margin-bottom: 2px;">${fullName}</div>
+          <div style="font-size: 10px; font-weight: bold; color: #2e7d32; margin-bottom: 2px;">${m.instrument || ''}</div>
+          <div style="font-size: 9px; color: #444; line-height: 1.2;">
+            ${badges.map(b => `<div>• ${b}</div>`).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        @page { size: A4 portrait; margin: 8mm; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 8px; color: #222; margin: 0; box-sizing: border-box; }
+        .header-box { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2196f3; padding-bottom: 6px; margin-bottom: 8px; }
+        .band-title { font-size: 20px; font-weight: bold; color: #111; margin: 0; }
+        .concert-info { font-size: 12px; color: #444; margin-top: 2px; }
+        .stage-container { width: 100%; height: 190px; border: 2px solid #333; background: #fdfdfd; position: relative; margin: 8px 0; border-radius: 8px; overflow: hidden; page-break-inside: avoid; }
+        .stage-front { position: absolute; bottom: 0; left: 0; right: 0; background: #333; color: white; text-align: center; padding: 3px 0; font-size: 9px; font-weight: bold; letter-spacing: 1px; }
+        .footer { margin-top: 10px; font-size: 9px; color: #888; text-align: center; border-top: 1px solid #eee; padding-top: 4px; }
+      </style>
+    </head>
+    <body>
+      <div class="header-box">
+        <div>
+          <h1 class="band-title">${bandName}</h1>
+          <div class="concert-info">
+            <strong>${concertTitle}</strong> ${concertDate ? `• ${concertDate}` : ''} ${concertTime} ${concertLocation ? `(${concertLocation})` : ''}
+          </div>
+        </div>
+        <div style="font-size: 10px; text-align: right; color: #666;">
+          Stageplan & Technický Rider<br>
+          <em>Aplikace Kapela</em>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom: 3px; color: #111; font-size: 12px;">Pódiové rozmístění členů (Stageplan):</h3>
+      <div class="stage-container">
+        ${pinsHtml}
+        <div class="stage-front">▼ PŘEDNÍ HRANA PÓDIA / HLAVNÍ ZVUK (PA) ▼</div>
+      </div>
+
+      <div style="margin-top: 8px;">
+        <h3 style="margin-bottom: 3px; color: #2e7d32; border-bottom: 2px solid #2e7d32; padding-bottom: 2px; font-size: 12px;">Požadavky na techniku & zvukaře (Souhrn položek):</h3>
+        <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; margin-bottom: 6px;">
+          ${techCountsHtml}
+        </div>
+      </div>
+
+      <div style="margin-top: 8px;">
+        <h3 style="margin-bottom: 3px; color: #1976d2; font-size: 12px;">Technické požadavky jednotlivých muzikantů:</h3>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          ${memberTechListHtml}
+        </div>
+      </div>
+
+      ${orgsHtml}
+
+      <div class="footer">
+        Tento dokument obsahuje oficiální Stageplan a Technický Rider kapely ${bandName}.
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+// Přímé vygenerování a odeslání Stageplanu e-mailem z karty koncertu
+export async function sendConcertStageplanByEmail({
+  band,
+  concert,
+  members = [],
+  currentUser,
+}: {
+  band: Band;
+  concert?: Concert;
+  members: BandMember[];
+  currentUser: any;
+}) {
+  try {
+    const bandName = band?.name || 'Naplech';
+    const cleanBand = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const concertTitle = concert?.title || '';
+    const cleanConcert = concertTitle.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const fileName = concertTitle.trim().length > 0
+      ? `${cleanBand}_Stageplan_${cleanConcert}.pdf`
+      : `${cleanBand}_Stageplan.pdf`;
+
+    // 1. Zjištění jména a příjmení odesílajícího člena
+    const senderMember = (members || []).find(m =>
+      (currentUser?.memberId && m.id === currentUser.memberId) ||
+      (currentUser?.id && m.id === currentUser.id) ||
+      ((m as any).uid && currentUser?.id && (m as any).uid === currentUser.id) ||
+      (currentUser?.email && m.email && m.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+      (currentUser?.displayName && m.nickname && m.nickname.toLowerCase() === currentUser.displayName.toLowerCase())
+    );
+    const senderName = senderMember
+      ? `${senderMember.firstName || ''} ${senderMember.lastName || ''}`.trim()
+      : (currentUser?.displayName || 'Člen kapely');
+
+    // 2. Předmět a Tělo zprávy
+    const subject = `Stageplan "${bandName}"`;
+    const bodyText = `Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\nPřeji krásný den\nza skupinu "${bandName}"\n${senderName}`;
+
+    // 3. E-maily pořadatelů
+    const emails = concert?.organizers
+      ? concert.organizers.map(o => o.email).filter(Boolean) as string[]
+      : [];
+
+    // 4. Modul pro tisk
+    let printModule: any = null;
+    try {
+      const nativeModule = requireOptionalNativeModule('ExpoPrint');
+      if (nativeModule) printModule = require('expo-print');
+    } catch (e) {}
+
+    if (!printModule || !printModule.printToFileAsync) {
+      Alert.alert("PDF Nedostupné", "Generování PDF vyžaduje zkompilovanou aplikaci.");
+      return;
+    }
+
+    // 5. HTML šablona pro PDF
+    const html = generatePdfHtmlForBand(band, concert, members);
+    const { uri } = await printModule.printToFileAsync({ html });
+
+    // 6. Kopírování do pojmenovaného souboru
+    let fileSystemModule: any = null;
+    try {
+      fileSystemModule = require('expo-file-system');
+    } catch (e) {}
+
+    let pdfUri = uri;
+    if (fileSystemModule && (fileSystemModule.cacheDirectory || fileSystemModule.documentDirectory)) {
+      const baseDir = fileSystemModule.cacheDirectory || fileSystemModule.documentDirectory;
+      const targetPath = `${baseDir}${fileName}`;
+      try {
+        try {
+          await fileSystemModule.deleteAsync(targetPath, { idempotent: true });
+        } catch (e) {}
+        await fileSystemModule.copyAsync({ from: uri, to: targetPath });
+        pdfUri = targetPath;
+      } catch (err) {
+        console.log("Kopírování selhalo:", err);
+      }
+    }
+
+    // 7. Nahrání na Firebase Storage na pozadí
+    try {
+      const storagePath = `kapela_ios_android/${band.id}/stageplan/${fileName}`;
+      uploadImageToStorage(pdfUri, storagePath).then(downloadUrl => {
+        if (band.id) {
+          updateBand(band.id, { stageplanPdfUrl: downloadUrl } as any);
+        }
+      }).catch(console.log);
+    } catch (e) {}
+
+    // 8. Otevření e-mailu
+    let mailComposerModule: any = null;
+    try {
+      const nativeModule = requireOptionalNativeModule('ExpoMailComposer');
+      if (nativeModule) mailComposerModule = require('expo-mail-composer');
+    } catch (e) {}
+
+    let sentViaComposer = false;
+    if (mailComposerModule && mailComposerModule.composeAsync) {
+      try {
+        const isAvailable = await mailComposerModule.isAvailableAsync();
+        if (isAvailable) {
+          await mailComposerModule.composeAsync({
+            recipients: emails.length > 0 ? emails : undefined,
+            subject: subject,
+            body: bodyText,
+            attachments: [pdfUri],
+          });
+          sentViaComposer = true;
+        }
+      } catch (err) {
+        console.log("MailComposer selhal:", err);
+      }
+    }
+
+    if (!sentViaComposer) {
+      const emailList = emails.join(',');
+      const encSubject = encodeURIComponent(subject);
+      const encBody = encodeURIComponent(bodyText);
+      let openedMailto = false;
+      try {
+        await Linking.openURL(`mailto:${emailList}?subject=${encSubject}&body=${encBody}`);
+        openedMailto = true;
+      } catch (linkErr) {
+        console.log("mailto URL selhalo:", linkErr);
+      }
+
+      if (!openedMailto) {
+        let sharingModule: any = null;
+        try {
+          const nativeModule = requireOptionalNativeModule('ExpoSharing');
+          if (nativeModule) sharingModule = require('expo-sharing');
+        } catch (e) {}
+
+        if (sharingModule && sharingModule.shareAsync) {
+          await sharingModule.shareAsync(pdfUri, {
+            mimeType: 'application/pdf',
+            dialogTitle: subject,
+            UTI: 'com.adobe.pdf',
+          });
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error("Chyba při odesílání Stageplanu e-mailem:", err);
+    Alert.alert("Chyba PDF", err?.message || "Nepodařilo se odeslat Stageplan e-mailem.");
+  }
+}
+
 export function StageplanModal({ visible, onClose, band, members, onSave, concert }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -111,171 +427,8 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     setShowMemberPicker(false);
   };
 
-  // Generování HTML šablony pro PDF Stageplanu & Rideru s technickými požadavky jednotlivých členů
   const generateStageplanPdfHtml = (): string => {
-    const bandName = band?.name || 'Naplech';
-    const concertTitle = concert?.title || 'Koncert / Akce';
-    const concertDate = concert?.date || '';
-    const concertLocation = concert?.location || '';
-    const concertTime = concert?.startTime ? `v ${concert.startTime}` : '';
-
-    // Kontakty pořadatelů
-    let orgsHtml = '';
-    if (concert?.organizers && Array.isArray(concert.organizers) && concert.organizers.length > 0) {
-      orgsHtml = `
-        <div style="margin-top: 15px;">
-          <h3 style="margin-bottom: 6px; color: #1877f2; border-bottom: 2px solid #1877f2; padding-bottom: 3px;">Kontakty na pořadatele a zvukaře:</h3>
-          <table style="width: 100%; border-collapse: collapse; margin-top: 5px;">
-            <thead>
-              <tr style="background: #eef3fb;">
-                <th style="border: 1px solid #ccc; padding: 6px 10px; text-align: left; font-size: 11px;">Role</th>
-                <th style="border: 1px solid #ccc; padding: 6px 10px; text-align: left; font-size: 11px;">Jméno</th>
-                <th style="border: 1px solid #ccc; padding: 6px 10px; text-align: left; font-size: 11px;">Telefon</th>
-                <th style="border: 1px solid #ccc; padding: 6px 10px; text-align: left; font-size: 11px;">E-mail</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${concert.organizers.map(o => `
-                <tr>
-                  <td style="border: 1px solid #ccc; padding: 6px 10px; font-weight: bold; font-size: 11px;">${o?.role || 'Kontakt'}</td>
-                  <td style="border: 1px solid #ccc; padding: 6px 10px; font-size: 11px;">${o?.name || ''}</td>
-                  <td style="border: 1px solid #ccc; padding: 6px 10px; font-size: 11px;">${o?.phone || '-'}</td>
-                  <td style="border: 1px solid #ccc; padding: 6px 10px; font-size: 11px;">${o?.email || '-'}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-    } else if (concert?.contacts) {
-      orgsHtml = `
-        <div style="margin-top: 15px;">
-          <h3 style="margin-bottom: 6px; color: #1877f2;">Kontakty na pořadatele:</h3>
-          <p style="font-size: 12px; margin: 0; background: #f5f5f5; padding: 8px; border-radius: 4px;">${concert.contacts}</p>
-        </div>
-      `;
-    }
-
-    const safeMembers = Array.isArray(members) ? members : [];
-    const safeStageplan = Array.isArray(stageplan) ? stageplan : [];
-
-    // Členové na stagi HTML (požadavky svisle pod sebou)
-    const pinsHtml = safeStageplan.map(s => {
-      const mem = safeMembers.find(m => m.id === s.memberId);
-      if (!mem) return '';
-      const badges = getMemberTechBadges(mem);
-      return `
-        <div style="position: absolute; left: ${s.x || 50}%; top: ${s.y || 50}%; transform: translate(-50%, -50%); background: #2196f3; color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3); border: 1px solid #1976d2;">
-          <strong style="font-size: 12px;">${mem.nickname || mem.firstName || 'Člen'}</strong><br>
-          <span style="font-size: 10px; color: #e8f5e9; font-weight: bold;">${mem.instrument || ''}</span>
-          <div style="font-size: 9px; font-weight: normal; opacity: 0.95; margin-top: 2px; line-height: 1.1;">
-            ${badges.map(b => `<div>${b}</div>`).join('')}
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    // Součet počtu jednotlivých technických položek na stagi
-    const techCounts: Record<string, number> = {};
-    safeMembers
-      .filter(m => safeStageplan.some(s => s.memberId === m.id))
-      .forEach(m => {
-        const badges = getMemberTechBadges(m);
-        badges.forEach(badge => {
-          techCounts[badge] = (techCounts[badge] || 0) + 1;
-        });
-      });
-
-    if (band?.techRiderPresets && Array.isArray(band.techRiderPresets)) {
-      band.techRiderPresets.forEach(preset => {
-        if (!techCounts[preset]) {
-          techCounts[preset] = 1;
-        }
-      });
-    }
-
-    const techCountsHtml = Object.entries(techCounts).map(([item, count]) => `
-      <span style="background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; padding: 5px 12px; border-radius: 12px; font-size: 11px; font-weight: bold;">
-        ✔ ${item} (${count}x)
-      </span>
-    `).join('');
-
-    // Technické požadavky jednotlivých muzikantů (Přezdívka nahoře, pod ní malé Jméno a Příjmení)
-    const memberTechListHtml = safeMembers
-      .filter(m => safeStageplan.some(s => s.memberId === m.id))
-      .map(m => {
-        const badges = getMemberTechBadges(m);
-        const nickname = m.nickname || m.firstName || 'Člen';
-        const fullName = `${m.firstName || ''} ${m.lastName || ''}`.trim();
-        return `
-          <div style="background: #f8f9fa; border: 1px solid #e0e0e0; padding: 10px 14px; border-radius: 8px; width: 48%; box-sizing: border-box; margin-bottom: 10px;">
-            <div style="font-size: 14px; font-weight: bold; color: #1976d2;">${nickname}</div>
-            <div style="font-size: 10px; color: #666; margin-bottom: 4px;">${fullName}</div>
-            <div style="font-size: 11px; font-weight: bold; color: #2e7d32; margin-bottom: 4px;">${m.instrument || ''}</div>
-            <div style="font-size: 10px; color: #444; line-height: 1.3;">
-              ${badges.map(b => `<div>• ${b}</div>`).join('')}
-            </div>
-          </div>
-        `;
-      }).join('');
-
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 25px; color: #222; }
-          .header-box { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #2196f3; padding-bottom: 12px; margin-bottom: 15px; }
-          .band-title { font-size: 26px; font-weight: bold; color: #111; margin: 0; }
-          .concert-info { font-size: 14px; color: #444; margin-top: 4px; }
-          .stage-container { width: 100%; height: 260px; border: 3px solid #333; background: #fdfdfd; position: relative; margin: 15px 0; border-radius: 10px; overflow: hidden; }
-          .stage-front { position: absolute; bottom: 0; left: 0; right: 0; background: #333; color: white; text-align: center; padding: 6px 0; font-size: 11px; font-weight: bold; letter-spacing: 1px; }
-          .footer { margin-top: 30px; font-size: 11px; color: #888; text-align: center; border-top: 1px solid #eee; padding-top: 10px; }
-        </style>
-      </head>
-      <body>
-        <div class="header-box">
-          <div>
-            <h1 class="band-title">${bandName}</h1>
-            <div class="concert-info">
-              <strong>${concertTitle}</strong> • ${concertDate} ${concertTime} ${concertLocation ? `(${concertLocation})` : ''}
-            </div>
-          </div>
-          <div style="font-size: 12px; text-align: right; color: #666;">
-            Stageplan & Technický Rider<br>
-            <em>Aplikace Kapela</em>
-          </div>
-        </div>
-
-        <h3 style="margin-bottom: 5px; color: #111;">Pódiové rozmístění členů (Stageplan):</h3>
-        <div class="stage-container">
-          ${pinsHtml}
-          <div class="stage-front">▼ PŘEDNÍ HRANA PÓDIA / HLAVNÍ ZVUK (PA) ▼</div>
-        </div>
-
-        <div style="margin-top: 15px;">
-          <h3 style="margin-bottom: 6px; color: #2e7d32; border-bottom: 2px solid #2e7d32; padding-bottom: 3px;">Požadavky na techniku & zvukaře (Souhrn položek):</h3>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; margin-bottom: 10px;">
-            ${techCountsHtml}
-          </div>
-        </div>
-
-        <div style="margin-top: 15px;">
-          <h3 style="margin-bottom: 6px; color: #1976d2;">Technické požadavky jednotlivých muzikantů:</h3>
-          <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-            ${memberTechListHtml}
-          </div>
-        </div>
-
-        ${orgsHtml}
-
-        <div class="footer">
-          Tento dokument obsahuje oficiální Stageplan a Technický Rider kapely ${bandName}.
-        </div>
-      </body>
-      </html>
-    `;
+    return generatePdfHtmlForBand(band, concert, members);
   };
 
   const getNativePrintModule = () => {
