@@ -709,15 +709,40 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       const html = generateStageplanPdfHtml();
       const { pdfUri, fileName } = await generateNamedPdfFile(html, bandName, concert?.title);
 
-      // Nahrání na Firebase Storage probíhá na pozadí
-      uploadPdfToFirebaseStorage(pdfUri, fileName).catch(console.log);
+      const downloadUrl = await uploadPdfToFirebaseStorage(pdfUri, fileName);
+      const captionText = `Zasílám Stageplan skupiny "${bandName}"`;
+
+      // 1. Automaticky zkopírujeme text do schránky (Clipboard) jako zálohu
+      try {
+        let clipboardModule: any = null;
+        try {
+          clipboardModule = require('expo-clipboard');
+        } catch (e) {}
+        if (clipboardModule && clipboardModule.setStringAsync) {
+          await clipboardModule.setStringAsync(captionText);
+        }
+      } catch (e) {}
 
       let fileSystemModule: any = null;
       try {
         fileSystemModule = require('expo-file-system');
       } catch (e) {}
 
-      // Na Androidu použijeme IntentLauncher pro odeslání WhatsAppu s předvyplněným textem
+      // 2. Pokud máme odkaz z Firebase Storage, odeslání přes WhatsApp link přenese předvyplněný text i interaktivní PDF náhled
+      if (downloadUrl) {
+        const fullMessage = `${captionText}\n\nOdkaz na PDF:\n${downloadUrl}`;
+        const encMsg = encodeURIComponent(fullMessage);
+        try {
+          await Linking.openURL(`https://wa.me/?text=${encMsg}`);
+          setShowSendModal(false);
+          setIsGeneratingPdf(false);
+          return;
+        } catch (linkErr) {
+          console.log("WhatsApp wa.me odkaz selhal, zkusíme soubor:", linkErr);
+        }
+      }
+
+      // Na Androidu použijeme IntentLauncher pro odeslání WhatsAppu s přiloženým souborem
       if (Platform.OS === 'android') {
         try {
           let contentUri = pdfUri;
@@ -729,7 +754,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
             type: 'application/pdf',
             extra: {
               'android.intent.extra.STREAM': contentUri,
-              'android.intent.extra.TEXT': `Zasílám Stageplan skupiny "${bandName}"`,
+              'android.intent.extra.TEXT': captionText,
             },
             flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
           });
@@ -750,21 +775,14 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       if (sharingModule && sharingModule.shareAsync) {
         await sharingModule.shareAsync(pdfUri, {
           mimeType: 'application/pdf',
-          dialogTitle: `Zasílám Stageplan skupiny "${bandName}"`,
+          dialogTitle: captionText,
           UTI: 'com.adobe.pdf',
         });
-      } else {
-        const textMsg = encodeURIComponent(`Zasílám Stageplan skupiny "${bandName}"`);
-        try {
-          await Linking.openURL(`https://wa.me/?text=${textMsg}`);
-        } catch (linkErr) {
-          Alert.alert("Aplikace nedostupná", "Nepodařilo se otevřít WhatsApp.");
-        }
       }
 
       setShowSendModal(false);
     } catch (e: any) {
-      console.error("Chyba při sdílení Stageplanu:", e);
+      console.error("Chyba při sdílení Stageplanu přes WhatsApp:", e);
       Alert.alert("Chyba PDF", e?.message || "Nepodařilo se vygenerovat PDF Stageplanu.");
     } finally {
       setIsGeneratingPdf(false);
