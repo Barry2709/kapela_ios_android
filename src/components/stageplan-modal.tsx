@@ -270,19 +270,20 @@ export async function sendConcertStageplanByEmail({
       return;
     }
 
-    // 5. HTML šablona pro PDF
+    // 5. HTML šablona pro PDF s přesným názvem souboru
     const html = generatePdfHtmlForBand(band, concert, members);
-    const { uri } = await printModule.printToFileAsync({ html });
+    const rawFileName = `${cleanBand}_stageplan`;
+    const { uri } = await printModule.printToFileAsync({ html, fileName: rawFileName });
 
-    // 6. Kopírování do pojmenovaného souboru
+    // 6. Kopírování do složky dokumentů pod názvem {JmenoKapely}_stageplan.pdf
     let fileSystemModule: any = null;
     try {
       fileSystemModule = require('expo-file-system');
     } catch (e) {}
 
     let pdfUri = uri;
-    if (fileSystemModule && (fileSystemModule.cacheDirectory || fileSystemModule.documentDirectory)) {
-      const baseDir = fileSystemModule.cacheDirectory || fileSystemModule.documentDirectory;
+    if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
+      const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
       const targetPath = `${baseDir}${fileName}`;
       try {
         try {
@@ -467,9 +468,11 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       throw new Error("Modul pro generování PDF není k dispozici.");
     }
 
+    const cleanBandName = (band?.name || 'Naplech').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const rawFileName = `${cleanBandName}_stageplan`;
     const html = generateStageplanPdfHtml();
-    const { uri } = await printModule.printToFileAsync({ html });
-    const fileName = getPdfFileName();
+    const { uri } = await printModule.printToFileAsync({ html, fileName: rawFileName });
+    const fileName = `${cleanBandName}_stageplan.pdf`;
 
     let fileSystemModule: any = null;
     try {
