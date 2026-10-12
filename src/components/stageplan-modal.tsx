@@ -830,14 +830,14 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
             </ThemedText>
           </View>
 
-          {/* Tlačítko Odeslat Pořadatelům */}
+          {/* Tlačítko Odeslat */}
           <Pressable
             style={styles.sendHeaderBtn}
             onPress={() => setShowSendModal(true)}
           >
             <SymbolView name={{ ios: 'paperplane.fill', android: 'send', web: 'send' }} size={14} tintColor="#fff" />
             <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 12, marginLeft: 4 }}>
-              Odeslat pořadatelům
+              Odeslat
             </ThemedText>
           </Pressable>
 

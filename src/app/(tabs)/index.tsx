@@ -842,15 +842,6 @@ export default function HomeScreen() {
                                 <View style={{ marginTop: 6, paddingTop: 4, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.15)' }}>
                                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <ThemedText type="smallBold" themeColor="textSecondary">Kontakty na pořadatele:</ThemedText>
-                                    {activeRoleView !== 'fan' && (
-                                      <Pressable
-                                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 6, backgroundColor: 'rgba(33, 150, 243, 0.15)' }}
-                                        onPress={() => sendConcertStageplanByEmail({ band: activeBand, concert, members, currentUser })}
-                                      >
-                                        <SymbolView name={{ ios: 'paperplane.fill', android: 'send', web: 'send' }} size={13} tintColor="#2196f3" />
-                                        <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11 }}>Odeslat Stageplan</ThemedText>
-                                      </Pressable>
-                                    )}
                                   </View>
                                   {concert.organizers && concert.organizers.length > 0 ? (
                                     <View style={{ gap: 6, marginTop: 4 }}>
