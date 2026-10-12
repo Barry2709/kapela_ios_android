@@ -729,7 +729,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
             type: 'application/pdf',
             extra: {
               'android.intent.extra.STREAM': contentUri,
-              'android.intent.extra.TEXT': `Posílám stageplan kapely "${bandName}"`,
+              'android.intent.extra.TEXT': `Zasílám Stageplan skupiny "${bandName}"`,
             },
             flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
           });
@@ -750,11 +750,11 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       if (sharingModule && sharingModule.shareAsync) {
         await sharingModule.shareAsync(pdfUri, {
           mimeType: 'application/pdf',
-          dialogTitle: `Posílám stageplan kapely "${bandName}"`,
+          dialogTitle: `Zasílám Stageplan skupiny "${bandName}"`,
           UTI: 'com.adobe.pdf',
         });
       } else {
-        const textMsg = encodeURIComponent(`Posílám stageplan kapely "${bandName}"`);
+        const textMsg = encodeURIComponent(`Zasílám Stageplan skupiny "${bandName}"`);
         try {
           await Linking.openURL(`https://wa.me/?text=${textMsg}`);
         } catch (linkErr) {
