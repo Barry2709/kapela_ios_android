@@ -253,65 +253,71 @@ export async function sendConcertStageplanByEmail({
     const subject = `Stageplan "${bandName}"`;
     const bodyText = `Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\nPřeji krásný den\nza skupinu "${bandName}"\n${senderName}`;
 
-    // 3. E-maily pořadatelů
-    const emails = concert?.organizers
-      ? concert.organizers.map(o => o.email).filter(Boolean) as string[]
-      : [];
+    // 3. Modul file-system pro stažení PDF do složky dokumentů
+    let fileSystemModule: any = null;
+    try {
+      fileSystemModule = require('expo-file-system');
+    } catch (e) {}
+
+    let sharingModule: any = null;
+    try {
+      const nativeModule = requireOptionalNativeModule('ExpoSharing');
+      if (nativeModule) sharingModule = require('expo-sharing');
+    } catch (e) {}
 
     // 4. Pokud stageplan ještě není vygenerovaný na cloudu
     if (!band.stageplanPdfUrl) {
       Alert.alert(
         "Stageplan chybí",
-        "Stageplan nebyl ještě vygenerován. Prosím, uložte nejprve uspořádání Stageplanu, čímž se automaticky vygeneruje soubor PDF."
+        "Stageplan nebyl ještě vygenerován. Prosím, uložte nejprve uspořádání Stageplanu (tím se PDF vytvoří na serveru)."
       );
       return;
     }
 
-    // 5. Obejdeme jakýkoliv Intent Launcher, protože u mailu chceme přesně e-mailový dialog (mailto)
-    // Tělo už rovnou obsahuje odkaz ke stažení, soubor fyzicky nedáváme, protože systém to na Androidu do mailto ignoruje.
-    const firebaseUrl = band.stageplanPdfUrl;
-    const emailBodyWithLink = `${bodyText}\n\nOdkaz ke stažení Stageplanu v PDF (klikněte zde):\n${firebaseUrl}`;
-
-    // Pokud uživatel používá iOS, můžeme zkusit MailComposer
-    let sentViaComposer = false;
-    if (Platform.OS === 'ios') {
-      let mailComposerModule: any = null;
+    // 5. Stáhneme PDF z Firebase do čistě pojmenovaného souboru v cache
+    let localPdfUri = '';
+    if (fileSystemModule && fileSystemModule.documentDirectory) {
+      const targetPath = `${fileSystemModule.documentDirectory}${fileName}`;
       try {
-        const nativeModule = requireOptionalNativeModule('ExpoMailComposer');
-        if (nativeModule) mailComposerModule = require('expo-mail-composer');
-      } catch (e) {}
-
-      if (mailComposerModule && mailComposerModule.composeAsync) {
+        // Smažeme případnou starou verzi
         try {
-          const isAvailable = await mailComposerModule.isAvailableAsync();
-          if (isAvailable) {
-            await mailComposerModule.composeAsync({
-              recipients: emails.length > 0 ? emails : undefined,
-              subject: subject,
-              body: emailBodyWithLink,
-            });
-            sentViaComposer = true;
-          }
-        } catch (err) {
-          console.log("MailComposer selhal:", err);
+          await fileSystemModule.deleteAsync(targetPath, { idempotent: true });
+        } catch (e) {}
+
+        const downloadRes = await fileSystemModule.downloadAsync(band.stageplanPdfUrl, targetPath);
+        if (downloadRes && downloadRes.uri) {
+          localPdfUri = downloadRes.uri;
         }
+      } catch (err) {
+        console.log("Chyba při stahování PDF z Firebase:", err);
       }
     }
 
-    if (!sentViaComposer) {
-      const emailList = emails.join(',');
+    // 6. Sdílení pomocí nativního okna "Share" - toto vloží Fyzický soubor do mailu!
+    if (sharingModule && sharingModule.shareAsync && localPdfUri) {
+      await sharingModule.shareAsync(localPdfUri, {
+        mimeType: 'application/pdf',
+        dialogTitle: subject,
+        UTI: 'com.adobe.pdf',
+      });
+    } else {
+      // Záložní varianta jen odkazem do mailu, pokud selže fyzické stažení
+      const emailList = concert?.organizers
+        ? concert.organizers.map(o => o.email).filter(Boolean).join(',')
+        : '';
+      const emailBodyWithLink = `${bodyText}\n\nOdkaz ke stažení Stageplanu v PDF (klikněte zde):\n${band.stageplanPdfUrl}`;
       const encSubject = encodeURIComponent(subject);
       const encBody = encodeURIComponent(emailBodyWithLink);
       try {
         await Linking.openURL(`mailto:${emailList}?subject=${encSubject}&body=${encBody}`);
       } catch (linkErr) {
         console.log("mailto URL selhalo:", linkErr);
-        Alert.alert("E-mail klient", "Nebylo možné otevřít e-mailový klient.");
+        Alert.alert("E-mail klient", "Nebylo možné otevřít sdílení ani e-mail.");
       }
     }
   } catch (err: any) {
-    console.error("Chyba při odesílání Stageplanu e-mailem:", err);
-    Alert.alert("Chyba", err?.message || "Nepodařilo se odeslat Stageplan e-mailem.");
+    console.error("Chyba při sdílení Stageplanu:", err);
+    Alert.alert("Chyba", err?.message || "Nepodařilo se sdílet Stageplan.");
   }
 }
 
