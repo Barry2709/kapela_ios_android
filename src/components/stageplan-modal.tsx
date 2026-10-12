@@ -705,35 +705,25 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   const handleSendViaWhatsApp = async () => {
     setIsGeneratingPdf(true);
     try {
-      const bandName = band?.name || 'Kapela';
-      const fileName = getPdfFileName(bandName, concert?.title);
+      const bandName = band?.name || 'Naplech';
+      const html = generateStageplanPdfHtml();
+      const { pdfUri, fileName } = await generateNamedPdfFile(html, bandName, concert?.title);
 
-      let localPdfUri = '';
+      // Nahrání na Firebase Storage probíhá na pozadí
+      uploadPdfToFirebaseStorage(pdfUri, fileName).catch(console.log);
+
       let fileSystemModule: any = null;
       try {
         fileSystemModule = require('expo-file-system');
-        if (fileSystemModule && fileSystemModule.documentDirectory && band.stageplanPdfUrl) {
-          const targetPath = `${fileSystemModule.documentDirectory}${fileName}`;
-          try {
-            await fileSystemModule.deleteAsync(targetPath, { idempotent: true });
-          } catch (e) {}
-          const downloadRes = await fileSystemModule.downloadAsync(band.stageplanPdfUrl, targetPath);
-          if (downloadRes && downloadRes.uri) {
-            localPdfUri = downloadRes.uri;
-          }
-        }
       } catch (e) {}
-
-      if (!localPdfUri) {
-         Alert.alert("Chyba PDF", "Stageplan zatím není uložen nebo se jej nepodařilo stáhnout.");
-         setIsGeneratingPdf(false);
-         return;
-      }
 
       // Na Androidu použijeme IntentLauncher pro odeslání WhatsAppu s předvyplněným textem
       if (Platform.OS === 'android') {
         try {
-          const contentUri = await fileSystemModule.getContentUriAsync(localPdfUri);
+          let contentUri = pdfUri;
+          if (fileSystemModule && fileSystemModule.getContentUriAsync) {
+            contentUri = await fileSystemModule.getContentUriAsync(pdfUri);
+          }
           const intentLauncher = require('expo-intent-launcher');
           await intentLauncher.startActivityAsync('android.intent.action.SEND', {
             type: 'application/pdf',
@@ -758,11 +748,19 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       } catch (e) {}
 
       if (sharingModule && sharingModule.shareAsync) {
-        await sharingModule.shareAsync(localPdfUri, {
+        await sharingModule.shareAsync(pdfUri, {
           mimeType: 'application/pdf',
           dialogTitle: `Posílám stageplan kapely "${bandName}"`,
           UTI: 'com.adobe.pdf',
         });
+      } else {
+        const textMsg = encodeURIComponent(`Posílám stageplan kapely "${bandName}"`);
+        try {
+          await Linking.openURL(`https://wa.me/?text=${textMsg}`);
+        } catch (linkErr) {
+          Alert.alert("Aplikace nedostupná", "Nepodařilo se otevřít WhatsApp.");
+        }
+      }
       } else {
         const textMsg = encodeURIComponent(`Posílám stageplan kapely "${bandName}"\n\n${band.stageplanPdfUrl}`);
         try {
