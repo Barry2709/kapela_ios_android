@@ -761,14 +761,6 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
           Alert.alert("Aplikace nedostupná", "Nepodařilo se otevřít WhatsApp.");
         }
       }
-      } else {
-        const textMsg = encodeURIComponent(`Posílám stageplan kapely "${bandName}"\n\n${band.stageplanPdfUrl}`);
-        try {
-          await Linking.openURL(`https://wa.me/?text=${textMsg}`);
-        } catch (linkErr) {
-          Alert.alert("Aplikace nedostupná", "Nepodařilo se otevřít WhatsApp.");
-        }
-      }
 
       setShowSendModal(false);
     } catch (e: any) {
