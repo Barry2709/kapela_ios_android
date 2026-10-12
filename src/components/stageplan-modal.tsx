@@ -274,26 +274,34 @@ export async function sendConcertStageplanByEmail({
       return;
     }
 
-    // 5. Stáhneme PDF z Firebase do čistě pojmenovaného souboru v cache
+    // 5. Stáhneme PDF z Firebase do čistě pojmenovaného souboru do Cesty ke staženým souborům nebo Cache
     let localPdfUri = '';
-    if (fileSystemModule && fileSystemModule.documentDirectory) {
-      const targetPath = `${fileSystemModule.documentDirectory}${fileName}`;
+    if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
+      const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
+      const targetPath = `${baseDir}${fileName}`;
       try {
         // Smažeme případnou starou verzi
         try {
           await fileSystemModule.deleteAsync(targetPath, { idempotent: true });
         } catch (e) {}
 
+        console.log("Stahuji PDF z Firebase do telefonu:", targetPath);
         const downloadRes = await fileSystemModule.downloadAsync(band.stageplanPdfUrl, targetPath);
         if (downloadRes && downloadRes.uri) {
           localPdfUri = downloadRes.uri;
+          console.log("Soubor úspěšně stažen na URI:", localPdfUri);
         }
       } catch (err) {
         console.log("Chyba při stahování PDF z Firebase:", err);
       }
     }
 
-    // 6. Sdílení pomocí nativního MailComposeru (primárně), IntentLauncheru na Androidu nebo záchranného Sharingu
+    if (!localPdfUri) {
+       Alert.alert("Chyba PDF", "Nepodařilo se stáhnout Stageplan do telefonu.");
+       return;
+    }
+
+    // 6. Pokusíme se odeslat fyzický soubor přes Expo Mail Composer
     let mailComposerModule: any = null;
     try {
       const nativeModule = requireOptionalNativeModule('ExpoMailComposer');
@@ -306,8 +314,8 @@ export async function sendConcertStageplanByEmail({
 
     let sentViaComposer = false;
 
-    // A) Nejlepší metoda pro připojení přílohy a textů na iOS i Android: MailComposer
-    if (mailComposerModule && mailComposerModule.composeAsync && localPdfUri) {
+    // A) Nejlepší metoda pro připojení přílohy: MailComposer
+    if (mailComposerModule && mailComposerModule.composeAsync) {
       try {
         const isAvailable = await mailComposerModule.isAvailableAsync();
         if (isAvailable) {

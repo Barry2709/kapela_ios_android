@@ -78,7 +78,8 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-mail-composer"
+      "expo-mail-composer",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true
