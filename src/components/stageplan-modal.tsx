@@ -778,15 +778,6 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     }
   };
 
-      setShowSendModal(false);
-    } catch (e: any) {
-      console.error("Chyba při sdílení Stageplanu přes WhatsApp:", e);
-      Alert.alert("Chyba PDF", e?.message || "Nepodařilo se vygenerovat PDF Stageplanu.");
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
-
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" supportedOrientations={['landscape', 'landscape-left', 'landscape-right']}>
       <ThemedView
