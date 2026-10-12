@@ -258,72 +258,50 @@ export async function sendConcertStageplanByEmail({
       ? concert.organizers.map(o => o.email).filter(Boolean) as string[]
       : [];
 
-    // 4. Modul pro tisk
-    let printModule: any = null;
-    try {
-      const nativeModule = requireOptionalNativeModule('ExpoPrint');
-      if (nativeModule) printModule = require('expo-print');
-    } catch (e) {}
-
-    if (!printModule || !printModule.printToFileAsync) {
-      Alert.alert("PDF Nedostupné", "Generování PDF vyžaduje zkompilovanou aplikaci.");
+    // 4. Pokud stageplan ještě není vygenerovaný na cloudu
+    if (!band.stageplanPdfUrl) {
+      Alert.alert(
+        "Stageplan chybí",
+        "Stageplan nebyl ještě vygenerován. Prosím, uložte nejprve uspořádání Stageplanu, čímž se automaticky vygeneruje soubor PDF."
+      );
       return;
     }
 
-    // 5. HTML šablona pro PDF s přesným názvem souboru
-    const html = generatePdfHtmlForBand(band, concert, members);
-    const rawFileName = `${cleanBand}_stageplan`;
-    const { uri } = await printModule.printToFileAsync({ html, fileName: rawFileName });
+    // 5. Převezmeme URL z Firebase a upravíme tělo zprávy tak, aby obsahovalo odkaz ke stažení
+    const firebaseUrl = band.stageplanPdfUrl;
+    const emailBodyWithLink = `${bodyText}\n\nOdkaz ke stažení Stageplanu v PDF (klikněte zde):\n${firebaseUrl}`;
 
-    // 6. Kopírování do složky cache pod názvem {JmenoKapely}_stageplan.pdf pro podporu MailComposer
+    // 6. Pokusíme se soubor stáhnout do Cache telefonu pod čistým názvem, aby se dal i fyzicky přiložit
+    let localPdfUri = '';
     let fileSystemModule: any = null;
     try {
       fileSystemModule = require('expo-file-system');
-    } catch (e) {}
-
-    let pdfUri = uri;
-    if (fileSystemModule && fileSystemModule.cacheDirectory) {
-      const targetPath = `${fileSystemModule.cacheDirectory}${fileName}`;
-      try {
-        try {
-          await fileSystemModule.deleteAsync(targetPath, { idempotent: true });
-        } catch (e) {}
-        await fileSystemModule.copyAsync({ from: uri, to: targetPath });
-
-        // Zkusíme smazat původní soubor s nesmyslným názvem z tiskového modulu
-        try {
-          await fileSystemModule.deleteAsync(uri, { idempotent: true });
-        } catch (e) {}
-
-        pdfUri = targetPath;
-      } catch (err) {
-        console.log("Kopírování selhalo:", err);
-      }
-    }
-
-    // 7. Nahrání na Firebase Storage a získání URL (připojíme do těla pro jistotu na Androidu)
-    let firebaseDownloadUrl = '';
-    try {
-      const storagePath = `kapela_ios_android/${band.id}/stageplan/${fileName}`;
-      firebaseDownloadUrl = await uploadImageToStorage(pdfUri, storagePath);
-      if (band.id && firebaseDownloadUrl) {
-        await updateBand(band.id, { stageplanPdfUrl: firebaseDownloadUrl } as any);
+      if (fileSystemModule && fileSystemModule.cacheDirectory) {
+        const targetPath = `${fileSystemModule.cacheDirectory}${fileName}`;
+        const downloadRes = await fileSystemModule.downloadAsync(firebaseUrl, targetPath);
+        if (downloadRes && downloadRes.uri) {
+          localPdfUri = downloadRes.uri;
+        }
       }
     } catch (e) {
-      console.log("Nahrání na Firebase Storage selhalo:", e);
+      console.log("Stažení PDF do cache selhalo:", e);
     }
 
-    // 6B. Explicitní sdílení na Androidu pomocí ContentProvider URI a IntentLauncheru
+    // 7. Explicitní sdílení na Androidu pomocí ContentProvider URI a IntentLauncheru
     if (Platform.OS === 'android') {
       try {
-        const contentUri = await fileSystemModule.getContentUriAsync(pdfUri);
         const intentLauncher = require('expo-intent-launcher');
+        let contentUri = localPdfUri;
+        if (localPdfUri && fileSystemModule && fileSystemModule.getContentUriAsync) {
+          contentUri = await fileSystemModule.getContentUriAsync(localPdfUri);
+        }
+
         await intentLauncher.startActivityAsync('android.intent.action.SEND', {
           type: 'application/pdf',
           extra: {
-            'android.intent.extra.STREAM': contentUri,
+            ...(contentUri ? { 'android.intent.extra.STREAM': contentUri } : {}),
             'android.intent.extra.SUBJECT': subject,
-            'android.intent.extra.TEXT': firebaseDownloadUrl ? `${bodyText}\n\nOdkaz ke stažení Stageplanu:\n${firebaseDownloadUrl}` : bodyText,
+            'android.intent.extra.TEXT': emailBodyWithLink,
             'android.intent.extra.EMAIL': emails.length > 0 ? emails : undefined,
           },
           flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
@@ -334,7 +312,7 @@ export async function sendConcertStageplanByEmail({
       }
     }
 
-    // 8. Otevření e-mailu přes MailComposer na iOS
+    // 8. Otevření e-mailu přes MailComposer na iOS s lokálním souborem staženým z Firebase
     let mailComposerModule: any = null;
     try {
       const nativeModule = requireOptionalNativeModule('ExpoMailComposer');
@@ -342,15 +320,15 @@ export async function sendConcertStageplanByEmail({
     } catch (e) {}
 
     let sentViaComposer = false;
-    if (mailComposerModule && mailComposerModule.composeAsync) {
+    if (mailComposerModule && mailComposerModule.composeAsync && localPdfUri) {
       try {
         const isAvailable = await mailComposerModule.isAvailableAsync();
         if (isAvailable) {
           await mailComposerModule.composeAsync({
             recipients: emails.length > 0 ? emails : undefined,
             subject: subject,
-            body: bodyText,
-            attachments: [pdfUri],
+            body: emailBodyWithLink,
+            attachments: [localPdfUri],
           });
           sentViaComposer = true;
         }
@@ -362,7 +340,7 @@ export async function sendConcertStageplanByEmail({
     if (!sentViaComposer) {
       const emailList = emails.join(',');
       const encSubject = encodeURIComponent(subject);
-      const encBody = encodeURIComponent(bodyText);
+      const encBody = encodeURIComponent(emailBodyWithLink);
       let openedMailto = false;
       try {
         await Linking.openURL(`mailto:${emailList}?subject=${encSubject}&body=${encBody}`);
@@ -371,7 +349,7 @@ export async function sendConcertStageplanByEmail({
         console.log("mailto URL selhalo:", linkErr);
       }
 
-      if (!openedMailto) {
+      if (!openedMailto && localPdfUri) {
         let sharingModule: any = null;
         try {
           const nativeModule = requireOptionalNativeModule('ExpoSharing');
@@ -379,7 +357,7 @@ export async function sendConcertStageplanByEmail({
         } catch (e) {}
 
         if (sharingModule && sharingModule.shareAsync) {
-          await sharingModule.shareAsync(pdfUri, {
+          await sharingModule.shareAsync(localPdfUri, {
             mimeType: 'application/pdf',
             dialogTitle: subject,
             UTI: 'com.adobe.pdf',
