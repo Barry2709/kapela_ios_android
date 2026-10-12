@@ -701,10 +701,15 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     }
   };
 
-  // Odeslání přes WhatsApp / Systémové sdílení (Připojení FYZICKÉHO SOUBORU PDF)
+  // Odeslání přes WhatsApp / Systémové sdílení (Připojení FYZICKÉHO SOUBORU PDF bez černé obrazovky)
   const handleSendViaWhatsApp = async () => {
     setIsGeneratingPdf(true);
     try {
+      // Dočasně odemkneme orientaci obrazovky z LANDSCAPE na PORTRAIT pro hladký přechod bez černé obrazovky
+      try {
+        await ScreenOrientation.unlockAsync();
+      } catch (e) {}
+
       const bandName = band?.name || 'Naplech';
       const html = generateStageplanPdfHtml();
       const { pdfUri, fileName } = await generateNamedPdfFile(html, bandName, concert?.title);
@@ -730,7 +735,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
         fileSystemModule = require('expo-file-system');
       } catch (e) {}
 
-      // 2. Na Androidu přiložíme fyzický soubor PDF přes IntentLauncher
+      // 2. Na Androidu přiložíme fyzický soubor PDF přes IntentLauncher přímo do WhatsAppu
       if (Platform.OS === 'android') {
         try {
           let contentUri = pdfUri;
@@ -738,17 +743,33 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
             contentUri = await fileSystemModule.getContentUriAsync(pdfUri);
           }
           const intentLauncher = require('expo-intent-launcher');
-          await intentLauncher.startActivityAsync('android.intent.action.SEND', {
-            type: 'application/pdf',
-            extra: {
-              'android.intent.extra.STREAM': contentUri,
-              'android.intent.extra.TEXT': captionText,
-            },
-            flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
-          });
-          setShowSendModal(false);
-          setIsGeneratingPdf(false);
-          return;
+          try {
+            await intentLauncher.startActivityAsync('android.intent.action.SEND', {
+              type: 'application/pdf',
+              packageName: 'com.whatsapp',
+              extra: {
+                'android.intent.extra.STREAM': contentUri,
+                'android.intent.extra.TEXT': captionText,
+              },
+              flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+            });
+            setShowSendModal(false);
+            setIsGeneratingPdf(false);
+            return;
+          } catch (waErr) {
+            console.log("Cílený WhatsApp intent selhal, zkouším obecný intent:", waErr);
+            await intentLauncher.startActivityAsync('android.intent.action.SEND', {
+              type: 'application/pdf',
+              extra: {
+                'android.intent.extra.STREAM': contentUri,
+                'android.intent.extra.TEXT': captionText,
+              },
+              flags: 1,
+            });
+            setShowSendModal(false);
+            setIsGeneratingPdf(false);
+            return;
+          }
         } catch (intentErr) {
           console.log("IntentLauncher na Androidu selhal pro WhatsApp:", intentErr);
         }
