@@ -275,21 +275,26 @@ export async function sendConcertStageplanByEmail({
     const rawFileName = `${cleanBand}_stageplan`;
     const { uri } = await printModule.printToFileAsync({ html, fileName: rawFileName });
 
-    // 6. Kopírování do složky dokumentů pod názvem {JmenoKapely}_stageplan.pdf
+    // 6. Kopírování do složky cache pod názvem {JmenoKapely}_stageplan.pdf pro podporu MailComposer
     let fileSystemModule: any = null;
     try {
       fileSystemModule = require('expo-file-system');
     } catch (e) {}
 
     let pdfUri = uri;
-    if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
-      const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
-      const targetPath = `${baseDir}${fileName}`;
+    if (fileSystemModule && fileSystemModule.cacheDirectory) {
+      const targetPath = `${fileSystemModule.cacheDirectory}${fileName}`;
       try {
         try {
           await fileSystemModule.deleteAsync(targetPath, { idempotent: true });
         } catch (e) {}
         await fileSystemModule.copyAsync({ from: uri, to: targetPath });
+
+        // Zkusíme smazat původní soubor
+        try {
+          await fileSystemModule.deleteAsync(uri, { idempotent: true });
+        } catch (e) {}
+
         pdfUri = targetPath;
       } catch (err) {
         console.log("Kopírování selhalo:", err);
@@ -471,6 +476,9 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     const cleanBandName = (band?.name || 'Naplech').replace(/[^a-zA-Z0-9_-]/g, '_');
     const rawFileName = `${cleanBandName}_stageplan`;
     const html = generateStageplanPdfHtml();
+
+    // Na Androidu Print modul generuje náhodné názvy i při zadání fileName.
+    // Musíme soubor manuálně přejmenovat v Cache i Document adresáři.
     const { uri } = await printModule.printToFileAsync({ html, fileName: rawFileName });
     const fileName = `${cleanBandName}_stageplan.pdf`;
 
@@ -479,14 +487,20 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       fileSystemModule = require('expo-file-system');
     } catch (e) {}
 
-    if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
-      const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
-      const targetPath = `${baseDir}${fileName}`;
+    if (fileSystemModule && fileSystemModule.cacheDirectory) {
+      // Prioritně ukládáme do Cache Directory pro správné fungování Expo Mail Composer na Androidu
+      const targetPath = `${fileSystemModule.cacheDirectory}${fileName}`;
       try {
         try {
           await fileSystemModule.deleteAsync(targetPath, { idempotent: true });
         } catch (e) {}
         await fileSystemModule.copyAsync({ from: uri, to: targetPath });
+
+        // Zkusíme smazat původní soubor s nesmyslným názvem
+        try {
+          await fileSystemModule.deleteAsync(uri, { idempotent: true });
+        } catch (e) {}
+
         return { pdfUri: targetPath, fileName };
       } catch (err) {
         console.log("Kopírování souboru selhalo:", err);
