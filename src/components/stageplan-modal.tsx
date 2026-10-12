@@ -220,6 +220,69 @@ export function generatePdfHtmlForBand(band: Band, concert?: Concert, members: B
   `;
 }
 
+// Helper který musíme posunout nahoru kvůli dosahu
+let globalPrintModule: any = null;
+let globalFileSystemModule: any = null;
+
+const getNativePrintModule = () => {
+  if (globalPrintModule) return globalPrintModule;
+  try {
+    globalPrintModule = require('expo-print');
+    return globalPrintModule;
+  } catch (e) {
+    return null;
+  }
+};
+
+const getFileSystemModule = () => {
+  if (globalFileSystemModule) return globalFileSystemModule;
+  try {
+    globalFileSystemModule = require('expo-file-system');
+    return globalFileSystemModule;
+  } catch (e) {
+    return null;
+  }
+};
+
+const getPdfFileName = (bandName: string, concertTitle?: string): string => {
+  const cleanBand = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
+  if (concertTitle && concertTitle.trim().length > 0) {
+    const cleanConcert = concertTitle.replace(/[^a-zA-Z0-9_-]/g, '_');
+    return `${cleanBand}_Stageplan_${cleanConcert}.pdf`;
+  }
+  return `${cleanBand}_Stageplan.pdf`;
+};
+
+// Pomocná funkce pro vygenerování a pojmenování PDF souboru
+export const generateNamedPdfFile = async (html: string, bandName: string, concertTitle?: string): Promise<{ pdfUri: string; fileName: string }> => {
+  const printModule = getNativePrintModule();
+  if (!printModule || !printModule.printToFileAsync) {
+    throw new Error("Modul pro generování PDF není k dispozici.");
+  }
+
+  const cleanBandName = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const rawFileName = `${cleanBandName}_stageplan`;
+  const { uri } = await printModule.printToFileAsync({ html, fileName: rawFileName });
+  const fileName = getPdfFileName(bandName, concertTitle);
+
+  const fileSystemModule = getFileSystemModule();
+
+  if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
+    const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
+    const targetPath = `${baseDir}${fileName}`;
+    try {
+      try {
+        await fileSystemModule.deleteAsync(targetPath, { idempotent: true });
+      } catch (e) {}
+      await fileSystemModule.copyAsync({ from: uri, to: targetPath });
+      return { pdfUri: targetPath, fileName };
+    } catch (err) {
+      console.log("Kopírování souboru selhalo:", err);
+    }
+  }
+  return { pdfUri: uri, fileName };
+};
+
 // Přímé vygenerování a odeslání Stageplanu e-mailem z karty koncertu
 export async function sendConcertStageplanByEmail({
   band,
@@ -265,39 +328,30 @@ export async function sendConcertStageplanByEmail({
       if (nativeModule) sharingModule = require('expo-sharing');
     } catch (e) {}
 
+    // Zrušeno - generujeme ho lokálně automaticky
     // 4. Pokud stageplan ještě není vygenerovaný na cloudu
-    if (!band.stageplanPdfUrl) {
+    /*if (!band.stageplanPdfUrl) {
       Alert.alert(
         "Stageplan chybí",
         "Stageplan nebyl ještě vygenerován. Prosím, uložte nejprve uspořádání Stageplanu (tím se PDF vytvoří na serveru)."
       );
       return;
-    }
+    }*/
 
-    // 5. Stáhneme PDF z Firebase do čistě pojmenovaného souboru do Cesty ke staženým souborům nebo Cache
-    let localPdfUri = '';
-    if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
-      const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
-      const targetPath = `${baseDir}${fileName}`;
-      try {
-        // Smažeme případnou starou verzi
-        try {
-          await fileSystemModule.deleteAsync(targetPath, { idempotent: true });
-        } catch (e) {}
+    // 5. Nejdříve lokálně a neprůstřelně vygenerujeme Fyzické PDF
+    const html = generatePdfHtmlForBand(band, concert, members);
+    const { pdfUri: localPdfUri, fileName: realFileName } = await generateNamedPdfFile(html, bandName, concert?.title);
 
-        console.log("Stahuji PDF z Firebase do telefonu:", targetPath);
-        const downloadRes = await fileSystemModule.downloadAsync(band.stageplanPdfUrl, targetPath);
-        if (downloadRes && downloadRes.uri) {
-          localPdfUri = downloadRes.uri;
-          console.log("Soubor úspěšně stažen na URI:", localPdfUri);
-        }
-      } catch (err) {
-        console.log("Chyba při stahování PDF z Firebase:", err);
+    // Načteme na Firebase na pozadí, abychom zbytečně neblokovali zobrazení e-mailu
+    const storagePath = `kapela_ios_android/${band?.id || 'band'}/stageplan/${realFileName}`;
+    uploadImageToStorage(localPdfUri, storagePath).then(downloadUrl => {
+      if (band?.id) {
+        updateBand(band.id, { stageplanPdfUrl: downloadUrl } as any);
       }
-    }
+    }).catch(e => console.log("Nahrání PDF na Firebase selhalo:", e));
 
     if (!localPdfUri) {
-       Alert.alert("Chyba PDF", "Nepodařilo se stáhnout Stageplan do telefonu.");
+       Alert.alert("Chyba PDF", "Nepodařilo se vygenerovat PDF Stageplanu.");
        return;
     }
 
@@ -652,44 +706,65 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     setIsGeneratingPdf(true);
     try {
       const bandName = band?.name || 'Kapela';
-      const sharingModule = getNativeSharingModule();
+      const fileName = getPdfFileName(bandName, concert?.title);
 
+      let localPdfUri = '';
+      let fileSystemModule: any = null;
       try {
-        const { pdfUri, fileName } = await generateNamedPdfFile();
-        console.log("Vygenerovaný pojmenovaný PDF soubor pro WhatsApp:", pdfUri);
-
-        // Na Androidu použijeme IntentLauncher pro odeslání s předvyplněným textem
-        if (Platform.OS === 'android') {
+        fileSystemModule = require('expo-file-system');
+        if (fileSystemModule && fileSystemModule.documentDirectory && band.stageplanPdfUrl) {
+          const targetPath = `${fileSystemModule.documentDirectory}${fileName}`;
           try {
-            const fileSystemModule = require('expo-file-system');
-            const contentUri = await fileSystemModule.getContentUriAsync(pdfUri);
-            const intentLauncher = require('expo-intent-launcher');
-            await intentLauncher.startActivityAsync('android.intent.action.SEND', {
-              type: 'application/pdf',
-              extra: {
-                'android.intent.extra.STREAM': contentUri,
-                'android.intent.extra.TEXT': `Posílám stageplan kapely "${bandName}"`,
-              },
-              flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
-            });
-            setShowSendModal(false);
-            return;
-          } catch (intentErr) {
-            console.log("IntentLauncher na Androidu selhal pro WhatsApp:", intentErr);
+            await fileSystemModule.deleteAsync(targetPath, { idempotent: true });
+          } catch (e) {}
+          const downloadRes = await fileSystemModule.downloadAsync(band.stageplanPdfUrl, targetPath);
+          if (downloadRes && downloadRes.uri) {
+            localPdfUri = downloadRes.uri;
           }
         }
+      } catch (e) {}
 
-        if (sharingModule && (await sharingModule.isAvailableAsync())) {
-          await sharingModule.shareAsync(pdfUri, {
-            mimeType: 'application/pdf',
-            dialogTitle: `Odeslat Stageplan kapely ${bandName}`,
-            UTI: 'com.adobe.pdf',
+      if (!localPdfUri) {
+         Alert.alert("Chyba PDF", "Stageplan zatím není uložen nebo se jej nepodařilo stáhnout.");
+         setIsGeneratingPdf(false);
+         return;
+      }
+
+      // Na Androidu použijeme IntentLauncher pro odeslání WhatsAppu s předvyplněným textem
+      if (Platform.OS === 'android') {
+        try {
+          const contentUri = await fileSystemModule.getContentUriAsync(localPdfUri);
+          const intentLauncher = require('expo-intent-launcher');
+          await intentLauncher.startActivityAsync('android.intent.action.SEND', {
+            type: 'application/pdf',
+            extra: {
+              'android.intent.extra.STREAM': contentUri,
+              'android.intent.extra.TEXT': `Posílám stageplan kapely "${bandName}"`,
+            },
+            flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
           });
-        } else {
-          Alert.alert("Sdílení nedostupné", "Sdílení souborů není na tomto zařízení dostupné.");
+          setShowSendModal(false);
+          return;
+        } catch (intentErr) {
+          console.log("IntentLauncher na Androidu selhal pro WhatsApp:", intentErr);
         }
-      } catch (pdfErr) {
-        const textMsg = encodeURIComponent(`Posílám stageplan kapely "${bandName}"`);
+      }
+
+      // Sdílení iOS a záchrana
+      let sharingModule: any = null;
+      try {
+        const nativeModule = requireOptionalNativeModule('ExpoSharing');
+        if (nativeModule) sharingModule = require('expo-sharing');
+      } catch (e) {}
+
+      if (sharingModule && sharingModule.shareAsync) {
+        await sharingModule.shareAsync(localPdfUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Posílám stageplan kapely "${bandName}"`,
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        const textMsg = encodeURIComponent(`Posílám stageplan kapely "${bandName}"\n\n${band.stageplanPdfUrl}`);
         try {
           await Linking.openURL(`https://wa.me/?text=${textMsg}`);
         } catch (linkErr) {
