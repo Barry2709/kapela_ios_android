@@ -301,6 +301,18 @@ export async function sendConcertStageplanByEmail({
       }
     }
 
+    // 7. Nahrání na Firebase Storage a získání URL (připojíme do těla pro jistotu na Androidu)
+    let firebaseDownloadUrl = '';
+    try {
+      const storagePath = `kapela_ios_android/${band.id}/stageplan/${fileName}`;
+      firebaseDownloadUrl = await uploadImageToStorage(pdfUri, storagePath);
+      if (band.id && firebaseDownloadUrl) {
+        await updateBand(band.id, { stageplanPdfUrl: firebaseDownloadUrl } as any);
+      }
+    } catch (e) {
+      console.log("Nahrání na Firebase Storage selhalo:", e);
+    }
+
     // 6B. Explicitní sdílení na Androidu pomocí ContentProvider URI a IntentLauncheru
     if (Platform.OS === 'android') {
       try {
@@ -311,7 +323,7 @@ export async function sendConcertStageplanByEmail({
           extra: {
             'android.intent.extra.STREAM': contentUri,
             'android.intent.extra.SUBJECT': subject,
-            'android.intent.extra.TEXT': bodyText,
+            'android.intent.extra.TEXT': firebaseDownloadUrl ? `${bodyText}\n\nOdkaz ke stažení Stageplanu:\n${firebaseDownloadUrl}` : bodyText,
             'android.intent.extra.EMAIL': emails.length > 0 ? emails : undefined,
           },
           flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
@@ -322,17 +334,7 @@ export async function sendConcertStageplanByEmail({
       }
     }
 
-    // 7. Nahrání na Firebase Storage na pozadí
-    try {
-      const storagePath = `kapela_ios_android/${band.id}/stageplan/${fileName}`;
-      uploadImageToStorage(pdfUri, storagePath).then(downloadUrl => {
-        if (band.id) {
-          updateBand(band.id, { stageplanPdfUrl: downloadUrl } as any);
-        }
-      }).catch(console.log);
-    } catch (e) {}
-
-    // 8. Otevření e-mailu
+    // 8. Otevření e-mailu přes MailComposer na iOS
     let mailComposerModule: any = null;
     try {
       const nativeModule = requireOptionalNativeModule('ExpoMailComposer');
