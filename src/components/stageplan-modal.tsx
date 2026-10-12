@@ -293,25 +293,77 @@ export async function sendConcertStageplanByEmail({
       }
     }
 
-    // 6. Sdílení pomocí nativního okna "Share" - toto vloží Fyzický soubor do mailu!
-    if (sharingModule && sharingModule.shareAsync && localPdfUri) {
+    // 6. Sdílení pomocí nativního MailComposeru (primárně), IntentLauncheru na Androidu nebo záchranného Sharingu
+    let mailComposerModule: any = null;
+    try {
+      const nativeModule = requireOptionalNativeModule('ExpoMailComposer');
+      if (nativeModule) mailComposerModule = require('expo-mail-composer');
+    } catch (e) {}
+
+    const emailList = concert?.organizers
+      ? concert.organizers.map(o => o.email).filter(Boolean)
+      : [];
+
+    let sentViaComposer = false;
+
+    // A) Nejlepší metoda pro připojení přílohy a textů na iOS i Android: MailComposer
+    if (mailComposerModule && mailComposerModule.composeAsync && localPdfUri) {
+      try {
+        const isAvailable = await mailComposerModule.isAvailableAsync();
+        if (isAvailable) {
+          await mailComposerModule.composeAsync({
+            recipients: emailList.length > 0 ? emailList : undefined,
+            subject: subject,
+            body: bodyText,
+            attachments: [localPdfUri],
+          });
+          sentViaComposer = true;
+        }
+      } catch (err) {
+        console.log("MailComposer selhal:", err);
+      }
+    }
+
+    // B) Android záchrana: Explicitní IntentLauncher, který zaručeně fyzicky připojí Content URI
+    if (!sentViaComposer && Platform.OS === 'android' && localPdfUri) {
+      try {
+        const contentUri = await fileSystemModule.getContentUriAsync(localPdfUri);
+        const intentLauncher = require('expo-intent-launcher');
+        await intentLauncher.startActivityAsync('android.intent.action.SEND', {
+          type: 'application/pdf',
+          extra: {
+            'android.intent.extra.STREAM': contentUri,
+            'android.intent.extra.SUBJECT': subject,
+            'android.intent.extra.TEXT': bodyText,
+            ...(emailList.length > 0 ? { 'android.intent.extra.EMAIL': emailList } : {}),
+          },
+          flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+        });
+        sentViaComposer = true;
+      } catch (intentErr) {
+        console.log("IntentLauncher selhal:", intentErr);
+      }
+    }
+
+    // C) Nejzazší záchrana: Pouhé sdílení souboru (uživatel musí ručně zvolit Gmail)
+    if (!sentViaComposer && sharingModule && sharingModule.shareAsync && localPdfUri) {
       await sharingModule.shareAsync(localPdfUri, {
         mimeType: 'application/pdf',
         dialogTitle: subject,
         UTI: 'com.adobe.pdf',
       });
-    } else {
-      // Záložní varianta jen odkazem do mailu, pokud selže fyzické stažení
-      const emailList = concert?.organizers
-        ? concert.organizers.map(o => o.email).filter(Boolean).join(',')
-        : '';
+      sentViaComposer = true;
+    }
+
+    // D) Nouzovka jen odkaz (pokud fyzicky nemáme PDF)
+    if (!sentViaComposer) {
+      const emailListStr = emailList.join(',');
       const emailBodyWithLink = `${bodyText}\n\nOdkaz ke stažení Stageplanu v PDF (klikněte zde):\n${band.stageplanPdfUrl}`;
       const encSubject = encodeURIComponent(subject);
       const encBody = encodeURIComponent(emailBodyWithLink);
       try {
-        await Linking.openURL(`mailto:${emailList}?subject=${encSubject}&body=${encBody}`);
+        await Linking.openURL(`mailto:${emailListStr}?subject=${encSubject}&body=${encBody}`);
       } catch (linkErr) {
-        console.log("mailto URL selhalo:", linkErr);
         Alert.alert("E-mail klient", "Nebylo možné otevřít sdílení ani e-mail.");
       }
     }
