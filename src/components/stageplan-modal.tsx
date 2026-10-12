@@ -290,7 +290,7 @@ export async function sendConcertStageplanByEmail({
         } catch (e) {}
         await fileSystemModule.copyAsync({ from: uri, to: targetPath });
 
-        // Zkusíme smazat původní soubor
+        // Zkusíme smazat původní soubor s nesmyslným názvem z tiskového modulu
         try {
           await fileSystemModule.deleteAsync(uri, { idempotent: true });
         } catch (e) {}
@@ -298,6 +298,27 @@ export async function sendConcertStageplanByEmail({
         pdfUri = targetPath;
       } catch (err) {
         console.log("Kopírování selhalo:", err);
+      }
+    }
+
+    // 6B. Explicitní sdílení na Androidu pomocí ContentProvider URI a IntentLauncheru
+    if (Platform.OS === 'android') {
+      try {
+        const contentUri = await fileSystemModule.getContentUriAsync(pdfUri);
+        const intentLauncher = require('expo-intent-launcher');
+        await intentLauncher.startActivityAsync('android.intent.action.SEND', {
+          type: 'application/pdf',
+          extra: {
+            'android.intent.extra.STREAM': contentUri,
+            'android.intent.extra.SUBJECT': subject,
+            'android.intent.extra.TEXT': bodyText,
+            'android.intent.extra.EMAIL': emails.length > 0 ? emails : undefined,
+          },
+          flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+        });
+        return; // Zastavit provádění iOS kódu
+      } catch (intentErr) {
+        console.log("IntentLauncher selhal na Androidu:", intentErr);
       }
     }
 
@@ -640,19 +661,44 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   const handleSendViaWhatsApp = async () => {
     setIsGeneratingPdf(true);
     try {
-      const bandName = band?.name || 'Naplech';
+      const bandName = band?.name || 'Kapela';
       const sharingModule = getNativeSharingModule();
 
-      const { pdfUri, fileName } = await generateNamedPdfFile();
-      uploadPdfToFirebaseStorage(pdfUri, fileName).catch(console.log);
+      try {
+        const { pdfUri, fileName } = await generateNamedPdfFile();
+        console.log("Vygenerovaný pojmenovaný PDF soubor pro WhatsApp:", pdfUri);
 
-      if (sharingModule && sharingModule.shareAsync) {
-        await sharingModule.shareAsync(pdfUri, {
-          mimeType: 'application/pdf',
-          dialogTitle: `Posílám stageplan kapely "${bandName}"`,
-          UTI: 'com.adobe.pdf',
-        });
-      } else {
+        // Na Androidu použijeme IntentLauncher pro odeslání s předvyplněným textem
+        if (Platform.OS === 'android') {
+          try {
+            const fileSystemModule = require('expo-file-system');
+            const contentUri = await fileSystemModule.getContentUriAsync(pdfUri);
+            const intentLauncher = require('expo-intent-launcher');
+            await intentLauncher.startActivityAsync('android.intent.action.SEND', {
+              type: 'application/pdf',
+              extra: {
+                'android.intent.extra.STREAM': contentUri,
+                'android.intent.extra.TEXT': `Posílám stageplan kapely "${bandName}"`,
+              },
+              flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+            });
+            setShowSendModal(false);
+            return;
+          } catch (intentErr) {
+            console.log("IntentLauncher na Androidu selhal pro WhatsApp:", intentErr);
+          }
+        }
+
+        if (sharingModule && (await sharingModule.isAvailableAsync())) {
+          await sharingModule.shareAsync(pdfUri, {
+            mimeType: 'application/pdf',
+            dialogTitle: `Odeslat Stageplan kapely ${bandName}`,
+            UTI: 'com.adobe.pdf',
+          });
+        } else {
+          Alert.alert("Sdílení nedostupné", "Sdílení souborů není na tomto zařízení dostupné.");
+        }
+      } catch (pdfErr) {
         const textMsg = encodeURIComponent(`Posílám stageplan kapely "${bandName}"`);
         try {
           await Linking.openURL(`https://wa.me/?text=${textMsg}`);
@@ -663,7 +709,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
       setShowSendModal(false);
     } catch (e: any) {
-      console.error("Chyba při sdílení Stageplanu přes WhatsApp:", e);
+      console.error("Chyba při sdílení Stageplanu:", e);
       Alert.alert("Chyba PDF", e?.message || "Nepodařilo se vygenerovat PDF Stageplanu.");
     } finally {
       setIsGeneratingPdf(false);
