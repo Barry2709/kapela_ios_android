@@ -479,13 +479,30 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     };
   }, [visible, band.stageplan]);
 
+  const uploadPdfToFirebaseStorage = async (localPdfUri: string, fileName: string): Promise<string> => {
+    try {
+      const storagePath = `kapela_ios_android/${band?.id || 'band'}/stageplan/${fileName}`;
+      const downloadUrl = await uploadImageToStorage(localPdfUri, storagePath);
+      if (band?.id) {
+        await updateBand(band.id, { stageplanPdfUrl: downloadUrl } as any);
+      }
+      console.log("PDF úspěšně nahráno na Firebase Storage:", downloadUrl);
+      return downloadUrl;
+    } catch (err) {
+      console.log("Nahrání na Firebase Storage selhalo:", err);
+      return '';
+    }
+  };
+
   const handleSave = async () => {
     onSave(stageplan);
     onClose();
 
-    // Při každém uložení vygenerovat PDF a uložit ho na Firebase Storage
+    // Při uložení vygenerujeme PDF v Dokumentech pod "jméno_kapely"_stageplan.pdf a nahrajeme na Firebase
     try {
-      const { pdfUri, fileName } = await generateNamedPdfFile();
+      const bandName = band?.name || 'Naplech';
+      const html = generateStageplanPdfHtml();
+      const { pdfUri, fileName } = await generateNamedPdfFile(html, bandName, concert?.title);
       await uploadPdfToFirebaseStorage(pdfUri, fileName);
     } catch (err) {
       console.log("Nahrání na Firebase selhalo po uložení:", err);
@@ -514,98 +531,6 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
   const generateStageplanPdfHtml = (): string => {
     return generatePdfHtmlForBand(band, concert, members);
-  };
-
-  const getNativePrintModule = () => {
-    try {
-      return require('expo-print');
-    } catch (e) {
-      console.log("ExpoPrint nebyl v tomto buildu nalezen:", e);
-      return null;
-    }
-  };
-
-  const getNativeSharingModule = () => {
-    try {
-      return require('expo-sharing');
-    } catch (e) {
-      console.log("ExpoSharing nebyl v tomto buildu nalezen:", e);
-      return null;
-    }
-  };
-
-  const getNativeMailComposer = () => {
-    try {
-      const nativeModule = requireOptionalNativeModule('ExpoMailComposer');
-      if (nativeModule) {
-        return require('expo-mail-composer');
-      }
-    } catch (e) {}
-    return null;
-  };
-
-  const getPdfFileName = (): string => {
-    const cleanBand = (band?.name || 'Naplech').replace(/[^a-zA-Z0-9_-]/g, '_');
-    return `${cleanBand}_stageplan.pdf`;
-  };
-
-  // Pomocná funkce pro vygenerování a pojmenování PDF souboru
-  const generateNamedPdfFile = async (): Promise<{ pdfUri: string; fileName: string }> => {
-    const printModule = getNativePrintModule();
-    if (!printModule || !printModule.printToFileAsync) {
-      throw new Error("Modul pro generování PDF není k dispozici.");
-    }
-
-    const cleanBandName = (band?.name || 'Naplech').replace(/[^a-zA-Z0-9_-]/g, '_');
-    const rawFileName = `${cleanBandName}_stageplan`;
-    const html = generateStageplanPdfHtml();
-
-    // Na Androidu Print modul generuje náhodné názvy i při zadání fileName.
-    // Musíme soubor manuálně přejmenovat v Cache i Document adresáři.
-    const { uri } = await printModule.printToFileAsync({ html, fileName: rawFileName });
-    const fileName = `${cleanBandName}_stageplan.pdf`;
-
-    let fileSystemModule: any = null;
-    try {
-      fileSystemModule = require('expo-file-system');
-    } catch (e) {}
-
-    if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
-      // Prioritně ukládáme do Document Directory do paměti zařízení s čistým názvem "jméno kapely"_stageplan.pdf
-      const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
-      const targetPath = `${baseDir}${fileName}`;
-      try {
-        try {
-          await fileSystemModule.deleteAsync(targetPath, { idempotent: true });
-        } catch (e) {}
-        await fileSystemModule.copyAsync({ from: uri, to: targetPath });
-
-        // Smažeme původní dočasný soubor z tiskového modulu
-        try {
-          await fileSystemModule.deleteAsync(uri, { idempotent: true });
-        } catch (e) {}
-
-        return { pdfUri: targetPath, fileName };
-      } catch (err) {
-        console.log("Kopírování souboru do zařízení selhalo:", err);
-      }
-    }
-    return { pdfUri: uri, fileName };
-  };
-
-  const uploadPdfToFirebaseStorage = async (localPdfUri: string, fileName: string): Promise<string> => {
-    try {
-      const storagePath = `kapela_ios_android/${band?.id || 'band'}/stageplan/${fileName}`;
-      const downloadUrl = await uploadImageToStorage(localPdfUri, storagePath);
-      if (band?.id) {
-        await updateBand(band.id, { stageplanPdfUrl: downloadUrl } as any);
-      }
-      console.log("PDF úspěšně nahráno na Firebase Storage:", downloadUrl);
-      return downloadUrl;
-    } catch (err) {
-      console.log("Nahrání na Firebase Storage selhalo:", err);
-      return '';
-    }
   };
 
   // Tlačítko Sdílet ve Stageplanu: Vygeneruje PDF a otevře nativní systémový dialog pro sdílení
