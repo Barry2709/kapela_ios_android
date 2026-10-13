@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, Modal, Pressable, Alert, Animated, PanResponder, ScrollView, Platform, ActivityIndicator, Linking, NativeModules } from 'react-native';
+import { PDFDocument } from 'pdf-lib';
 import { SymbolView } from 'expo-symbols';
 import { Image } from 'expo-image';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -260,67 +261,72 @@ export const generateNamedPdfFile = async (html: string, bandName: string, conce
   }
 
   const cleanBandName = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
-  const rawFileName = `${cleanBandName}_stageplan`;
-
-  // Tiskový modul vygeneruje PDF, do jehož vnitřního záhlaví (HTML <title>) je vepsáno "Naplech_stageplan"
-  const { uri } = await printModule.printToFileAsync({ html, fileName: rawFileName });
   const fileName = `${cleanBandName}_stageplan.pdf`;
+
+  // 1. Tiskový modul vygeneruje dočasné PDF
+  const { uri } = await printModule.printToFileAsync({ html, fileName: `${cleanBandName}_stageplan` });
 
   const fileSystemModule = getFileSystemModule();
 
   if (fileSystemModule) {
+    let finalBase64 = '';
+
+    // 2. Použijeme pdf-lib pro explicitní přepsání vnitřních binárních metadat /Title na čisté jméno
+    try {
+      const base64Input = await fileSystemModule.readAsStringAsync(uri, { encoding: fileSystemModule.EncodingType.Base64 });
+      const pdfDoc = await PDFDocument.load(base64Input);
+      pdfDoc.setTitle(fileName);
+      pdfDoc.setSubject(`Stageplan ${bandName}`);
+      pdfDoc.setProducer('Kapela App');
+      pdfDoc.setCreator('Kapela App');
+      finalBase64 = await pdfDoc.saveAsBase64();
+    } catch (pdfLibErr) {
+      console.log("Přepsání PDF metadat přes pdf-lib selhalo, použije se původní soubor:", pdfLibErr);
+    }
+
     let savedUri = uri;
 
-    // 1. Uložíme do složky Dokumenty v zařízení (pro trvalé uložení na zařízení)
+    // 3. Uložíme čistě do složky Dokumenty v zařízení
     if (fileSystemModule.documentDirectory) {
       const docPath = `${fileSystemModule.documentDirectory}${fileName}`;
       try {
         try { await fileSystemModule.deleteAsync(docPath, { idempotent: true }); } catch (e) {}
-        await fileSystemModule.copyAsync({ from: uri, to: docPath });
+        if (finalBase64) {
+          await fileSystemModule.writeAsStringAsync(docPath, finalBase64, { encoding: fileSystemModule.EncodingType.Base64 });
+        } else {
+          await fileSystemModule.copyAsync({ from: uri, to: docPath });
+        }
         savedUri = docPath;
-        console.log("PDF úspěšně uloženo do Dokumentů zařízení:", docPath);
+        console.log("PDF s ošetřenými binárními metadaty uloženo do Dokumentů:", docPath);
       } catch (err) {
-        console.log("Kopírování do documentDirectory selhalo:", err);
+        console.log("Zápis do documentDirectory selhal:", err);
       }
     }
 
-    // 2. Uložíme i do složky Cache v zařízení (pro okamžité sdílení a e-mail)
+    // 4. Uložíme i do složky Cache v zařízení
     if (fileSystemModule.cacheDirectory) {
       const cachePath = `${fileSystemModule.cacheDirectory}${fileName}`;
       try {
         try { await fileSystemModule.deleteAsync(cachePath, { idempotent: true }); } catch (e) {}
-        await fileSystemModule.copyAsync({ from: uri, to: cachePath });
+        if (finalBase64) {
+          await fileSystemModule.writeAsStringAsync(cachePath, finalBase64, { encoding: fileSystemModule.EncodingType.Base64 });
+        } else {
+          await fileSystemModule.copyAsync({ from: uri, to: cachePath });
+        }
         if (!savedUri || savedUri === uri) savedUri = cachePath;
       } catch (err) {
-        console.log("Kopírování do cacheDirectory selhalo:", err);
+        console.log("Zápis do cacheDirectory selhal:", err);
       }
     }
 
-    // 3. Registrace do systémového registru Androidu (MediaStore) pro přinucení systémů číst čistý název Naplech_stageplan.pdf
+    // 5. Smažeme původní dočasný soubor z tiskárny s náhodným ID
     try {
-      let mediaLibraryModule: any = null;
-      try {
-        const nativeModule = requireOptionalNativeModule('ExpoMediaLibrary');
-        if (nativeModule) mediaLibraryModule = require('expo-media-library');
-      } catch (e) {}
-
-      if (mediaLibraryModule && mediaLibraryModule.createAssetAsync && savedUri) {
-        try {
-          const perm = await mediaLibraryModule.requestPermissionsAsync();
-          if (perm.granted) {
-            const asset = await mediaLibraryModule.createAssetAsync(savedUri);
-            if (asset && asset.uri) {
-              console.log("PDF úspěšně zaregistrováno do MediaStore:", asset.uri);
-            }
-          }
-        } catch (mediaErr) {
-          console.log("Registrace do MediaStore selhala:", mediaErr);
-        }
-      }
+      await fileSystemModule.deleteAsync(uri, { idempotent: true });
     } catch (e) {}
 
     return { pdfUri: savedUri, fileName };
   }
+
   return { pdfUri: uri, fileName };
 };
 
