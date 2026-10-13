@@ -552,23 +552,24 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       fileSystemModule = require('expo-file-system');
     } catch (e) {}
 
-    if (fileSystemModule && fileSystemModule.cacheDirectory) {
-      // Prioritně ukládáme do Cache Directory pro správné fungování Expo Mail Composer na Androidu
-      const targetPath = `${fileSystemModule.cacheDirectory}${fileName}`;
+    if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
+      // Prioritně ukládáme do Document Directory do paměti zařízení s čistým názvem "jméno kapely"_stageplan.pdf
+      const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
+      const targetPath = `${baseDir}${fileName}`;
       try {
         try {
           await fileSystemModule.deleteAsync(targetPath, { idempotent: true });
         } catch (e) {}
         await fileSystemModule.copyAsync({ from: uri, to: targetPath });
 
-        // Zkusíme smazat původní soubor s nesmyslným názvem
+        // Smažeme původní dočasný soubor z tiskového modulu
         try {
           await fileSystemModule.deleteAsync(uri, { idempotent: true });
         } catch (e) {}
 
         return { pdfUri: targetPath, fileName };
       } catch (err) {
-        console.log("Kopírování souboru selhalo:", err);
+        console.log("Kopírování souboru do zařízení selhalo:", err);
       }
     }
     return { pdfUri: uri, fileName };
