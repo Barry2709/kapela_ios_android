@@ -248,6 +248,58 @@ const getFileSystemModule = () => {
   }
 };
 
+const base64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+const base64Lookup = new Uint8Array(256);
+for (let i = 0; i < base64Chars.length; i++) {
+  base64Lookup[base64Chars.charCodeAt(i)] = i;
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  let len = base64.length;
+  let bufferLength = base64.length * 0.75;
+  if (base64[base64.length - 1] === '=') {
+    bufferLength--;
+    if (base64[base64.length - 2] === '=') {
+      bufferLength--;
+    }
+  }
+
+  const bytes = new Uint8Array(bufferLength);
+  let p = 0;
+  for (let i = 0; i < len; i += 4) {
+    const encoded1 = base64Lookup[base64.charCodeAt(i)];
+    const encoded2 = base64Lookup[base64.charCodeAt(i + 1)];
+    const encoded3 = base64Lookup[base64.charCodeAt(i + 2)];
+    const encoded4 = base64Lookup[base64.charCodeAt(i + 3)];
+
+    bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
+    if (encoded3 !== 64 && p < bufferLength) {
+      bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+    }
+    if (encoded4 !== 64 && p < bufferLength) {
+      bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
+    }
+  }
+
+  return bytes;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let base64 = '';
+  const len = bytes.length;
+  for (let i = 0; i < len; i += 3) {
+    const b1 = bytes[i];
+    const b2 = i + 1 < len ? bytes[i + 1] : 0;
+    const b3 = i + 2 < len ? bytes[i + 2] : 0;
+
+    base64 += base64Chars[b1 >> 2];
+    base64 += base64Chars[((b1 & 3) << 4) | (b2 >> 4)];
+    base64 += i + 1 < len ? base64Chars[((b2 & 15) << 2) | (b3 >> 6)] : '=';
+    base64 += i + 2 < len ? base64Chars[b3 & 63] : '=';
+  }
+  return base64;
+}
+
 const getPdfFileName = (bandName: string): string => {
   const cleanBand = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
   return `${cleanBand}_stageplan.pdf`;
@@ -271,17 +323,20 @@ export const generateNamedPdfFile = async (html: string, bandName: string, conce
   if (fileSystemModule) {
     let finalBase64 = '';
 
-    // 2. Použijeme pdf-lib pro explicitní přepsání vnitřních binárních metadat /Title na čisté jméno
+    // 2. Použijeme pdf-lib s bezpečnou Hermes konverzí pro přepsání vnitřních binárních metadat /Title na čisté jméno
     try {
       const base64Input = await fileSystemModule.readAsStringAsync(uri, { encoding: fileSystemModule.EncodingType.Base64 });
-      const pdfDoc = await PDFDocument.load(base64Input);
+      const pdfBytes = base64ToBytes(base64Input);
+      const pdfDoc = await PDFDocument.load(pdfBytes);
       pdfDoc.setTitle(fileName);
       pdfDoc.setSubject(`Stageplan ${bandName}`);
       pdfDoc.setProducer('Kapela App');
       pdfDoc.setCreator('Kapela App');
-      finalBase64 = await pdfDoc.saveAsBase64();
+      const savedBytes = await pdfDoc.save();
+      finalBase64 = bytesToBase64(savedBytes);
+      console.log("PDF vnitřní binární metadata /Title úspěšně přepsána na:", fileName);
     } catch (pdfLibErr) {
-      console.log("Přepsání PDF metadat přes pdf-lib selhalo, použije se původní soubor:", pdfLibErr);
+      console.log("Přepsání PDF metadat přes pdf-lib selhalo:", pdfLibErr);
     }
 
     let savedUri = uri;
