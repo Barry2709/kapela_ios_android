@@ -296,6 +296,29 @@ export const generateNamedPdfFile = async (html: string, bandName: string, conce
       }
     }
 
+    // 3. Registrace do systémového registru Androidu (MediaStore) pro přinucení systémů číst čistý název Naplech_stageplan.pdf
+    try {
+      let mediaLibraryModule: any = null;
+      try {
+        const nativeModule = requireOptionalNativeModule('ExpoMediaLibrary');
+        if (nativeModule) mediaLibraryModule = require('expo-media-library');
+      } catch (e) {}
+
+      if (mediaLibraryModule && mediaLibraryModule.createAssetAsync && savedUri) {
+        try {
+          const perm = await mediaLibraryModule.requestPermissionsAsync();
+          if (perm.granted) {
+            const asset = await mediaLibraryModule.createAssetAsync(savedUri);
+            if (asset && asset.uri) {
+              console.log("PDF úspěšně zaregistrováno do MediaStore:", asset.uri);
+            }
+          }
+        } catch (mediaErr) {
+          console.log("Registrace do MediaStore selhala:", mediaErr);
+        }
+      }
+    } catch (e) {}
+
     return { pdfUri: savedUri, fileName };
   }
   return { pdfUri: uri, fileName };
