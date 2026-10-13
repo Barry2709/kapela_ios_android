@@ -160,11 +160,14 @@ export function generatePdfHtmlForBand(band: Band, concert?: Concert, members: B
       `;
     }).join('');
 
+  const cleanBandName = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
+
   return `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="utf-8">
+      <title>${cleanBandName}_stageplan</title>
       <style>
         @page { size: A4 portrait; margin: 8mm; }
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 8px; color: #222; margin: 0; box-sizing: border-box; }
@@ -244,16 +247,12 @@ const getFileSystemModule = () => {
   }
 };
 
-const getPdfFileName = (bandName: string, concertTitle?: string): string => {
+const getPdfFileName = (bandName: string): string => {
   const cleanBand = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
-  if (concertTitle && concertTitle.trim().length > 0) {
-    const cleanConcert = concertTitle.replace(/[^a-zA-Z0-9_-]/g, '_');
-    return `${cleanBand}_Stageplan_${cleanConcert}.pdf`;
-  }
-  return `${cleanBand}_Stageplan.pdf`;
+  return `${cleanBand}_stageplan.pdf`;
 };
 
-// Pomocná funkce pro vygenerování a pojmenování PDF souboru
+// Pomocná funkce pro vygenerování a uložení PDF souboru do zařízení pod čistým názvem
 export const generateNamedPdfFile = async (html: string, bandName: string, concertTitle?: string): Promise<{ pdfUri: string; fileName: string }> => {
   const printModule = getNativePrintModule();
   if (!printModule || !printModule.printToFileAsync) {
@@ -262,23 +261,42 @@ export const generateNamedPdfFile = async (html: string, bandName: string, conce
 
   const cleanBandName = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
   const rawFileName = `${cleanBandName}_stageplan`;
+
+  // Tiskový modul vygeneruje PDF, do jehož vnitřního záhlaví (HTML <title>) je vepsáno "Naplech_stageplan"
   const { uri } = await printModule.printToFileAsync({ html, fileName: rawFileName });
-  const fileName = getPdfFileName(bandName, concertTitle);
+  const fileName = `${cleanBandName}_stageplan.pdf`;
 
   const fileSystemModule = getFileSystemModule();
 
-  if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
-    const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
-    const targetPath = `${baseDir}${fileName}`;
-    try {
+  if (fileSystemModule) {
+    let savedUri = uri;
+
+    // 1. Uložíme do složky Dokumenty v zařízení (pro trvalé uložení na zařízení)
+    if (fileSystemModule.documentDirectory) {
+      const docPath = `${fileSystemModule.documentDirectory}${fileName}`;
       try {
-        await fileSystemModule.deleteAsync(targetPath, { idempotent: true });
-      } catch (e) {}
-      await fileSystemModule.copyAsync({ from: uri, to: targetPath });
-      return { pdfUri: targetPath, fileName };
-    } catch (err) {
-      console.log("Kopírování souboru selhalo:", err);
+        try { await fileSystemModule.deleteAsync(docPath, { idempotent: true }); } catch (e) {}
+        await fileSystemModule.copyAsync({ from: uri, to: docPath });
+        savedUri = docPath;
+        console.log("PDF úspěšně uloženo do Dokumentů zařízení:", docPath);
+      } catch (err) {
+        console.log("Kopírování do documentDirectory selhalo:", err);
+      }
     }
+
+    // 2. Uložíme i do složky Cache v zařízení (pro okamžité sdílení a e-mail)
+    if (fileSystemModule.cacheDirectory) {
+      const cachePath = `${fileSystemModule.cacheDirectory}${fileName}`;
+      try {
+        try { await fileSystemModule.deleteAsync(cachePath, { idempotent: true }); } catch (e) {}
+        await fileSystemModule.copyAsync({ from: uri, to: cachePath });
+        if (!savedUri || savedUri === uri) savedUri = cachePath;
+      } catch (err) {
+        console.log("Kopírování do cacheDirectory selhalo:", err);
+      }
+    }
+
+    return { pdfUri: savedUri, fileName };
   }
   return { pdfUri: uri, fileName };
 };
