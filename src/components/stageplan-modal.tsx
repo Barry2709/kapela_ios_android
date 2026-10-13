@@ -589,123 +589,11 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     }
   };
 
-  // Vygenerování, uložení na disk & do Firebase a okamžité otevření
-  const handleGenerateAndOpenPdf = async () => {
+  // Tlačítko Sdílet ve Stageplanu: Vygeneruje PDF a otevře nativní systémový dialog pro sdílení
+  const handleShareStageplan = async () => {
     setIsGeneratingPdf(true);
     try {
-      const sharingModule = getNativeSharingModule();
-      const { pdfUri, fileName } = await generateNamedPdfFile();
-
-      // Nahrání na Firebase Storage do adresáře kapely
-      await uploadPdfToFirebaseStorage(pdfUri, fileName);
-
-      // Otevření / Sdílení pojmenovaného PDF souboru
-      if (sharingModule && sharingModule.shareAsync) {
-        await sharingModule.shareAsync(pdfUri, {
-          mimeType: 'application/pdf',
-          dialogTitle: `Otevřít / Uložit ${fileName}`,
-          UTI: 'com.adobe.pdf',
-        });
-      } else {
-        Alert.alert("PDF Vygenerováno", `Soubor ${fileName} byl vygenerován a uložen.`);
-      }
-
-      setShowSendModal(false);
-    } catch (e: any) {
-      console.error("Chyba při generování a otvírání PDF:", e);
-      Alert.alert("Chyba PDF", e?.message || "Nepodařilo se vygenerovat PDF Stageplanu.");
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
-
-  // Odeslání e-mailem s přesně požadovaným předmětem, textem, příjemci a přiloženým PDF
-  const handleSendViaEmail = async () => {
-    setIsGeneratingPdf(true);
-    try {
-      const bandName = band?.name || 'Naplech';
-      const emails = concert?.organizers
-        ? concert.organizers.map(o => o.email).filter(Boolean) as string[]
-        : [];
-
-      // Zjištění jména a příjmení odesílajícího člena
-      const senderMember = members.find(m =>
-        (currentUser?.memberId && m.id === currentUser.memberId) ||
-        (currentUser?.id && m.id === currentUser.id) ||
-        ((m as any).uid && currentUser?.id && (m as any).uid === currentUser.id) ||
-        (currentUser?.email && m.email && m.email.toLowerCase() === currentUser.email.toLowerCase()) ||
-        (currentUser?.displayName && m.nickname && m.nickname.toLowerCase() === currentUser.displayName.toLowerCase())
-      );
-      const senderName = senderMember
-        ? `${senderMember.firstName || ''} ${senderMember.lastName || ''}`.trim()
-        : (currentUser?.displayName || 'Člen kapely');
-
-      const subject = `Stageplan "${bandName}"`;
-      const bodyText = `Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\nPřeji krásný den\nza skupinu "${bandName}"\n${senderName}`;
-
-      const { pdfUri, fileName } = await generateNamedPdfFile();
-
-      // Nahrání na Firebase Storage probíhá na pozadí bez blokování uživatele
-      uploadPdfToFirebaseStorage(pdfUri, fileName).catch(console.log);
-
-      const mailComposerModule = getNativeMailComposer();
-      let sentViaComposer = false;
-
-      if (mailComposerModule && mailComposerModule.composeAsync) {
-        try {
-          const isAvailable = await mailComposerModule.isAvailableAsync();
-          if (isAvailable) {
-            await mailComposerModule.composeAsync({
-              recipients: emails.length > 0 ? emails : undefined,
-              subject: subject,
-              body: bodyText,
-              attachments: [pdfUri],
-            });
-            sentViaComposer = true;
-          }
-        } catch (composerErr) {
-          console.log("MailComposer selhal, použije se záložní způsob:", composerErr);
-        }
-      }
-
-      if (!sentViaComposer) {
-        const emailList = emails.join(',');
-        const encSubject = encodeURIComponent(subject);
-        const encBody = encodeURIComponent(bodyText);
-        let openedMailto = false;
-        try {
-          await Linking.openURL(`mailto:${emailList}?subject=${encSubject}&body=${encBody}`);
-          openedMailto = true;
-        } catch (linkErr) {
-          console.log("mailto URL selhalo:", linkErr);
-        }
-
-        if (!openedMailto) {
-          const sharingModule = getNativeSharingModule();
-          if (sharingModule && sharingModule.shareAsync) {
-            await sharingModule.shareAsync(pdfUri, {
-              mimeType: 'application/pdf',
-              dialogTitle: subject,
-              UTI: 'com.adobe.pdf',
-            });
-          }
-        }
-      }
-
-      setShowSendModal(false);
-    } catch (e: any) {
-      console.error("Chyba při odesílání e-mailu s přílohou:", e);
-      Alert.alert("Chyba PDF", e?.message || "Nepodařilo se vygenerovat PDF Stageplanu.");
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
-
-  // Odeslání přes WhatsApp / Systémové sdílení (Připojení FYZICKÉHO SOUBORU PDF bez černé obrazovky)
-  const handleSendViaWhatsApp = async () => {
-    setIsGeneratingPdf(true);
-    try {
-      // Dočasně odemkneme orientaci obrazovky z LANDSCAPE na PORTRAIT pro hladký přechod bez černé obrazovky
+      // Dočasně odemkneme orientaci pro plynulý přechod do okna sdílení
       try {
         await ScreenOrientation.unlockAsync();
       } catch (e) {}
@@ -717,65 +605,6 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       // Nahrání na Firebase Storage probíhá na pozadí
       uploadPdfToFirebaseStorage(pdfUri, fileName).catch(console.log);
 
-      const captionText = `Zasílám Stageplan skupiny "${bandName}"`;
-
-      // 1. Automaticky zkopírujeme popisek do schránky (Clipboard) jako zálohu
-      try {
-        let clipboardModule: any = null;
-        try {
-          clipboardModule = require('expo-clipboard');
-        } catch (e) {}
-        if (clipboardModule && clipboardModule.setStringAsync) {
-          await clipboardModule.setStringAsync(captionText);
-        }
-      } catch (e) {}
-
-      let fileSystemModule: any = null;
-      try {
-        fileSystemModule = require('expo-file-system');
-      } catch (e) {}
-
-      // 2. Na Androidu přiložíme fyzický soubor PDF přes IntentLauncher přímo do WhatsAppu
-      if (Platform.OS === 'android') {
-        try {
-          let contentUri = pdfUri;
-          if (fileSystemModule && fileSystemModule.getContentUriAsync) {
-            contentUri = await fileSystemModule.getContentUriAsync(pdfUri);
-          }
-          const intentLauncher = require('expo-intent-launcher');
-          try {
-            await intentLauncher.startActivityAsync('android.intent.action.SEND', {
-              type: 'application/pdf',
-              packageName: 'com.whatsapp',
-              extra: {
-                'android.intent.extra.STREAM': contentUri,
-                'android.intent.extra.TEXT': captionText,
-              },
-              flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
-            });
-            setShowSendModal(false);
-            setIsGeneratingPdf(false);
-            return;
-          } catch (waErr) {
-            console.log("Cílený WhatsApp intent selhal, zkouším obecný intent:", waErr);
-            await intentLauncher.startActivityAsync('android.intent.action.SEND', {
-              type: 'application/pdf',
-              extra: {
-                'android.intent.extra.STREAM': contentUri,
-                'android.intent.extra.TEXT': captionText,
-              },
-              flags: 1,
-            });
-            setShowSendModal(false);
-            setIsGeneratingPdf(false);
-            return;
-          }
-        } catch (intentErr) {
-          console.log("IntentLauncher na Androidu selhal pro WhatsApp:", intentErr);
-        }
-      }
-
-      // 3. Na iOS / záložním systému sdílíme FYZICKÝ SOUBOR PDF
       let sharingModule: any = null;
       try {
         const nativeModule = requireOptionalNativeModule('ExpoSharing');
@@ -785,14 +614,14 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       if (sharingModule && sharingModule.shareAsync) {
         await sharingModule.shareAsync(pdfUri, {
           mimeType: 'application/pdf',
-          dialogTitle: captionText,
+          dialogTitle: `Stageplan "${bandName}"`,
           UTI: 'com.adobe.pdf',
         });
+      } else {
+        Alert.alert("Sdílení nedostupné", "Nativní sdílení souborů není na tomto zařízení dostupné.");
       }
-
-      setShowSendModal(false);
     } catch (e: any) {
-      console.error("Chyba při sdílení Stageplanu přes WhatsApp:", e);
+      console.error("Chyba při sdílení Stageplanu:", e);
       Alert.alert("Chyba PDF", e?.message || "Nepodařilo se vygenerovat PDF Stageplanu.");
     } finally {
       setIsGeneratingPdf(false);
@@ -830,14 +659,14 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
             </ThemedText>
           </View>
 
-          {/* Tlačítko Odeslat */}
+          {/* Tlačítko Sdílet */}
           <Pressable
             style={styles.sendHeaderBtn}
-            onPress={() => setShowSendModal(true)}
+            onPress={handleShareStageplan}
           >
-            <SymbolView name={{ ios: 'paperplane.fill', android: 'send', web: 'send' }} size={14} tintColor="#fff" />
+            <SymbolView name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }} size={14} tintColor="#fff" />
             <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 12, marginLeft: 4 }}>
-              Odeslat
+              Sdílet
             </ThemedText>
           </Pressable>
 
@@ -932,46 +761,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
           </Pressable>
         )}
 
-        {/* Vrstva pro vybraný způsob odeslání Stageplanu pořadatelům */}
-        {showSendModal && (
-          <Pressable style={styles.modalOverlay} onPress={() => setShowSendModal(false)}>
-            <ThemedView type="backgroundElement" style={styles.sendModalBox}>
-              <ThemedText type="subtitle" style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 4, textAlign: 'center' }}>
-                Odeslat Stageplan & Rider pořadatelům
-              </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', marginBottom: 16 }}>
-                Aplikace vygeneruje oficiální PDF dokument se Stageplanem, kontakty a požadavky na techniku.
-              </ThemedText>
 
-              {isGeneratingPdf ? (
-                <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-                  <ActivityIndicator size="large" color="#2196f3" />
-                  <ThemedText type="small" style={{ marginTop: 10 }}>Generuji a ukládám PDF dokument...</ThemedText>
-                </View>
-              ) : (
-                <View style={{ gap: 10 }}>
-                  <Pressable style={[styles.sendOptionBtn, { backgroundColor: '#2196f3' }]} onPress={handleSendViaEmail}>
-                    <SymbolView name={{ ios: 'envelope.fill', android: 'email', web: 'email' }} size={20} tintColor="#fff" />
-                    <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 14 }}>
-                      📧 Odeslat E-mailem pořadatelům
-                    </ThemedText>
-                  </Pressable>
-
-                  <Pressable style={[styles.sendOptionBtn, { backgroundColor: '#25d366' }]} onPress={handleSendViaWhatsApp}>
-                    <SymbolView name={{ ios: 'paperplane.fill', android: 'share', web: 'share' }} size={20} tintColor="#fff" />
-                    <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 14 }}>
-                      💬 WhatsApp / Systémové sdílení
-                    </ThemedText>
-                  </Pressable>
-
-                  <Pressable onPress={() => setShowSendModal(false)} style={[styles.cancelBtn, { marginTop: 6 }]}>
-                    <ThemedText type="smallBold" themeColor="textSecondary">Zrušit</ThemedText>
-                  </Pressable>
-                </View>
-              )}
-            </ThemedView>
-          </Pressable>
-        )}
 
       </ThemedView>
     </Modal>
