@@ -562,7 +562,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     return generatePdfHtmlForBand(band, concert, members);
   };
 
-  // Tlačítko Sdílet ve Stageplanu: Vygeneruje PDF a otevře nativní systémový dialog pro sdílení
+  // Tlačítko Sdílet ve Stageplanu: Vygeneruje PDF a otevře nativní systémový dialog pro sdílení s přesným názvem
   const handleShareStageplan = async () => {
     setIsGeneratingPdf(true);
     try {
@@ -577,32 +577,6 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
       // Nahrání na Firebase Storage probíhá na pozadí
       uploadPdfToFirebaseStorage(pdfUri, fileName).catch(console.log);
-
-      let fileSystemModule: any = null;
-      try {
-        fileSystemModule = require('expo-file-system');
-      } catch (e) {}
-
-      // Na Androidu použijeme ContentProvider URI pro zaručené předání čistého názvu Naplech_stageplan.pdf
-      if (Platform.OS === 'android' && fileSystemModule && fileSystemModule.getContentUriAsync) {
-        try {
-          const contentUri = await fileSystemModule.getContentUriAsync(pdfUri);
-          const intentLauncher = require('expo-intent-launcher');
-          await intentLauncher.startActivityAsync('android.intent.action.SEND', {
-            type: 'application/pdf',
-            extra: {
-              'android.intent.extra.STREAM': contentUri,
-              'android.intent.extra.SUBJECT': `Stageplan "${bandName}"`,
-              'android.intent.extra.TEXT': `Zasílám Stageplan skupiny "${bandName}"`,
-            },
-            flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
-          });
-          setIsGeneratingPdf(false);
-          return;
-        } catch (intentErr) {
-          console.log("IntentLauncher na Androidu selhal pro sdílení:", intentErr);
-        }
-      }
 
       let sharingModule: any = null;
       try {
