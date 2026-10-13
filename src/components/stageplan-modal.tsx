@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, Modal, Pressable, Alert, Animated, PanResponder, ScrollView, Platform, ActivityIndicator, Linking, NativeModules } from 'react-native';
+import { captureRef } from 'react-native-view-shot';
 import { PDFDocument } from 'pdf-lib';
 import { SymbolView } from 'expo-symbols';
 import { Image } from 'expo-image';
@@ -541,6 +542,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { currentUser } = useAppStore();
+  const stageViewRef = useRef<View>(null);
 
   const [stageplan, setStageplan] = useState<StageplanMember[]>(band.stageplan || []);
   const [showMemberPicker, setShowMemberPicker] = useState(false);
@@ -617,7 +619,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     return generatePdfHtmlForBand(band, concert, members);
   };
 
-  // Tlačítko Sdílet ve Stageplanu: Vygeneruje PDF a otevře nativní systémový dialog pro sdílení s přesným názvem
+  // Tlačítko Sdílet ve Stageplanu: Vygeneruje HD PNG obrázek a otevře nativní systémový dialog pro sdílení
   const handleShareStageplan = async () => {
     setIsGeneratingPdf(true);
     try {
@@ -627,11 +629,48 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       } catch (e) {}
 
       const bandName = band?.name || 'Naplech';
-      const html = generateStageplanPdfHtml();
-      const { pdfUri, fileName } = await generateNamedPdfFile(html, bandName, concert?.title);
+      const cleanBandName = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const fileName = `${cleanBandName}_stageplan.png`;
 
-      // Nahrání na Firebase Storage probíhá na pozadí
-      uploadPdfToFirebaseStorage(pdfUri, fileName).catch(console.log);
+      let imageUri = '';
+
+      // 1. Zkusíme zachytit věrný HD PNG obrázek ze Stageplan plochy
+      if (stageViewRef && stageViewRef.current) {
+        try {
+          const rawSnapUri = await captureRef(stageViewRef, {
+            format: 'png',
+            quality: 1.0,
+            result: 'tmpfile'
+          });
+
+          const fileSystemModule = getFileSystemModule();
+          if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
+            const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
+            const targetPath = `${baseDir}${fileName}`;
+            try {
+              try { await fileSystemModule.deleteAsync(targetPath, { idempotent: true }); } catch (e) {}
+              await fileSystemModule.copyAsync({ from: rawSnapUri, to: targetPath });
+              imageUri = targetPath;
+            } catch (e) {
+              imageUri = rawSnapUri;
+            }
+          } else {
+            imageUri = rawSnapUri;
+          }
+        } catch (snapErr) {
+          console.log("Snímek obrazovky selhal, použije se PDF:", snapErr);
+        }
+      }
+
+      // Záložní varianta: Pokud selže snímek obrazovky, použije se vygenerované PDF
+      if (!imageUri) {
+        const html = generateStageplanPdfHtml();
+        const { pdfUri } = await generateNamedPdfFile(html, bandName, concert?.title);
+        imageUri = pdfUri;
+      } else {
+        // Nahrání PNG obrázku na Firebase Storage na pozadí
+        uploadPdfToFirebaseStorage(imageUri, fileName).catch(console.log);
+      }
 
       let sharingModule: any = null;
       try {
@@ -640,17 +679,17 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       } catch (e) {}
 
       if (sharingModule && sharingModule.shareAsync) {
-        await sharingModule.shareAsync(pdfUri, {
-          mimeType: 'application/pdf',
+        await sharingModule.shareAsync(imageUri, {
+          mimeType: imageUri.endsWith('.png') ? 'image/png' : 'application/pdf',
           dialogTitle: `Stageplan "${bandName}"`,
-          UTI: 'com.adobe.pdf',
+          UTI: imageUri.endsWith('.png') ? 'public.png' : 'com.adobe.pdf',
         });
       } else {
         Alert.alert("Sdílení nedostupné", "Nativní sdílení souborů není na tomto zařízení dostupné.");
       }
     } catch (e: any) {
       console.error("Chyba při sdílení Stageplanu:", e);
-      Alert.alert("Chyba PDF", e?.message || "Nepodařilo se vygenerovat PDF Stageplanu.");
+      Alert.alert("Chyba", e?.message || "Nepodařilo se vygenerovat Stageplan ke sdílení.");
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -706,6 +745,8 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
         <View style={{ flex: 1, paddingHorizontal: Spacing.two, paddingBottom: Spacing.two }}>
           {/* Plocha stageplanu */}
           <View
+            ref={stageViewRef}
+            collapsable={false}
             style={[styles.stageArea, { backgroundColor: 'rgba(200,200,200,0.1)' }]}
             onLayout={(e) => setStageSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
           >
