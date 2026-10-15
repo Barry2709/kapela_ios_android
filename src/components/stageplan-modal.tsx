@@ -543,28 +543,37 @@ export async function shareConcertStageplan({
       }
     }
 
-    // 3. Zkontrolujeme PNG obrázek pro přiložení z cloudu Firebase
+    // 3. Zkontrolujeme lokální soubory z Dokumentů zařízení
     let shareFileUri = '';
     let shareMimeType = 'image/png';
     let shareUTI = 'public.png';
 
     const fileSystemModule = getFileSystemModule();
-    if (fileSystemModule && (band as any)?.stageplanPngUrl) {
-      const pngFileName = `${cleanBand}_stageplan.png`;
-      const docPngPath = `${fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory}${pngFileName}`;
+    if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
+      const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
+      const pngPath = `${baseDir}${cleanBand}_stageplan.png`;
+      const pdfPath = `${baseDir}${cleanBand}_stageplan.pdf`;
+
       try {
-        const downloadRes = await fileSystemModule.downloadAsync((band as any).stageplanPngUrl, docPngPath);
-        if (downloadRes && downloadRes.uri) {
-          shareFileUri = downloadRes.uri;
+        const pngInfo = await fileSystemModule.getInfoAsync(pngPath);
+        if (pngInfo && pngInfo.exists) {
+          shareFileUri = pngPath;
+        } else {
+          const pdfInfo = await fileSystemModule.getInfoAsync(pdfPath);
+          if (pdfInfo && pdfInfo.exists) {
+            shareFileUri = pdfPath;
+            shareMimeType = 'application/pdf';
+            shareUTI = 'com.adobe.pdf';
+          }
         }
       } catch (e) {
-        console.log("Nepodařilo se stáhnout PNG z cloudu pro sdílení:", e);
+        console.log("Kontrola souborů selhala:", e);
       }
     }
 
-    // 4. Pokud obrázek (PNG) vůbec neexistuje, zkusíme pro sdílení použít alespoň nově vygenerované PDF
+    // 4. Pokud neexistují, zkusíme je vygenerovat napřímo
     if (!shareFileUri) {
-       console.log("PNG není k dispozici (asi nebyl Stageplan od posledního updatu uložen), generuje se záložní PDF");
+       console.log("Lokální soubory chybí, generuje se záložní PDF");
        const html = generatePdfHtmlForBand(band, concert, members);
        const { pdfUri } = await generateNamedPdfFile(html, bandName, concert?.title);
        shareFileUri = pdfUri;
@@ -576,7 +585,7 @@ export async function shareConcertStageplan({
     const pdfLink = band?.stageplanPdfUrl || '';
     const bodyText = `Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\nPřeji krásný den\nza skupinu "${bandName}"\n${senderName}`;
     const captionText = pdfLink
-      ? `Zasílám Stageplan skupiny "${bandName}"\n\nOdkaz na PDF (${pdfFileName}):\n${pdfLink}`
+      ? `Zasílám Stageplan skupiny "${bandName}"\n\nOdkaz na PDF ke stažení (${pdfFileName}):\n${pdfLink}`
       : `Zasílám Stageplan skupiny "${bandName}"`;
 
     // Zkopírujeme text do schránky
@@ -781,90 +790,37 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     return generatePdfHtmlForBand(band, concert, members);
   };
 
-  // Tlačítko Sdílet ve Stageplanu: Vygeneruje HD PNG obrázek a přiloží odkaz na PDF z Firebase Storage
+  // Tlačítko Sdílet ve Stageplanu: Otevře stejné dialogové okno jako v kartě Akce
   const handleShareStageplan = async () => {
     setIsGeneratingPdf(true);
     try {
-      try {
-        await ScreenOrientation.unlockAsync();
-      } catch (e) {}
+      try { await ScreenOrientation.unlockAsync(); } catch (e) {}
 
-      const bandName = band?.name || 'Naplech';
-      const cleanBandName = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
-      const pngFileName = `${cleanBandName}_stageplan.png`;
-      const pdfFileName = `${cleanBandName}_stageplan.pdf`;
+      // Pokud ještě nemáme uložený PNG obrázek na disku z aktuálního rozložení, uložíme ho rovnou, aby ho shareConcertStageplan mohl sebrat.
+      let fileSystemModule: any = null;
+      try { fileSystemModule = require('expo-file-system'); } catch (e) {}
 
-      let imageUri = '';
-
-      // 1. Zkusíme zachytit věrný HD PNG obrázek ze Stageplan plochy
-      if (stageViewRef && stageViewRef.current) {
+      if (stageViewRef && stageViewRef.current && fileSystemModule) {
         try {
-          const rawSnapUri = await captureRef(stageViewRef, {
-            format: 'png',
-            quality: 1.0,
-            result: 'tmpfile'
-          });
+          const rawSnapUri = await captureRef(stageViewRef, { format: 'png', quality: 1.0, result: 'tmpfile' });
+          const bandName = band?.name || 'Naplech';
+          const cleanBandName = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
+          const pngFileName = `${cleanBandName}_stageplan.png`;
+          const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
+          const targetPath = `${baseDir}${pngFileName}`;
 
-          const fileSystemModule = getFileSystemModule();
-          if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
-            const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
-            const targetPath = `${baseDir}${pngFileName}`;
-            try {
-              try { await fileSystemModule.deleteAsync(targetPath, { idempotent: true }); } catch (e) {}
-              await fileSystemModule.copyAsync({ from: rawSnapUri, to: targetPath });
-              imageUri = targetPath;
-            } catch (e) {
-              imageUri = rawSnapUri;
-            }
-          } else {
-            imageUri = rawSnapUri;
-          }
-        } catch (snapErr) {
-          console.log("Snímek obrazovky selhal:", snapErr);
-        }
-      }
+          try { await fileSystemModule.deleteAsync(targetPath, { idempotent: true }); } catch (e) {}
+          await fileSystemModule.copyAsync({ from: rawSnapUri, to: targetPath });
 
-      // 2. Vygenerujeme PDF a nahrajeme na Firebase Storage pro získání přímého odkazu
-      const html = generateStageplanPdfHtml();
-      const { pdfUri } = await generateNamedPdfFile(html, bandName, concert?.title);
-      const downloadUrl = await uploadPdfToFirebaseStorage(pdfUri, pdfFileName);
-
-      if (!imageUri) {
-        imageUri = pdfUri;
-      }
-
-      // 3. Vytvoříme popisek obsahující přímý odkaz na PDF na Firebase
-      const pdfLink = downloadUrl || band?.stageplanPdfUrl;
-      const captionText = pdfLink
-        ? `Zasílám Stageplan skupiny "${bandName}"\n\nOdkaz na PDF (${pdfFileName}):\n${pdfLink}`
-        : `Zasílám Stageplan skupiny "${bandName}"`;
-
-      // Zkopírujeme popisek do schránky (Clipboard) jako zálohu
-      try {
-        let clipboardModule: any = null;
-        try {
-          clipboardModule = require('expo-clipboard');
+          // Rychle a asynchronně hodíme obrázek do cloudu na Firebase pro jistotu (bez blokování)
+          uploadImageToStorage(targetPath, `kapela_ios_android/${band.id}/stageplan/${pngFileName}`)
+            .then(url => { if (band.id && url) updateBand(band.id, { stageplanPngUrl: url } as any); })
+            .catch(() => {});
         } catch (e) {}
-        if (clipboardModule && clipboardModule.setStringAsync) {
-          await clipboardModule.setStringAsync(captionText);
-        }
-      } catch (e) {}
-
-      let sharingModule: any = null;
-      try {
-        const nativeModule = requireOptionalNativeModule('ExpoSharing');
-        if (nativeModule) sharingModule = require('expo-sharing');
-      } catch (e) {}
-
-      if (sharingModule && sharingModule.shareAsync && imageUri) {
-        await sharingModule.shareAsync(imageUri, {
-          mimeType: 'image/png',
-          dialogTitle: captionText,
-          UTI: 'public.png',
-        });
-      } else {
-        Alert.alert("Sdílení nedostupné", "Nativní sdílení souborů není na tomto zařízení dostupné.");
       }
+
+      // Nyní zavoláme absolutně stejnou, robustní metodu jako se používá z karty Akce!
+      await shareConcertStageplan({ band, concert, members, currentUser });
     } catch (e: any) {
       console.error("Chyba při sdílení Stageplanu:", e);
       Alert.alert("Chyba", e?.message || "Nepodařilo se vygenerovat Stageplan ke sdílení.");
