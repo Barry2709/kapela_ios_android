@@ -17,7 +17,7 @@ import { getBandMembers, addBandMember, updateBand, updateBandMember, subscribeT
 import { BandHeader } from '@/components/band-header';
 import { AddMemberForm } from '@/components/add-member-form';
 import { EditBandForm } from '@/components/edit-band-form';
-import { StageplanModal, sendConcertStageplanByEmail } from '@/components/stageplan-modal';
+import { StageplanModal, shareConcertStageplan } from '@/components/stageplan-modal';
 
 export default function HomeScreen() {
   const theme = useTheme();
@@ -842,6 +842,15 @@ export default function HomeScreen() {
                                 <View style={{ marginTop: 6, paddingTop: 4, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.15)' }}>
                                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <ThemedText type="smallBold" themeColor="textSecondary">Kontakty na pořadatele:</ThemedText>
+                                    {activeRoleView !== 'fan' && activeBand && (
+                                      <Pressable
+                                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 6, backgroundColor: 'rgba(33, 150, 243, 0.15)' }}
+                                        onPress={() => shareConcertStageplan({ band: activeBand, concert, members, currentUser })}
+                                      >
+                                        <SymbolView name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }} size={12} tintColor="#2196f3" />
+                                        <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11 }}>Sdílet</ThemedText>
+                                      </Pressable>
+                                    )}
                                   </View>
                                   {concert.organizers && concert.organizers.length > 0 ? (
                                     <View style={{ gap: 6, marginTop: 4 }}>

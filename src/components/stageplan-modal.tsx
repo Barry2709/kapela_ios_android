@@ -386,8 +386,8 @@ export const generateNamedPdfFile = async (html: string, bandName: string, conce
   return { pdfUri: uri, fileName };
 };
 
-// Přímé vygenerování a odeslání Stageplanu e-mailem z karty koncertu
-export async function sendConcertStageplanByEmail({
+// Přímé sdílení Stageplanu z karty koncertu s podporou WhatsApp na telefonní číslo a e-mailu na pořadatele
+export async function shareConcertStageplan({
   band,
   concert,
   members = [],
@@ -401,9 +401,9 @@ export async function sendConcertStageplanByEmail({
   try {
     const bandName = band?.name || 'Naplech';
     const cleanBand = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const fileName = `${cleanBand}_stageplan.pdf`;
+    const pdfFileName = `${cleanBand}_stageplan.pdf`;
 
-    // 1. Zjištění jména a příjmení odesílajícího člena
+    // 1. Zjištění jména odesílatele
     const senderMember = (members || []).find(m =>
       (currentUser?.memberId && m.id === currentUser.memberId) ||
       (currentUser?.id && m.id === currentUser.id) ||
@@ -415,125 +415,153 @@ export async function sendConcertStageplanByEmail({
       ? `${senderMember.firstName || ''} ${senderMember.lastName || ''}`.trim()
       : (currentUser?.displayName || 'Člen kapely');
 
-    // 2. Předmět a Tělo zprávy
-    const subject = `Stageplan "${bandName}"`;
-    const bodyText = `Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\nPřeji krásný den\nza skupinu "${bandName}"\n${senderName}`;
-
-    // 3. Modul file-system pro stažení PDF do složky dokumentů
-    let fileSystemModule: any = null;
-    try {
-      fileSystemModule = require('expo-file-system');
-    } catch (e) {}
-
-    let sharingModule: any = null;
-    try {
-      const nativeModule = requireOptionalNativeModule('ExpoSharing');
-      if (nativeModule) sharingModule = require('expo-sharing');
-    } catch (e) {}
-
-    // Zrušeno - generujeme ho lokálně automaticky
-    // 4. Pokud stageplan ještě není vygenerovaný na cloudu
-    /*if (!band.stageplanPdfUrl) {
-      Alert.alert(
-        "Stageplan chybí",
-        "Stageplan nebyl ještě vygenerován. Prosím, uložte nejprve uspořádání Stageplanu (tím se PDF vytvoří na serveru)."
-      );
-      return;
-    }*/
-
-    // 5. Nejdříve lokálně a neprůstřelně vygenerujeme Fyzické PDF
-    const html = generatePdfHtmlForBand(band, concert, members);
-    const { pdfUri: localPdfUri, fileName: realFileName } = await generateNamedPdfFile(html, bandName, concert?.title);
-
-    // Načteme na Firebase na pozadí, abychom zbytečně neblokovali zobrazení e-mailu
-    const storagePath = `kapela_ios_android/${band?.id || 'band'}/stageplan/${realFileName}`;
-    uploadImageToStorage(localPdfUri, storagePath).then(downloadUrl => {
-      if (band?.id) {
-        updateBand(band.id, { stageplanPdfUrl: downloadUrl } as any);
-      }
-    }).catch(e => console.log("Nahrání PDF na Firebase selhalo:", e));
-
-    if (!localPdfUri) {
-       Alert.alert("Chyba PDF", "Nepodařilo se vygenerovat PDF Stageplanu.");
-       return;
-    }
-
-    // 6. Pokusíme se odeslat fyzický soubor přes Expo Mail Composer
-    let mailComposerModule: any = null;
-    try {
-      const nativeModule = requireOptionalNativeModule('ExpoMailComposer');
-      if (nativeModule) mailComposerModule = require('expo-mail-composer');
-    } catch (e) {}
-
-    const emailList = concert?.organizers
-      ? concert.organizers.map(o => o.email).filter(Boolean)
+    // 2. Kontakty z akce
+    const emails = concert?.organizers
+      ? concert.organizers.map(o => o.email).filter(Boolean) as string[]
       : [];
 
-    let sentViaComposer = false;
+    const phoneContacts = concert?.organizers
+      ? concert.organizers
+          .filter(o => o.phone && o.phone.trim().length > 0)
+          .map(o => ({
+            name: o.name || o.role || 'Kontakt',
+            role: o.role || 'Pořadatel',
+            phone: o.phone!.replace(/[^0-9+]/g, '')
+          }))
+      : [];
 
-    // A) Nejlepší metoda pro připojení přílohy: MailComposer
-    if (mailComposerModule && mailComposerModule.composeAsync) {
-      try {
-        const isAvailable = await mailComposerModule.isAvailableAsync();
-        if (isAvailable) {
-          await mailComposerModule.composeAsync({
-            recipients: emailList.length > 0 ? emailList : undefined,
-            subject: subject,
-            body: bodyText,
-            attachments: [localPdfUri],
-          });
-          sentViaComposer = true;
-        }
-      } catch (err) {
-        console.log("MailComposer selhal:", err);
-      }
-    }
-
-    // B) Android záchrana: Explicitní IntentLauncher, který zaručeně fyzicky připojí Content URI
-    if (!sentViaComposer && Platform.OS === 'android' && localPdfUri) {
-      try {
-        const contentUri = await fileSystemModule.getContentUriAsync(localPdfUri);
-        const intentLauncher = require('expo-intent-launcher');
-        await intentLauncher.startActivityAsync('android.intent.action.SEND', {
-          type: 'application/pdf',
-          extra: {
-            'android.intent.extra.STREAM': contentUri,
-            'android.intent.extra.SUBJECT': subject,
-            'android.intent.extra.TEXT': bodyText,
-            ...(emailList.length > 0 ? { 'android.intent.extra.EMAIL': emailList } : {}),
-          },
-          flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+    if (phoneContacts.length === 0 && concert?.contacts) {
+      const match = concert.contacts.match(/(\+?[0-9\s]{9,15})/);
+      if (match) {
+        phoneContacts.push({
+          name: 'Pořadatel',
+          role: 'Kontakt',
+          phone: match[1].replace(/[^0-9+]/g, '')
         });
-        sentViaComposer = true;
-      } catch (intentErr) {
-        console.log("IntentLauncher selhal:", intentErr);
       }
     }
 
-    // C) Nejzazší záchrana: Pouhé sdílení souboru (uživatel musí ručně zvolit Gmail)
-    if (!sentViaComposer && sharingModule && sharingModule.shareAsync && localPdfUri) {
-      await sharingModule.shareAsync(localPdfUri, {
-        mimeType: 'application/pdf',
-        dialogTitle: subject,
-        UTI: 'com.adobe.pdf',
-      });
-      sentViaComposer = true;
-    }
+    // 3. Vygenerujeme PDF a získáme URL z Firebase Storage
+    const html = generatePdfHtmlForBand(band, concert, members);
+    const { pdfUri } = await generateNamedPdfFile(html, bandName, concert?.title);
+    const downloadUrl = await uploadImageToStorage(pdfUri, `kapela_ios_android/${band.id}/stageplan/${pdfFileName}`).catch(() => '');
 
-    // D) Nouzovka jen odkaz (pokud fyzicky nemáme PDF)
-    if (!sentViaComposer) {
-      const emailListStr = emailList.join(',');
-      const emailBodyWithLink = `${bodyText}\n\nOdkaz ke stažení Stageplanu v PDF (klikněte zde):\n${band.stageplanPdfUrl}`;
+    const pdfLink = downloadUrl || band?.stageplanPdfUrl;
+    const bodyText = `Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\nPřeji krásný den\nza skupinu "${bandName}"\n${senderName}`;
+    const captionText = pdfLink
+      ? `Zasílám Stageplan skupiny "${bandName}"\n\n${pdfFileName}:\n${pdfLink}`
+      : `Zasílám Stageplan skupiny "${bandName}"`;
+
+    // Zkopírujeme text do schránky
+    try {
+      let clipboardModule: any = null;
+      try { clipboardModule = require('expo-clipboard'); } catch (e) {}
+      if (clipboardModule && clipboardModule.setStringAsync) {
+        await clipboardModule.setStringAsync(captionText);
+      }
+    } catch (e) {}
+
+    // Pomocné odesílací metody
+    const openWhatsAppChat = async (phone: string) => {
+      let cleanPhone = phone.replace(/[^0-9]/g, '');
+      if (cleanPhone.length === 9) cleanPhone = '420' + cleanPhone;
+      const encText = encodeURIComponent(captionText);
+      try {
+        await Linking.openURL(`https://wa.me/${cleanPhone}?text=${encText}`);
+      } catch (e) {
+        Alert.alert("WhatsApp", "Nepodařilo se otevřít aplikaci WhatsApp.");
+      }
+    };
+
+    const sendEmailToOrganizers = async () => {
+      const subject = `Stageplan "${bandName}"`;
+      const emailBodyWithLink = pdfLink ? `${bodyText}\n\nOdkaz na PDF (${pdfFileName}):\n${pdfLink}` : bodyText;
+
+      let mailComposerModule: any = null;
+      try {
+        const nativeModule = requireOptionalNativeModule('ExpoMailComposer');
+        if (nativeModule) mailComposerModule = require('expo-mail-composer');
+      } catch (e) {}
+
+      if (mailComposerModule && mailComposerModule.composeAsync) {
+        try {
+          const isAvailable = await mailComposerModule.isAvailableAsync();
+          if (isAvailable) {
+            await mailComposerModule.composeAsync({
+              recipients: emails.length > 0 ? emails : undefined,
+              subject: subject,
+              body: emailBodyWithLink,
+              attachments: [pdfUri],
+            });
+            return;
+          }
+        } catch (e) {}
+      }
+
+      const emailListStr = emails.join(',');
       const encSubject = encodeURIComponent(subject);
       const encBody = encodeURIComponent(emailBodyWithLink);
       try {
         await Linking.openURL(`mailto:${emailListStr}?subject=${encSubject}&body=${encBody}`);
       } catch (linkErr) {
-        Alert.alert("E-mail klient", "Nebylo možné otevřít sdílení ani e-mail.");
+        Alert.alert("E-mail klient", "Nebylo možné otevřít e-mailový klient.");
       }
+    };
+
+    const openGeneralShare = async () => {
+      let sharingModule: any = null;
+      try {
+        const nativeModule = requireOptionalNativeModule('ExpoSharing');
+        if (nativeModule) sharingModule = require('expo-sharing');
+      } catch (e) {}
+
+      if (sharingModule && sharingModule.shareAsync) {
+        await sharingModule.shareAsync(pdfUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: captionText,
+          UTI: 'com.adobe.pdf',
+        });
+      }
+    };
+
+    // Pokud nemáme žádné konkrétní kontakty na akce, otevřeme rovnou e-mail nebo sdílení
+    if (phoneContacts.length === 0 && emails.length === 0) {
+      await sendEmailToOrganizers();
+      return;
     }
+
+    // 4. Nabídka možností sdílení v přehledném okně
+    const alertButtons: any[] = [];
+
+    phoneContacts.forEach(c => {
+      alertButtons.push({
+        text: `💬 WhatsApp: ${c.role} (${c.name})`,
+        onPress: () => openWhatsAppChat(c.phone)
+      });
+    });
+
+    if (emails.length > 0) {
+      alertButtons.push({
+        text: `📧 E-mail pořadatelům (${emails.join(', ')})`,
+        onPress: () => sendEmailToOrganizers()
+      });
+    }
+
+    alertButtons.push({
+      text: `📲 Obecné sdílení souboru`,
+      onPress: () => openGeneralShare()
+    });
+
+    alertButtons.push({ text: 'Zrušit', style: 'cancel' });
+
+    Alert.alert(
+      `Sdílet Stageplan (${concert?.title || bandName})`,
+      `Vyberte způsob sdílení Stageplanu pro akci ${concert?.title || 'Koncert'}:`,
+      alertButtons
+    );
+
   } catch (err: any) {
-    console.error("Chyba při sdílení Stageplanu:", err);
+    console.error("Chyba při sdílení Stageplanu z akce:", err);
     Alert.alert("Chyba", err?.message || "Nepodařilo se sdílet Stageplan.");
   }
 }

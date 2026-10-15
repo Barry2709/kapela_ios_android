@@ -32,7 +32,7 @@ import { AddConcertForm } from '@/components/add-concert-form';
 import { AddRehearsalForm } from '@/components/add-rehearsal-form';
 import { AddAbsenceForm } from '@/components/add-absence-form';
 import { SetlistEditorModal } from '@/components/setlist-editor-modal';
-import { StageplanModal, sendConcertStageplanByEmail } from '@/components/stageplan-modal';
+import { StageplanModal, shareConcertStageplan } from '@/components/stageplan-modal';
 import { EventsCalendar } from '@/components/calendar/EventsCalendar';
 
 export default function EventsScreen() {
@@ -902,6 +902,15 @@ export default function EventsScreen() {
           <View style={{ marginTop: 6, paddingTop: 4, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.15)' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <ThemedText type="smallBold" themeColor="textSecondary">Kontakty na pořadatele:</ThemedText>
+              {activeRoleView !== 'fan' && activeBand && (
+                <Pressable
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 6, backgroundColor: 'rgba(33, 150, 243, 0.15)' }}
+                  onPress={() => shareConcertStageplan({ band: activeBand, concert, members: bandMembers, currentUser })}
+                >
+                  <SymbolView name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }} size={12} tintColor="#2196f3" />
+                  <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11 }}>Sdílet</ThemedText>
+                </Pressable>
+              )}
             </View>
             {concert.organizers && concert.organizers.length > 0 ? (
               <View style={{ gap: 6, marginTop: 4 }}>
