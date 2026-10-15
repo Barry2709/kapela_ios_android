@@ -446,10 +446,36 @@ export async function shareConcertStageplan({
     const { pdfUri } = await generateNamedPdfFile(html, bandName, concert?.title);
     const downloadUrl = await uploadImageToStorage(pdfUri, `kapela_ios_android/${band.id}/stageplan/${pdfFileName}`).catch(() => '');
 
+    // Zkontrolujeme zkopírovaný PNG obrázek pro přiložení
+    let shareFileUri = pdfUri;
+    let shareMimeType = 'application/pdf';
+    let shareUTI = 'com.adobe.pdf';
+
+    const fileSystemModule = getFileSystemModule();
+    if (fileSystemModule) {
+      const pngFileName = `${cleanBand}_stageplan.png`;
+      const docPngPath = `${fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory}${pngFileName}`;
+      try {
+        const fileInfo = await fileSystemModule.getInfoAsync(docPngPath);
+        if (fileInfo && fileInfo.exists) {
+          shareFileUri = docPngPath;
+          shareMimeType = 'image/png';
+          shareUTI = 'public.png';
+        } else if ((band as any)?.stageplanPngUrl) {
+          const downloadRes = await fileSystemModule.downloadAsync((band as any).stageplanPngUrl, docPngPath);
+          if (downloadRes && downloadRes.uri) {
+            shareFileUri = downloadRes.uri;
+            shareMimeType = 'image/png';
+            shareUTI = 'public.png';
+          }
+        }
+      } catch (e) {}
+    }
+
     const pdfLink = downloadUrl || band?.stageplanPdfUrl;
     const bodyText = `Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\nPřeji krásný den\nza skupinu "${bandName}"\n${senderName}`;
     const captionText = pdfLink
-      ? `Zasílám Stageplan skupiny "${bandName}"\n\n${pdfFileName}:\n${pdfLink}`
+      ? `Zasílám Stageplan skupiny "${bandName}"\n\nOdkaz na PDF (${pdfFileName}):\n${pdfLink}`
       : `Zasílám Stageplan skupiny "${bandName}"`;
 
     // Zkopírujeme text do schránky
@@ -491,7 +517,7 @@ export async function shareConcertStageplan({
               recipients: emails.length > 0 ? emails : undefined,
               subject: subject,
               body: emailBodyWithLink,
-              attachments: [pdfUri],
+              attachments: [shareFileUri],
             });
             return;
           }
@@ -516,10 +542,10 @@ export async function shareConcertStageplan({
       } catch (e) {}
 
       if (sharingModule && sharingModule.shareAsync) {
-        await sharingModule.shareAsync(pdfUri, {
-          mimeType: 'application/pdf',
+        await sharingModule.shareAsync(shareFileUri, {
+          mimeType: shareMimeType,
           dialogTitle: captionText,
-          UTI: 'com.adobe.pdf',
+          UTI: shareUTI,
         });
       }
     };
@@ -609,6 +635,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   };
 
   const handleSave = async () => {
+    setIsGeneratingPdf(true);
     try {
       onSave(stageplan);
 
@@ -633,6 +660,8 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     } catch (err) {
       console.log("Uložení Stageplanu selhalo:", err);
       Alert.alert("Uloženo", "Stageplan byl úspěšně uložen.");
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
@@ -900,6 +929,16 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
         )}
 
 
+
+        {/* Vrstva s indikátorem uložení / generování */}
+        {isGeneratingPdf && (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }]}>
+            <View style={{ backgroundColor: '#222', padding: 24, borderRadius: 12, alignItems: 'center', minWidth: 160 }}>
+              <ActivityIndicator size="large" color="#2196f3" />
+              <ThemedText type="smallBold" style={{ color: '#fff', marginTop: 12 }}>Ukládám...</ThemedText>
+            </View>
+          </View>
+        )}
 
       </ThemedView>
     </Modal>
