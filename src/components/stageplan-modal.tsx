@@ -386,6 +386,98 @@ export const generateNamedPdfFile = async (html: string, bandName: string, conce
   return { pdfUri: uri, fileName };
 };
 
+// Pomocné funkce pro sdílení Obrázku a Textu
+export const shareImageWithText = async (imageUri: string, text: string) => {
+  try {
+    let clipboardModule: any = null;
+    try { clipboardModule = require('expo-clipboard'); } catch (e) {}
+    if (clipboardModule && clipboardModule.setStringAsync) {
+      await clipboardModule.setStringAsync(text);
+    }
+
+    if (Platform.OS === 'android') {
+      let fileSystemModule: any = null;
+      try { fileSystemModule = require('expo-file-system'); } catch (e) {}
+      if (fileSystemModule && fileSystemModule.getContentUriAsync) {
+        const contentUri = await fileSystemModule.getContentUriAsync(imageUri);
+        const intentLauncher = require('expo-intent-launcher');
+        await intentLauncher.startActivityAsync('android.intent.action.SEND', {
+          type: 'image/png',
+          extra: {
+            'android.intent.extra.STREAM': contentUri,
+            'android.intent.extra.TEXT': text,
+          },
+          flags: 1,
+        });
+        return;
+      }
+    }
+
+    let sharingModule: any = null;
+    try {
+      const nativeModule = requireOptionalNativeModule('ExpoSharing');
+      if (nativeModule) sharingModule = require('expo-sharing');
+    } catch (e) {}
+
+    if (sharingModule && sharingModule.shareAsync) {
+      await sharingModule.shareAsync(imageUri, {
+        mimeType: 'image/png',
+        dialogTitle: text,
+        UTI: 'public.png',
+      });
+    }
+  } catch (e) {
+    console.error("Chyba při sdílení:", e);
+  }
+};
+
+const openWhatsAppWithImage = async (phone: string, imageUri: string, text: string) => {
+  let cleanPhone = phone.replace(/[^0-9]/g, '');
+  if (cleanPhone.length === 9) cleanPhone = '420' + cleanPhone;
+
+  let clipboardModule: any = null;
+  try { clipboardModule = require('expo-clipboard'); } catch (e) {}
+  if (clipboardModule && clipboardModule.setStringAsync) {
+    await clipboardModule.setStringAsync(text);
+  }
+
+  if (Platform.OS === 'android') {
+    let fileSystemModule: any = null;
+    try { fileSystemModule = require('expo-file-system'); } catch (e) {}
+    if (fileSystemModule && fileSystemModule.getContentUriAsync) {
+      try {
+        const contentUri = await fileSystemModule.getContentUriAsync(imageUri);
+        const intentLauncher = require('expo-intent-launcher');
+        await intentLauncher.startActivityAsync('android.intent.action.SEND', {
+          type: 'image/png',
+          packageName: 'com.whatsapp',
+          extra: {
+            'android.intent.extra.STREAM': contentUri,
+            'android.intent.extra.TEXT': text,
+            'jid': `${cleanPhone}@s.whatsapp.net`
+          },
+          flags: 1,
+        });
+        return;
+      } catch (e) {
+        console.log("Cílený WhatsApp intent selhal, pád do záložního:", e);
+      }
+    }
+  }
+
+  // iOS a záložní řešení (wa.me neumí přikládat soubory, musíme uživatele nechat vložit ze schránky)
+  Alert.alert("Obrázek ve schránce", "Do WhatsApp chatu se přenese text. Obrázek je zkopírován do schránky telefonu, vložte ho pomocí volby Vložit (Paste).", [
+    { text: "Rozumím", onPress: async () => {
+        const encText = encodeURIComponent(text);
+        try {
+          await Linking.openURL(`https://wa.me/${cleanPhone}?text=${encText}`);
+        } catch (e) {
+          Alert.alert("Aplikace nedostupná", "Nepodařilo se otevřít WhatsApp.");
+        }
+    }}
+  ]);
+};
+
 // Přímé sdílení Stageplanu z karty koncertu s podporou WhatsApp na telefonní číslo a e-mailu na pořadatele
 export async function shareConcertStageplan({
   band,
@@ -487,16 +579,9 @@ export async function shareConcertStageplan({
       }
     } catch (e) {}
 
-    // Pomocné odesílací metody
+    // Pomocné odesílací metody s předáním obrázku
     const openWhatsAppChat = async (phone: string) => {
-      let cleanPhone = phone.replace(/[^0-9]/g, '');
-      if (cleanPhone.length === 9) cleanPhone = '420' + cleanPhone;
-      const encText = encodeURIComponent(captionText);
-      try {
-        await Linking.openURL(`https://wa.me/${cleanPhone}?text=${encText}`);
-      } catch (e) {
-        Alert.alert("WhatsApp", "Nepodařilo se otevřít aplikaci WhatsApp.");
-      }
+      await openWhatsAppWithImage(phone, shareFileUri, captionText);
     };
 
     const sendEmailToOrganizers = async () => {
@@ -535,19 +620,7 @@ export async function shareConcertStageplan({
     };
 
     const openGeneralShare = async () => {
-      let sharingModule: any = null;
-      try {
-        const nativeModule = requireOptionalNativeModule('ExpoSharing');
-        if (nativeModule) sharingModule = require('expo-sharing');
-      } catch (e) {}
-
-      if (sharingModule && sharingModule.shareAsync) {
-        await sharingModule.shareAsync(shareFileUri, {
-          mimeType: shareMimeType,
-          dialogTitle: captionText,
-          UTI: shareUTI,
-        });
-      }
+      await shareImageWithText(shareFileUri, captionText);
     };
 
     // Pokud nemáme žádné konkrétní kontakty na akce, otevřeme rovnou e-mail nebo sdílení
