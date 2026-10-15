@@ -375,7 +375,23 @@ export const generateNamedPdfFile = async (html: string, bandName: string, conce
       }
     }
 
-    // 5. Smažeme původní dočasný soubor z tiskárny s náhodným ID
+    // 5. Zaregistrujeme soubor napřímo do veřejného úložiště telefonu (Media Library)
+    try {
+      let mediaLibraryModule: any = null;
+      try { mediaLibraryModule = require('expo-media-library'); } catch (e) {}
+
+      if (mediaLibraryModule && savedUri) {
+        const { status } = await mediaLibraryModule.requestPermissionsAsync();
+        if (status === 'granted') {
+          await mediaLibraryModule.createAssetAsync(savedUri);
+          console.log("PDF nahráno do Media Library pod čistým názvem.");
+        }
+      }
+    } catch (e) {
+      console.log("MediaStore uložení selhalo:", e);
+    }
+
+    // 6. Smažeme původní dočasný soubor z tiskárny s náhodným ID
     try {
       await fileSystemModule.deleteAsync(uri, { idempotent: true });
     } catch (e) {}
