@@ -465,17 +465,20 @@ const openWhatsAppWithImage = async (phone: string, imageUri: string, text: stri
     }
   }
 
-  // iOS a záložní řešení (wa.me neumí přikládat soubory, musíme uživatele nechat vložit ze schránky)
-  Alert.alert("Obrázek ve schránce", "Do WhatsApp chatu se přenese text. Obrázek je zkopírován do schránky telefonu, vložte ho pomocí volby Vložit (Paste).", [
-    { text: "Rozumím", onPress: async () => {
-        const encText = encodeURIComponent(text);
-        try {
-          await Linking.openURL(`https://wa.me/${cleanPhone}?text=${encText}`);
-        } catch (e) {
-          Alert.alert("Aplikace nedostupná", "Nepodařilo se otevřít WhatsApp.");
-        }
-    }}
-  ]);
+  // iOS a záložní řešení: Využijeme sdílení napřímo (pro PNG na iOS se otevře Share Sheet, kde se i s obrázkem předá text, pokud ho aplikace podporuje)
+  let sharingModule: any = null;
+  try {
+    const nativeModule = requireOptionalNativeModule('ExpoSharing');
+    if (nativeModule) sharingModule = require('expo-sharing');
+  } catch (e) {}
+
+  if (sharingModule && sharingModule.shareAsync) {
+    await sharingModule.shareAsync(imageUri, {
+      mimeType: 'image/png',
+      dialogTitle: text,
+      UTI: 'public.png',
+    });
+  }
 };
 
 // Přímé sdílení Stageplanu z karty koncertu s podporou WhatsApp na telefonní číslo a e-mailu na pořadatele
