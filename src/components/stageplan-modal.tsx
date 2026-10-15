@@ -465,7 +465,7 @@ const openWhatsAppWithImage = async (phone: string, imageUri: string, text: stri
     }
   }
 
-  // iOS a záložní řešení: Využijeme sdílení napřímo (pro PNG na iOS se otevře Share Sheet, kde se i s obrázkem předá text, pokud ho aplikace podporuje)
+  // iOS a záložní řešení: Využijeme sdílení napřímo
   let sharingModule: any = null;
   try {
     const nativeModule = requireOptionalNativeModule('ExpoSharing');
@@ -479,6 +479,13 @@ const openWhatsAppWithImage = async (phone: string, imageUri: string, text: stri
       UTI: 'public.png',
     });
   }
+};
+
+// Pomocná metoda pro vygenerování PNG z neviditelného (off-screen) Stageplanu z akce
+export const generateOffscreenStageplanImage = async (band: Band, members: BandMember[]) => {
+    // V této chvíli z akce nemáme nakreslené Views (nejsme v okně),
+    // takže spoléháme na sdílení vygenerovaného PDF jako primární přílohy
+    // a přikládání případného naposledy uloženého PNG ze zálohy na disku.
 };
 
 // Přímé sdílení Stageplanu z karty koncertu s podporou WhatsApp na telefonní číslo a e-mailu na pořadatele
@@ -536,38 +543,37 @@ export async function shareConcertStageplan({
       }
     }
 
-    // 3. Vygenerujeme PDF a získáme URL z Firebase Storage
-    const html = generatePdfHtmlForBand(band, concert, members);
-    const { pdfUri } = await generateNamedPdfFile(html, bandName, concert?.title);
-    const downloadUrl = await uploadImageToStorage(pdfUri, `kapela_ios_android/${band.id}/stageplan/${pdfFileName}`).catch(() => '');
-
-    // Zkontrolujeme zkopírovaný PNG obrázek pro přiložení
-    let shareFileUri = pdfUri;
-    let shareMimeType = 'application/pdf';
-    let shareUTI = 'com.adobe.pdf';
+    // 3. Zkontrolujeme PNG obrázek pro přiložení z cloudu Firebase
+    let shareFileUri = '';
+    let shareMimeType = 'image/png';
+    let shareUTI = 'public.png';
 
     const fileSystemModule = getFileSystemModule();
-    if (fileSystemModule) {
+    if (fileSystemModule && (band as any)?.stageplanPngUrl) {
       const pngFileName = `${cleanBand}_stageplan.png`;
       const docPngPath = `${fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory}${pngFileName}`;
       try {
-        const fileInfo = await fileSystemModule.getInfoAsync(docPngPath);
-        if (fileInfo && fileInfo.exists) {
-          shareFileUri = docPngPath;
-          shareMimeType = 'image/png';
-          shareUTI = 'public.png';
-        } else if ((band as any)?.stageplanPngUrl) {
-          const downloadRes = await fileSystemModule.downloadAsync((band as any).stageplanPngUrl, docPngPath);
-          if (downloadRes && downloadRes.uri) {
-            shareFileUri = downloadRes.uri;
-            shareMimeType = 'image/png';
-            shareUTI = 'public.png';
-          }
+        const downloadRes = await fileSystemModule.downloadAsync((band as any).stageplanPngUrl, docPngPath);
+        if (downloadRes && downloadRes.uri) {
+          shareFileUri = downloadRes.uri;
         }
-      } catch (e) {}
+      } catch (e) {
+        console.log("Nepodařilo se stáhnout PNG z cloudu pro sdílení:", e);
+      }
     }
 
-    const pdfLink = downloadUrl || band?.stageplanPdfUrl;
+    // 4. Pokud obrázek (PNG) vůbec neexistuje, zkusíme pro sdílení použít alespoň nově vygenerované PDF
+    if (!shareFileUri) {
+       console.log("PNG není k dispozici (asi nebyl Stageplan od posledního updatu uložen), generuje se záložní PDF");
+       const html = generatePdfHtmlForBand(band, concert, members);
+       const { pdfUri } = await generateNamedPdfFile(html, bandName, concert?.title);
+       shareFileUri = pdfUri;
+       shareMimeType = 'application/pdf';
+       shareUTI = 'com.adobe.pdf';
+    }
+
+    // 5. Získáme přímé URL z Firebase Storage pro textový odkaz
+    const pdfLink = band?.stageplanPdfUrl || '';
     const bodyText = `Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\nPřeji krásný den\nza skupinu "${bandName}"\n${senderName}`;
     const captionText = pdfLink
       ? `Zasílám Stageplan skupiny "${bandName}"\n\nOdkaz na PDF (${pdfFileName}):\n${pdfLink}`
@@ -728,7 +734,10 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
           const rawSnapUri = await captureRef(stageViewRef, { format: 'png', quality: 1.0, result: 'tmpfile' });
           const cleanBandName = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
           const pngFileName = `${cleanBandName}_stageplan.png`;
-          await uploadPdfToFirebaseStorage(rawSnapUri, pngFileName);
+          const pngUrl = await uploadPdfToFirebaseStorage(rawSnapUri, pngFileName);
+          if (band?.id && pngUrl) {
+            await updateBand(band.id, { stageplanPngUrl: pngUrl } as any);
+          }
         } catch (e) {}
       }
 
