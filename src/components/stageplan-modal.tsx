@@ -737,13 +737,26 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       const { pdfUri, fileName: pdfFileName } = await generateNamedPdfFile(html, bandName, concert?.title);
       await uploadPdfToFirebaseStorage(pdfUri, pdfFileName);
 
-      // 2. Vygenerujeme a nahrajeme PNG obrázek
+      // 2. Vygenerujeme a nahrajeme PNG obrázek do paměti a na Firebase
       if (stageViewRef && stageViewRef.current) {
         try {
           const rawSnapUri = await captureRef(stageViewRef, { format: 'png', quality: 1.0, result: 'tmpfile' });
           const cleanBandName = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
           const pngFileName = `${cleanBandName}_stageplan.png`;
-          const pngUrl = await uploadPdfToFirebaseStorage(rawSnapUri, pngFileName);
+
+          let fileSystemModule: any = null;
+          try { fileSystemModule = require('expo-file-system'); } catch (e) {}
+
+          let finalPngUri = rawSnapUri;
+          if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
+            const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
+            const targetPath = `${baseDir}${pngFileName}`;
+            try { await fileSystemModule.deleteAsync(targetPath, { idempotent: true }); } catch (e) {}
+            await fileSystemModule.copyAsync({ from: rawSnapUri, to: targetPath });
+            finalPngUri = targetPath;
+          }
+
+          const pngUrl = await uploadPdfToFirebaseStorage(finalPngUri, pngFileName);
           if (band?.id && pngUrl) {
             await updateBand(band.id, { stageplanPngUrl: pngUrl } as any);
           }
