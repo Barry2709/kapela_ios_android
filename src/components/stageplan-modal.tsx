@@ -682,14 +682,19 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
         }
       }
 
-      // Nahrání na Firebase Storage probíhá na pozadí, abychom zbytečně nezdržovali sdílení
-      if (imageUri) {
-        uploadPdfToFirebaseStorage(imageUri, pngFileName).catch(console.log);
+      // 2. Vygenerujeme PDF a nahrajeme na Firebase Storage pro získání přímého odkazu
+      const html = generateStageplanPdfHtml();
+      const { pdfUri } = await generateNamedPdfFile(html, bandName, concert?.title);
+      const downloadUrl = await uploadPdfToFirebaseStorage(pdfUri, pdfFileName);
+
+      if (!imageUri) {
+        imageUri = pdfUri;
       }
 
-      const pdfLink = band?.stageplanPdfUrl;
+      // 3. Vytvoříme popisek obsahující přímý odkaz na PDF na Firebase
+      const pdfLink = downloadUrl || band?.stageplanPdfUrl;
       const captionText = pdfLink
-        ? `Zasílám Stageplan skupiny "${bandName}"\n\n${pdfFileName}:\n${pdfLink}`
+        ? `Zasílám Stageplan skupiny "${bandName}"\n\nOdkaz na PDF (${pdfFileName}):\n${pdfLink}`
         : `Zasílám Stageplan skupiny "${bandName}"`;
 
       // Zkopírujeme popisek do schránky (Clipboard) jako zálohu
