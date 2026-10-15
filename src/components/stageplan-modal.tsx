@@ -688,7 +688,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       // 3. Pripravíme text s odkazem na PDF z Firebase Storage
       const pdfLink = downloadUrl || band?.stageplanPdfUrl;
       const captionText = pdfLink
-        ? `Zasílám Stageplan skupiny "${bandName}"\n\nSoubor PDF ke stažení (${pdfFileName}):\n${pdfLink}`
+        ? `Zasílám Stageplan skupiny "${bandName}"\n\n${pdfFileName}:\n${pdfLink}`
         : `Zasílám Stageplan skupiny "${bandName}"`;
 
       // 4. Automaticky zkopírujeme text do schránky (Clipboard) jako zálohu
