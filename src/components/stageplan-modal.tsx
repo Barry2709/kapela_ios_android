@@ -608,7 +608,14 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     }
   };
 
-  const availableMembers = members.filter(m => !stageplan.some(s => s.memberId === m.id));
+  const availableMembers = (members || []).filter(m =>
+    !stageplan.some(s =>
+      s.memberId === m.id ||
+      s.memberId === (m as any).memberId ||
+      s.memberId === (m as any).uid ||
+      String(s.memberId) === String(m.id)
+    )
+  );
 
   // Otevření výběru člena při dlouhém podržení prázdné plochy
   const handleStageLongPress = (e: any) => {
@@ -636,7 +643,6 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
   const handleShareStageplan = async () => {
     setIsGeneratingPdf(true);
     try {
-      // Dočasně odemkneme orientaci pro plynulý přechod do okna sdílení
       try {
         await ScreenOrientation.unlockAsync();
       } catch (e) {}
@@ -672,26 +678,21 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
             imageUri = rawSnapUri;
           }
         } catch (snapErr) {
-          console.log("Snímek obrazovky selhal, použije se PDF:", snapErr);
+          console.log("Snímek obrazovky selhal:", snapErr);
         }
       }
 
-      // 2. Vygenerujeme PDF a získáme přímé URL z Firebase Storage
-      const html = generateStageplanPdfHtml();
-      const { pdfUri } = await generateNamedPdfFile(html, bandName, concert?.title);
-      const downloadUrl = await uploadPdfToFirebaseStorage(pdfUri, pdfFileName);
-
-      if (!imageUri) {
-        imageUri = pdfUri;
+      // Nahrání na Firebase Storage probíhá na pozadí, abychom zbytečně nezdržovali sdílení
+      if (imageUri) {
+        uploadPdfToFirebaseStorage(imageUri, pngFileName).catch(console.log);
       }
 
-      // 3. Pripravíme text s odkazem na PDF z Firebase Storage
-      const pdfLink = downloadUrl || band?.stageplanPdfUrl;
+      const pdfLink = band?.stageplanPdfUrl;
       const captionText = pdfLink
         ? `Zasílám Stageplan skupiny "${bandName}"\n\n${pdfFileName}:\n${pdfLink}`
         : `Zasílám Stageplan skupiny "${bandName}"`;
 
-      // 4. Automaticky zkopírujeme text do schránky (Clipboard) jako zálohu
+      // Zkopírujeme popisek do schránky (Clipboard) jako zálohu
       try {
         let clipboardModule: any = null;
         try {
@@ -708,11 +709,11 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
         if (nativeModule) sharingModule = require('expo-sharing');
       } catch (e) {}
 
-      if (sharingModule && sharingModule.shareAsync) {
+      if (sharingModule && sharingModule.shareAsync && imageUri) {
         await sharingModule.shareAsync(imageUri, {
-          mimeType: imageUri.endsWith('.png') ? 'image/png' : 'application/pdf',
+          mimeType: 'image/png',
           dialogTitle: captionText,
-          UTI: imageUri.endsWith('.png') ? 'public.png' : 'com.adobe.pdf',
+          UTI: 'public.png',
         });
       } else {
         Alert.alert("Sdílení nedostupné", "Nativní sdílení souborů není na tomto zařízení dostupné.");
@@ -788,7 +789,12 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
             {/* Vykreslení členů na stageplanu */}
             {stageplan.map((item) => {
-              const member = members.find(m => m.id === item.memberId);
+              const member = (members || []).find(m =>
+                m.id === item.memberId ||
+                (m as any).memberId === item.memberId ||
+                (m as any).uid === item.memberId ||
+                String(m.id) === String(item.memberId)
+              );
               if (!member) return null;
 
               return (
