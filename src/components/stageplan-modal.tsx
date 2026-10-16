@@ -985,6 +985,105 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     }
   };
 
+  // Tlačítko Stáhnout ve Stageplanu: Vyzve uživatele k potvrzení složky Downloads a uložení
+  const handleDownloadStageplanToDevice = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      const bandName = band?.name || 'Naplech';
+      const cleanBandName = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const pdfFileName = `${cleanBandName}_stageplan.pdf`;
+      const pngFileName = `${cleanBandName}_stageplan.png`;
+
+      const html = generateStageplanPdfHtml();
+      const { pdfUri } = await generateNamedPdfFile(html, bandName, concert?.title);
+
+      let pngUri = '';
+      if (stageViewRef && stageViewRef.current) {
+        try {
+          const rawSnapUri = await captureRef(stageViewRef, { format: 'png', quality: 1.0, result: 'tmpfile' });
+          const fileSystemModule = getFileSystemModule();
+          if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
+            const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
+            const targetPath = `${baseDir}${pngFileName}`;
+            try { await fileSystemModule.deleteAsync(targetPath, { idempotent: true }); } catch (e) {}
+            await fileSystemModule.copyAsync({ from: rawSnapUri, to: targetPath });
+            pngUri = targetPath;
+          } else {
+            pngUri = rawSnapUri;
+          }
+        } catch (e) {}
+      }
+
+      let fileSystemModule: any = null;
+      try { fileSystemModule = require('expo-file-system'); } catch (e) {}
+
+      // 1. Zkusíme použít StorageAccessFramework s jasným vysvětlením pro výběr složky Ke stažení
+      if (Platform.OS === 'android' && fileSystemModule && fileSystemModule.StorageAccessFramework) {
+        Alert.alert(
+          "Uložit do složky Ke stažení",
+          "Pro uložení souborů do složky Downloads prosím zvolte v následujícím okně složku Ke stažení a potvrďte tlačítkem Použít tuto složku.",
+          [
+            {
+              text: "Rozumím a zvolit složku",
+              onPress: async () => {
+                try {
+                  const permissions = await fileSystemModule.StorageAccessFramework.requestDirectoryPermissionsAsync();
+                  if (permissions.granted) {
+                    let count = 0;
+                    if (pdfUri) {
+                      const pdfBase64 = await fileSystemModule.readAsStringAsync(pdfUri, { encoding: fileSystemModule.EncodingType.Base64 });
+                      const newPdfUri = await fileSystemModule.StorageAccessFramework.createFileAsync(permissions.directoryUri, pdfFileName, 'application/pdf');
+                      await fileSystemModule.writeAsStringAsync(newPdfUri, pdfBase64, { encoding: fileSystemModule.EncodingType.Base64 });
+                      count++;
+                    }
+                    if (pngUri) {
+                      const pngBase64 = await fileSystemModule.readAsStringAsync(pngUri, { encoding: fileSystemModule.EncodingType.Base64 });
+                      const newPngUri = await fileSystemModule.StorageAccessFramework.createFileAsync(permissions.directoryUri, pngFileName, 'image/png');
+                      await fileSystemModule.writeAsStringAsync(newPngUri, pngBase64, { encoding: fileSystemModule.EncodingType.Base64 });
+                      count++;
+                    }
+                    Alert.alert("Staženo", `Úspěšně uloženo ${count} souborů (${pdfFileName}, ${pngFileName}) do vaší vybrané složky.`);
+                  }
+                } catch (safErr) {
+                  console.log("SAF stahování selhalo:", safErr);
+                } finally {
+                  setIsGeneratingPdf(false);
+                }
+              }
+            },
+            { text: "Zrušit", style: "cancel", onPress: () => setIsGeneratingPdf(false) }
+          ]
+        );
+        return;
+      }
+
+      // 2. Uložení do MediaLibrary (veřejné úložiště pro iOS)
+      try {
+        const mediaLibraryModule = getNativeMediaLibraryModule();
+
+        if (mediaLibraryModule && mediaLibraryModule.createAssetAsync) {
+          const perm = await mediaLibraryModule.requestPermissionsAsync();
+          if (perm.granted) {
+            if (pdfUri) await mediaLibraryModule.createAssetAsync(pdfUri);
+            if (pngUri) await mediaLibraryModule.createAssetAsync(pngUri);
+            Alert.alert("Staženo", `Soubory ${pdfFileName} a ${pngFileName} byly uloženy do vašeho zařízení.`);
+            setIsGeneratingPdf(false);
+            return;
+          }
+        }
+      } catch (mediaErr) {
+        console.log("MediaLibrary stahování selhalo:", mediaErr);
+      }
+
+      Alert.alert("Staženo", `Soubory ${pdfFileName} a ${pngFileName} byly uloženy v zařízení.`);
+    } catch (e: any) {
+      console.error("Chyba při stahování souborů Stageplanu:", e);
+      Alert.alert("Chyba", e?.message || "Nepodařilo se stáhnout soubory.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   // Tlačítko Sdílet ve Stageplanu: Otevře stejné dialogové okno jako v kartě Akce
   const handleShareStageplan = async () => {
     setIsGeneratingPdf(true);
@@ -1054,6 +1153,17 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
               Podržením plochy přidáte člena. Přetažením přesouváte. Dvojitým klepnutím mažete.
             </ThemedText>
           </View>
+
+          {/* Tlačítko Stáhnout */}
+          <Pressable
+            style={[styles.sendHeaderBtn, { backgroundColor: '#ff9800', marginRight: 8 }]}
+            onPress={handleDownloadStageplanToDevice}
+          >
+            <SymbolView name={{ ios: 'arrow.down.doc.fill', android: 'download', web: 'download' }} size={14} tintColor="#fff" />
+            <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 12, marginLeft: 4 }}>
+              Stáhnout
+            </ThemedText>
+          </Pressable>
 
           {/* Tlačítko Stáhnout */}
           <Pressable
