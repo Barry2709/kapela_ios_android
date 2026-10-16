@@ -892,90 +892,94 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     return generatePdfHtmlForBand(band, concert, members);
   };
 
-  // Tlačítko Stáhnout ve Stageplanu: Vyzve uživatele k potvrzení složky Downloads a uložení
+  // Tlačítko Stáhnout ve Stageplanu: Stáhne aktuální soubor z Firebase a uloží do veřejné složky Documents
   const handleDownloadStageplanToDevice = async () => {
     setIsGeneratingPdf(true);
     try {
       const bandName = band?.name || 'Naplech';
       const cleanBandName = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
       const pdfFileName = `${cleanBandName}_stageplan.pdf`;
-      const pngFileName = `${cleanBandName}_stageplan.png`;
-
-      const html = generateStageplanPdfHtml();
-      const { pdfUri } = await generateNamedPdfFile(html, bandName, concert?.title);
-
-      let pngUri = '';
-      if (stageViewRef && stageViewRef.current) {
-        try {
-          const rawSnapUri = await captureRef(stageViewRef, { format: 'png', quality: 1.0, result: 'tmpfile' });
-          const fileSystemModule = getFileSystemModule();
-          if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
-            const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
-            const targetPath = `${baseDir}${pngFileName}`;
-            try { await fileSystemModule.deleteAsync(targetPath, { idempotent: true }); } catch (e) {}
-            await fileSystemModule.copyAsync({ from: rawSnapUri, to: targetPath });
-            pngUri = targetPath;
-          } else {
-            pngUri = rawSnapUri;
-          }
-        } catch (e) {}
-      }
 
       let fileSystemModule: any = null;
       try { fileSystemModule = require('expo-file-system'); } catch (e) {}
 
-      // 1. Zkusíme použít StorageAccessFramework (otevře okamžitě systémové okno pro výběr složky)
+      // 1. Zjistíme URL souboru z Firebase
+      let pdfSourceUri = band?.stageplanPdfUrl;
+      let tempDownloadPath = '';
+
+      if (fileSystemModule && fileSystemModule.cacheDirectory) {
+        tempDownloadPath = `${fileSystemModule.cacheDirectory}${pdfFileName}`;
+      }
+
+      // Pokud máme URL na Firebase, stáhneme soubor čerstvě z cloudu
+      if (pdfSourceUri && fileSystemModule && tempDownloadPath) {
+        try {
+          try { await fileSystemModule.deleteAsync(tempDownloadPath, { idempotent: true }); } catch (e) {}
+          const dlRes = await fileSystemModule.downloadAsync(pdfSourceUri, tempDownloadPath);
+          if (dlRes && dlRes.uri) {
+            pdfSourceUri = dlRes.uri;
+          }
+        } catch (dlErr) {
+          console.log("Stahování z Firebase selhalo, použije se lokální generování:", dlErr);
+        }
+      }
+
+      // Pokud URL chybělo nebo stahování selhalo, vygenerujeme ho lokálně
+      if (!pdfSourceUri || pdfSourceUri.startsWith('http')) {
+        const html = generateStageplanPdfHtml();
+        const { pdfUri } = await generateNamedPdfFile(html, bandName, concert?.title);
+        pdfSourceUri = pdfUri;
+      }
+
+      // 2. Na Androidu otevřeme systémový výběr složky (Document tree picker)
       if (Platform.OS === 'android' && fileSystemModule && fileSystemModule.StorageAccessFramework) {
         setIsGeneratingPdf(false);
         try {
           const permissions = await fileSystemModule.StorageAccessFramework.requestDirectoryPermissionsAsync();
           if (permissions.granted) {
             setIsGeneratingPdf(true);
-            let count = 0;
-            if (pdfUri) {
-              const pdfBase64 = await fileSystemModule.readAsStringAsync(pdfUri, { encoding: fileSystemModule.EncodingType.Base64 });
-              const newPdfUri = await fileSystemModule.StorageAccessFramework.createFileAsync(permissions.directoryUri, pdfFileName, 'application/pdf');
-              await fileSystemModule.writeAsStringAsync(newPdfUri, pdfBase64, { encoding: fileSystemModule.EncodingType.Base64 });
-              count++;
-            }
-            if (pngUri) {
-              const pngBase64 = await fileSystemModule.readAsStringAsync(pngUri, { encoding: fileSystemModule.EncodingType.Base64 });
-              const newPngUri = await fileSystemModule.StorageAccessFramework.createFileAsync(permissions.directoryUri, pngFileName, 'image/png');
-              await fileSystemModule.writeAsStringAsync(newPngUri, pngBase64, { encoding: fileSystemModule.EncodingType.Base64 });
-              count++;
-            }
-            Alert.alert("Staženo", `Úspěšně uloženo ${count} souborů (${pdfFileName}, ${pngFileName}) do vaší vybrané složky.`);
+            const pdfBase64 = await fileSystemModule.readAsStringAsync(pdfSourceUri, {
+              encoding: fileSystemModule.EncodingType.Base64,
+            });
+            const newPdfUri = await fileSystemModule.StorageAccessFramework.createFileAsync(
+              permissions.directoryUri,
+              pdfFileName,
+              'application/pdf'
+            );
+            await fileSystemModule.writeAsStringAsync(newPdfUri, pdfBase64, {
+              encoding: fileSystemModule.EncodingType.Base64,
+            });
+
+            Alert.alert("Staženo", `Soubor ${pdfFileName} byl úspěšně uložen do složky Documents.`);
           }
         } catch (safErr) {
-          console.log("SAF stahování selhalo:", safErr);
+          console.log("SAF uložení selhalo:", safErr);
+          Alert.alert("Chyba", "Nepodařilo se uložit soubor do vybrané složky.");
         } finally {
           setIsGeneratingPdf(false);
         }
         return;
       }
 
-      // 2. Uložení do MediaLibrary (veřejné úložiště pro iOS)
+      // 3. Pro iOS otevřeme systémové sdílení / Uložit do souborů
+      let sharingModule: any = null;
       try {
-        const mediaLibraryModule = getNativeMediaLibraryModule();
+        const nativeModule = requireOptionalNativeModule('ExpoSharing');
+        if (nativeModule) sharingModule = require('expo-sharing');
+      } catch (e) {}
 
-        if (mediaLibraryModule && mediaLibraryModule.createAssetAsync) {
-          const perm = await mediaLibraryModule.requestPermissionsAsync();
-          if (perm.granted) {
-            if (pdfUri) await mediaLibraryModule.createAssetAsync(pdfUri);
-            if (pngUri) await mediaLibraryModule.createAssetAsync(pngUri);
-            Alert.alert("Staženo", `Soubory ${pdfFileName} a ${pngFileName} byly uloženy do vašeho zařízení.`);
-            setIsGeneratingPdf(false);
-            return;
-          }
-        }
-      } catch (mediaErr) {
-        console.log("MediaLibrary stahování selhalo:", mediaErr);
+      if (sharingModule && sharingModule.shareAsync && pdfSourceUri) {
+        await sharingModule.shareAsync(pdfSourceUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Uložit ${pdfFileName}`,
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        Alert.alert("Staženo", `Soubor ${pdfFileName} byl připraven k uložení.`);
       }
-
-      Alert.alert("Staženo", `Soubory ${pdfFileName} a ${pngFileName} byly uloženy v zařízení.`);
     } catch (e: any) {
       console.error("Chyba při stahování souborů Stageplanu:", e);
-      Alert.alert("Chyba", e?.message || "Nepodařilo se stáhnout soubory.");
+      Alert.alert("Chyba", e?.message || "Nepodařilo se stáhnout soubor.");
     } finally {
       setIsGeneratingPdf(false);
     }
