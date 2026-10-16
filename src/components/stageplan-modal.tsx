@@ -259,6 +259,18 @@ const getFileSystemModule = () => {
   }
 };
 
+const getNativeMediaLibraryModule = () => {
+  try {
+    return require('expo-media-library/legacy');
+  } catch (e1) {
+    try {
+      return require('expo-media-library');
+    } catch (e2) {
+      return null;
+    }
+  }
+};
+
 const base64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 const base64Lookup = new Uint8Array(256);
 for (let i = 0; i < base64Chars.length; i++) {
@@ -387,10 +399,9 @@ export const generateNamedPdfFile = async (html: string, bandName: string, conce
 
     // 5. Zaregistrujeme soubor napřímo do veřejného úložiště telefonu (Media Library)
     try {
-      let mediaLibraryModule: any = null;
-      try { mediaLibraryModule = require('expo-media-library'); } catch (e) {}
+      const mediaLibraryModule = getNativeMediaLibraryModule();
 
-      if (mediaLibraryModule && savedUri) {
+      if (mediaLibraryModule && mediaLibraryModule.createAssetAsync && savedUri) {
         const { status } = await mediaLibraryModule.requestPermissionsAsync();
         if (status === 'granted') {
           await mediaLibraryModule.createAssetAsync(savedUri);
@@ -773,11 +784,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       const saveFileToPublicDownloads = async (fileUri: string, targetFileName: string, mimeType: string) => {
         // 1. Zkusíme použít MediaLibrary (automatické uložení do veřejného úložiště bez otravování uživatele)
         try {
-          let mediaLibraryModule: any = null;
-          try {
-            const nativeModule = requireOptionalNativeModule('ExpoMediaLibrary');
-            if (nativeModule) mediaLibraryModule = require('expo-media-library');
-          } catch (e) {}
+          const mediaLibraryModule = getNativeMediaLibraryModule();
 
           if (mediaLibraryModule && mediaLibraryModule.createAssetAsync) {
             const perm = await mediaLibraryModule.requestPermissionsAsync();
@@ -945,21 +952,21 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       }
 
       // 2. Uložení do MediaLibrary (veřejné úložiště)
-      let mediaLibraryModule: any = null;
       try {
-        const nativeModule = requireOptionalNativeModule('ExpoMediaLibrary');
-        if (nativeModule) mediaLibraryModule = require('expo-media-library');
-      } catch (e) {}
+        const mediaLibraryModule = getNativeMediaLibraryModule();
 
-      if (mediaLibraryModule && mediaLibraryModule.createAssetAsync) {
-        const perm = await mediaLibraryModule.requestPermissionsAsync();
-        if (perm.granted) {
-          if (pdfUri) await mediaLibraryModule.createAssetAsync(pdfUri);
-          if (pngUri) await mediaLibraryModule.createAssetAsync(pngUri);
-          Alert.alert("Staženo", `Soubory ${pdfFileName} a ${pngFileName} byly uloženy do vašeho zařízení.`);
-          setIsGeneratingPdf(false);
-          return;
+        if (mediaLibraryModule && mediaLibraryModule.createAssetAsync) {
+          const perm = await mediaLibraryModule.requestPermissionsAsync();
+          if (perm.granted) {
+            if (pdfUri) await mediaLibraryModule.createAssetAsync(pdfUri);
+            if (pngUri) await mediaLibraryModule.createAssetAsync(pngUri);
+            Alert.alert("Staženo", `Soubory ${pdfFileName} a ${pngFileName} byly uloženy do vašeho zařízení.`);
+            setIsGeneratingPdf(false);
+            return;
+          }
         }
+      } catch (mediaErr) {
+        console.log("MediaLibrary uložení selhalo:", mediaErr);
       }
 
       Alert.alert("Staženo", `Soubory ${pdfFileName} a ${pngFileName} byly uloženy v zařízení.`);
