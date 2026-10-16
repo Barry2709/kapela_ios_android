@@ -924,43 +924,33 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       let fileSystemModule: any = null;
       try { fileSystemModule = require('expo-file-system'); } catch (e) {}
 
-      // 1. Zkusíme použít StorageAccessFramework s jasným vysvětlením pro výběr složky Ke stažení
+      // 1. Zkusíme použít StorageAccessFramework (otevře okamžitě systémové okno pro výběr složky)
       if (Platform.OS === 'android' && fileSystemModule && fileSystemModule.StorageAccessFramework) {
-        Alert.alert(
-          "Uložit do složky Ke stažení",
-          "Pro uložení souborů do složky Downloads prosím zvolte v následujícím okně složku Ke stažení a potvrďte tlačítkem Použít tuto složku.",
-          [
-            {
-              text: "Rozumím a zvolit složku",
-              onPress: async () => {
-                try {
-                  const permissions = await fileSystemModule.StorageAccessFramework.requestDirectoryPermissionsAsync();
-                  if (permissions.granted) {
-                    let count = 0;
-                    if (pdfUri) {
-                      const pdfBase64 = await fileSystemModule.readAsStringAsync(pdfUri, { encoding: fileSystemModule.EncodingType.Base64 });
-                      const newPdfUri = await fileSystemModule.StorageAccessFramework.createFileAsync(permissions.directoryUri, pdfFileName, 'application/pdf');
-                      await fileSystemModule.writeAsStringAsync(newPdfUri, pdfBase64, { encoding: fileSystemModule.EncodingType.Base64 });
-                      count++;
-                    }
-                    if (pngUri) {
-                      const pngBase64 = await fileSystemModule.readAsStringAsync(pngUri, { encoding: fileSystemModule.EncodingType.Base64 });
-                      const newPngUri = await fileSystemModule.StorageAccessFramework.createFileAsync(permissions.directoryUri, pngFileName, 'image/png');
-                      await fileSystemModule.writeAsStringAsync(newPngUri, pngBase64, { encoding: fileSystemModule.EncodingType.Base64 });
-                      count++;
-                    }
-                    Alert.alert("Staženo", `Úspěšně uloženo ${count} souborů (${pdfFileName}, ${pngFileName}) do vaší vybrané složky.`);
-                  }
-                } catch (safErr) {
-                  console.log("SAF stahování selhalo:", safErr);
-                } finally {
-                  setIsGeneratingPdf(false);
-                }
-              }
-            },
-            { text: "Zrušit", style: "cancel", onPress: () => setIsGeneratingPdf(false) }
-          ]
-        );
+        setIsGeneratingPdf(false);
+        try {
+          const permissions = await fileSystemModule.StorageAccessFramework.requestDirectoryPermissionsAsync();
+          if (permissions.granted) {
+            setIsGeneratingPdf(true);
+            let count = 0;
+            if (pdfUri) {
+              const pdfBase64 = await fileSystemModule.readAsStringAsync(pdfUri, { encoding: fileSystemModule.EncodingType.Base64 });
+              const newPdfUri = await fileSystemModule.StorageAccessFramework.createFileAsync(permissions.directoryUri, pdfFileName, 'application/pdf');
+              await fileSystemModule.writeAsStringAsync(newPdfUri, pdfBase64, { encoding: fileSystemModule.EncodingType.Base64 });
+              count++;
+            }
+            if (pngUri) {
+              const pngBase64 = await fileSystemModule.readAsStringAsync(pngUri, { encoding: fileSystemModule.EncodingType.Base64 });
+              const newPngUri = await fileSystemModule.StorageAccessFramework.createFileAsync(permissions.directoryUri, pngFileName, 'image/png');
+              await fileSystemModule.writeAsStringAsync(newPngUri, pngBase64, { encoding: fileSystemModule.EncodingType.Base64 });
+              count++;
+            }
+            Alert.alert("Staženo", `Úspěšně uloženo ${count} souborů (${pdfFileName}, ${pngFileName}) do vaší vybrané složky.`);
+          }
+        } catch (safErr) {
+          console.log("SAF stahování selhalo:", safErr);
+        } finally {
+          setIsGeneratingPdf(false);
+        }
         return;
       }
 
