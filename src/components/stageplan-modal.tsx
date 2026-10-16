@@ -580,37 +580,28 @@ export async function shareConcertStageplan({
       }
     }
 
-    // 3. Zkontrolujeme lokální soubory z Dokumentů zařízení
+    // 3. Zkontrolujeme PNG obrázek pro přiložení z cloudu Firebase
     let shareFileUri = '';
     let shareMimeType = 'image/png';
     let shareUTI = 'public.png';
 
     const fileSystemModule = getFileSystemModule();
-    if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
-      const baseDir = fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory;
-      const pngPath = `${baseDir}${cleanBand}_stageplan.png`;
-      const pdfPath = `${baseDir}${cleanBand}_stageplan.pdf`;
-
+    if (fileSystemModule && (band as any)?.stageplanPngUrl) {
+      const pngFileName = `${cleanBand}_stageplan.png`;
+      const docPngPath = `${fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory}${pngFileName}`;
       try {
-        const pngInfo = await fileSystemModule.getInfoAsync(pngPath);
-        if (pngInfo && pngInfo.exists) {
-          shareFileUri = pngPath;
-        } else {
-          const pdfInfo = await fileSystemModule.getInfoAsync(pdfPath);
-          if (pdfInfo && pdfInfo.exists) {
-            shareFileUri = pdfPath;
-            shareMimeType = 'application/pdf';
-            shareUTI = 'com.adobe.pdf';
-          }
+        const downloadRes = await fileSystemModule.downloadAsync((band as any).stageplanPngUrl, docPngPath);
+        if (downloadRes && downloadRes.uri) {
+          shareFileUri = downloadRes.uri;
         }
       } catch (e) {
-        console.log("Kontrola souborů selhala:", e);
+        console.log("Nepodařilo se stáhnout PNG z cloudu pro sdílení:", e);
       }
     }
 
-    // 4. Pokud neexistují, zkusíme je vygenerovat napřímo
+    // 4. Pokud obrázek (PNG) vůbec neexistuje, zkusíme pro sdílení použít alespoň nově vygenerované PDF
     if (!shareFileUri) {
-       console.log("Lokální soubory chybí, generuje se záložní PDF");
+       console.log("PNG není k dispozici (asi nebyl Stageplan od posledního updatu uložen), generuje se záložní PDF");
        const html = generatePdfHtmlForBand(band, concert, members);
        const { pdfUri } = await generateNamedPdfFile(html, bandName, concert?.title);
        shareFileUri = pdfUri;
@@ -619,6 +610,15 @@ export async function shareConcertStageplan({
     }
 
     // 5. Získáme přímé URL z Firebase Storage pro textový odkaz
+    const cleanBandName = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const pdfFileName = `${cleanBandName}_stageplan.pdf`;
+    const storagePath = `kapela_ios_android/${band?.id || cleanBandName.toLowerCase()}/stageplan/${pdfFileName}`;
+    let pdfLink = band?.stageplanPdfUrl || '';
+
+    // Pokud z nějakého důvodu v objektu chybí URL na PDF, pokusíme se ji přečíst znovu nahráním
+    if (!pdfLink && shareMimeType === 'application/pdf') {
+       pdfLink = await uploadImageToStorage(shareFileUri, storagePath).catch(() => '');
+    }
     const pdfLink = band?.stageplanPdfUrl || '';
     const bodyText = `Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\nPřeji krásný den\nza skupinu "${bandName}"\n${senderName}`;
     const captionText = pdfLink
@@ -752,7 +752,11 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
 
   const uploadPdfToFirebaseStorage = async (localPdfUri: string, fileName: string): Promise<string> => {
     try {
-      const storagePath = `kapela_ios_android/${band?.id || 'band'}/stageplan/${fileName}`;
+      // Důležité: Na screenshotu vidíme složku s malým "n", tedy musíme použít ID kapely nebo case-insensitive řešení.
+      // Abychom zachovali 100% kompatibilitu s vaším předchozím uložením na Firebase,
+      // změníme to přesně na strukturu: kapela_ios_android/[band.id]/stageplan/Naplech_stageplan.pdf
+      const cleanBandName = (band?.name || 'Naplech').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const storagePath = `kapela_ios_android/${band?.id || cleanBandName.toLowerCase()}/stageplan/${fileName}`;
       const downloadUrl = await uploadImageToStorage(localPdfUri, storagePath);
       if (band?.id) {
         if (fileName.endsWith('.png')) {
