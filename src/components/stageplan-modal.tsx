@@ -749,9 +749,38 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       const bandName = band?.name || 'Naplech';
       const html = generateStageplanPdfHtml();
 
+      let fileSystemModule: any = null;
+      try { fileSystemModule = require('expo-file-system'); } catch (e) {}
+
+      // Uložíme do složky Download (veřejně přístupná složka Androidu)
+      const saveFileToPublicDownloads = async (fileUri: string, targetFileName: string, mimeType: string) => {
+        if (Platform.OS === 'android' && fileSystemModule && fileSystemModule.StorageAccessFramework) {
+          try {
+            const permissions = await fileSystemModule.StorageAccessFramework.requestDirectoryPermissionsAsync();
+            if (permissions.granted) {
+              const base64Data = await fileSystemModule.readAsStringAsync(fileUri, {
+                encoding: fileSystemModule.EncodingType.Base64,
+              });
+              const newFileUri = await fileSystemModule.StorageAccessFramework.createFileAsync(
+                permissions.directoryUri,
+                targetFileName,
+                mimeType
+              );
+              await fileSystemModule.writeAsStringAsync(newFileUri, base64Data, {
+                encoding: fileSystemModule.EncodingType.Base64,
+              });
+              console.log(`Soubor ${targetFileName} úspěšně uložen do vybrané složky.`);
+            }
+          } catch (safErr) {
+            console.log("Uložení přes StorageAccessFramework selhalo:", safErr);
+          }
+        }
+      };
+
       // 1. Vygenerujeme a nahrajeme PDF
       const { pdfUri, fileName: pdfFileName } = await generateNamedPdfFile(html, bandName, concert?.title);
       await uploadPdfToFirebaseStorage(pdfUri, pdfFileName);
+      await saveFileToPublicDownloads(pdfUri, pdfFileName, 'application/pdf');
 
       // 2. Vygenerujeme a nahrajeme PNG obrázek do paměti a na Firebase
       if (stageViewRef && stageViewRef.current) {
@@ -759,9 +788,6 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
           const rawSnapUri = await captureRef(stageViewRef, { format: 'png', quality: 1.0, result: 'tmpfile' });
           const cleanBandName = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
           const pngFileName = `${cleanBandName}_stageplan.png`;
-
-          let fileSystemModule: any = null;
-          try { fileSystemModule = require('expo-file-system'); } catch (e) {}
 
           let finalPngUri = rawSnapUri;
           if (fileSystemModule && (fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory)) {
@@ -776,10 +802,12 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
           if (band?.id && pngUrl) {
             await updateBand(band.id, { stageplanPngUrl: pngUrl } as any);
           }
+
+          await saveFileToPublicDownloads(finalPngUri, pngFileName, 'image/png');
         } catch (e) {}
       }
 
-      Alert.alert("Uloženo", "Stageplan byl úspěšně uložen.");
+      Alert.alert("Uloženo", "Stageplan byl úspěšně uložen na server i do zařízení.");
     } catch (err) {
       console.log("Uložení Stageplanu selhalo:", err);
       Alert.alert("Uloženo", "Stageplan byl úspěšně uložen.");
