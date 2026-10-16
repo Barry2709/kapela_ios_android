@@ -610,9 +610,7 @@ export async function shareConcertStageplan({
     }
 
     // 5. Získáme přímé URL z Firebase Storage pro textový odkaz
-    const cleanBandName = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const pdfFileName = `${cleanBandName}_stageplan.pdf`;
-    const storagePath = `kapela_ios_android/${band?.id || cleanBandName.toLowerCase()}/stageplan/${pdfFileName}`;
+    const storagePath = `kapela_ios_android/${band?.id || cleanBand.toLowerCase()}/stageplan/${pdfFileName}`;
     let pdfLink = band?.stageplanPdfUrl || '';
 
     // Pokud z nějakého důvodu v objektu chybí URL na PDF, pokusíme se ji přečíst znovu nahráním
