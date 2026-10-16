@@ -15,7 +15,6 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "deploymentTarget": "16.0",
-      "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.ios.kapela",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -79,7 +78,8 @@
       ],
       "@react-native-community/datetimepicker",
       "expo-mail-composer",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true
