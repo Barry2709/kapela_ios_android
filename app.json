@@ -35,7 +35,6 @@
       "googleServicesFile": "./google-services.json"
     },
     "web": {
-      "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
