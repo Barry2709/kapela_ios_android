@@ -102,9 +102,19 @@ export function generatePdfHtmlForBand(band: Band, concert?: Concert, members: B
   const safeMembers = Array.isArray(members) ? members : [];
   const safeStageplan = Array.isArray(band?.stageplan) ? band.stageplan : [];
 
+  const isMemberMatch = (m: BandMember, stageMemberId: string) => {
+    if (!m || !stageMemberId) return false;
+    return (
+      m.id === stageMemberId ||
+      (m as any).memberId === stageMemberId ||
+      (m as any).uid === stageMemberId ||
+      String(m.id) === String(stageMemberId)
+    );
+  };
+
   // Členové na stagi HTML (požadavky svisle pod sebou bez překrývání)
   const pinsHtml = safeStageplan.map(s => {
-    const mem = safeMembers.find(m => m.id === s.memberId);
+    const mem = safeMembers.find(m => isMemberMatch(m, s.memberId));
     if (!mem) return '';
     const badges = getMemberTechBadges(mem);
     return `
@@ -121,7 +131,7 @@ export function generatePdfHtmlForBand(band: Band, concert?: Concert, members: B
   // Součet počtu jednotlivých technických položek na stagi
   const techCounts: Record<string, number> = {};
   safeMembers
-    .filter(m => safeStageplan.some(s => s.memberId === m.id))
+    .filter(m => safeStageplan.some(s => isMemberMatch(m, s.memberId)))
     .forEach(m => {
       const badges = getMemberTechBadges(m);
       badges.forEach(badge => {
@@ -145,7 +155,7 @@ export function generatePdfHtmlForBand(band: Band, concert?: Concert, members: B
 
   // Technické požadavky jednotlivých muzikantů
   const memberTechListHtml = safeMembers
-    .filter(m => safeStageplan.some(s => s.memberId === m.id))
+    .filter(m => safeStageplan.some(s => isMemberMatch(m, s.memberId)))
     .map(m => {
       const badges = getMemberTechBadges(m);
       const nickname = m.nickname || m.firstName || 'Člen';
@@ -734,9 +744,13 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       const storagePath = `kapela_ios_android/${band?.id || 'band'}/stageplan/${fileName}`;
       const downloadUrl = await uploadImageToStorage(localPdfUri, storagePath);
       if (band?.id) {
-        await updateBand(band.id, { stageplanPdfUrl: downloadUrl } as any);
+        if (fileName.endsWith('.png')) {
+          await updateBand(band.id, { stageplanPngUrl: downloadUrl } as any);
+        } else {
+          await updateBand(band.id, { stageplanPdfUrl: downloadUrl } as any);
+        }
       }
-      console.log("PDF úspěšně nahráno na Firebase Storage:", downloadUrl);
+      console.log("Soubor úspěšně nahrán na Firebase Storage:", downloadUrl);
       return downloadUrl;
     } catch (err) {
       console.log("Nahrání na Firebase Storage selhalo:", err);
