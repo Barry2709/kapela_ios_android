@@ -769,8 +769,29 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       let fileSystemModule: any = null;
       try { fileSystemModule = require('expo-file-system'); } catch (e) {}
 
-      // Uložíme do složky Download (veřejně přístupná složka Androidu)
+      // Uložíme do veřejně přístupné složky zařízení (MediaLibrary nebo StorageAccessFramework)
       const saveFileToPublicDownloads = async (fileUri: string, targetFileName: string, mimeType: string) => {
+        // 1. Zkusíme použít MediaLibrary (automatické uložení do veřejného úložiště bez otravování uživatele)
+        try {
+          let mediaLibraryModule: any = null;
+          try {
+            const nativeModule = requireOptionalNativeModule('ExpoMediaLibrary');
+            if (nativeModule) mediaLibraryModule = require('expo-media-library');
+          } catch (e) {}
+
+          if (mediaLibraryModule && mediaLibraryModule.createAssetAsync) {
+            const perm = await mediaLibraryModule.requestPermissionsAsync();
+            if (perm.granted) {
+              await mediaLibraryModule.createAssetAsync(fileUri);
+              console.log(`Soubor ${targetFileName} úspěšně uložen do veřejné knihovny.`);
+              return;
+            }
+          }
+        } catch (mediaErr) {
+          console.log("MediaLibrary uložení selhalo:", mediaErr);
+        }
+
+        // 2. Záložní metoda: StorageAccessFramework
         if (Platform.OS === 'android' && fileSystemModule && fileSystemModule.StorageAccessFramework) {
           try {
             const permissions = await fileSystemModule.StorageAccessFramework.requestDirectoryPermissionsAsync();
