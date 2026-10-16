@@ -628,6 +628,9 @@ export async function shareConcertStageplan({
         if (nativeModule) mailComposerModule = require('expo-mail-composer');
       } catch (e) {}
 
+      const attachmentsToPass: string[] = [];
+      if (shareFileUri) attachmentsToPass.push(shareFileUri);
+
       if (mailComposerModule && mailComposerModule.composeAsync) {
         try {
           const isAvailable = await mailComposerModule.isAvailableAsync();
@@ -636,7 +639,7 @@ export async function shareConcertStageplan({
               recipients: emails.length > 0 ? emails : undefined,
               subject: subject,
               body: emailBodyWithLink,
-              attachments: [shareFileUri],
+              attachments: attachmentsToPass,
             });
             return;
           }
