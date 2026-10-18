@@ -591,12 +591,30 @@ export async function shareConcertStageplan({
 
     const pngLink = (band as any)?.stageplanPngUrl || '';
 
-    let linksText = '';
-    if (pdfLink) linksText += `Odkaz na PDF ke stažení:\n${pdfLink}\n\n`;
-    if (pngLink) linksText += `Odkaz na obrázek (PNG) ke stažení:\n${pngLink}\n\n`;
+    // Textová verze pro WhatsApp/Schránku
+    let plainLinksText = '';
+    if (pdfLink) plainLinksText += `Odkaz na PDF ke stažení:\n${pdfLink}\n\n`;
+    if (pngLink) plainLinksText += `Odkaz na obrázek (PNG) ke stažení:\n${pngLink}\n\n`;
 
-    const emailBodyText = `Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\n${linksText}Přeji krásný den\nza skupinu "${bandName}"\n${senderName}`;
-    const whatsappText = `Zasílám Stageplan skupiny "${bandName}"\n\n${linksText}`;
+    const whatsappText = `Zasílám Stageplan skupiny "${bandName}"\n\n${plainLinksText}`;
+
+    // HTML verze těla pro E-maily se skrytými odkazy
+    let htmlLinksText = '';
+    if (pdfLink) htmlLinksText += `Odkaz na PDF ke stažení: <a href="${pdfLink}">zde</a><br><br>`;
+    if (pngLink) htmlLinksText += `Odkaz na obrázek (PNG) ke stažení: <a href="${pngLink}">zde</a><br><br>`;
+
+    const htmlEmailBody = `
+      <html>
+        <body>
+          <p>Dobrý den,</p>
+          <p>posílám Vám Stageplan skupiny "${bandName}".</p>
+          <p>${htmlLinksText}</p>
+          <p>Přeji krásný den<br>
+          za skupinu "${bandName}"<br>
+          ${senderName}</p>
+        </body>
+      </html>
+    `;
 
     // Zkopírujeme text do schránky
     try {
@@ -607,7 +625,7 @@ export async function shareConcertStageplan({
       }
     } catch (e) {}
 
-    // Pomocné odesílací metody POUZE TEXT
+    // Pomocné odesílací metody POUZE TEXT / HTML
     const openWhatsAppChat = async (phone: string) => {
       await openWhatsAppWithText(phone, whatsappText);
     };
@@ -628,7 +646,8 @@ export async function shareConcertStageplan({
             await mailComposerModule.composeAsync({
               recipients: emails.length > 0 ? emails : undefined,
               subject: subject,
-              body: emailBodyText,
+              body: htmlEmailBody,
+              isHtml: true,
             });
             return;
           }
@@ -637,7 +656,7 @@ export async function shareConcertStageplan({
 
       const emailListStr = emails.join(',');
       const encSubject = encodeURIComponent(subject);
-      const encBody = encodeURIComponent(emailBodyText);
+      const encBody = encodeURIComponent(`Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\n${plainLinksText}Přeji krásný den\nza skupinu "${bandName}"\n${senderName}`);
       try {
         await Linking.openURL(`mailto:${emailListStr}?subject=${encSubject}&body=${encBody}`);
       } catch (linkErr) {
