@@ -617,7 +617,7 @@ export async function shareConcertStageplan({
     if (!pdfLink && shareMimeType === 'application/pdf') {
        pdfLink = await uploadImageToStorage(shareFileUri, storagePath).catch(() => '');
     }
-    const pdfLink = band?.stageplanPdfUrl || '';
+
     const bodyText = `Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\nPřeji krásný den\nza skupinu "${bandName}"\n${senderName}`;
     const captionText = pdfLink
       ? `Zasílám Stageplan skupiny "${bandName}"\n\nOdkaz na PDF ke stažení (${pdfFileName}):\n${pdfLink}`
