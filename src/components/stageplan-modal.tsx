@@ -1037,17 +1037,6 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
             </ThemedText>
           </View>
 
-          {/* Tlačítko Stáhnout */}
-          <Pressable
-            style={[styles.sendHeaderBtn, { backgroundColor: '#ff9800', marginRight: 8 }]}
-            onPress={handleDownloadStageplanToDevice}
-          >
-            <SymbolView name={{ ios: 'arrow.down.doc.fill', android: 'download', web: 'download' }} size={14} tintColor="#fff" />
-            <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 12, marginLeft: 4 }}>
-              Stáhnout
-            </ThemedText>
-          </Pressable>
-
           {/* Tlačítko Sdílet */}
           <Pressable
             style={styles.sendHeaderBtn}
