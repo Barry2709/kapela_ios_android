@@ -423,52 +423,8 @@ export const generateNamedPdfFile = async (html: string, bandName: string, conce
   return { pdfUri: uri, fileName };
 };
 
-// Pomocné funkce pro sdílení Obrázku a Textu
-export const shareImageWithText = async (imageUri: string, text: string) => {
-  try {
-    let clipboardModule: any = null;
-    try { clipboardModule = require('expo-clipboard'); } catch (e) {}
-    if (clipboardModule && clipboardModule.setStringAsync) {
-      await clipboardModule.setStringAsync(text);
-    }
-
-    if (Platform.OS === 'android') {
-      let fileSystemModule: any = null;
-      try { fileSystemModule = require('expo-file-system'); } catch (e) {}
-      if (fileSystemModule && fileSystemModule.getContentUriAsync) {
-        const contentUri = await fileSystemModule.getContentUriAsync(imageUri);
-        const intentLauncher = require('expo-intent-launcher');
-        await intentLauncher.startActivityAsync('android.intent.action.SEND', {
-          type: 'image/png',
-          extra: {
-            'android.intent.extra.STREAM': contentUri,
-            'android.intent.extra.TEXT': text,
-          },
-          flags: 1,
-        });
-        return;
-      }
-    }
-
-    let sharingModule: any = null;
-    try {
-      const nativeModule = requireOptionalNativeModule('ExpoSharing');
-      if (nativeModule) sharingModule = require('expo-sharing');
-    } catch (e) {}
-
-    if (sharingModule && sharingModule.shareAsync) {
-      await sharingModule.shareAsync(imageUri, {
-        mimeType: 'image/png',
-        dialogTitle: text,
-        UTI: 'public.png',
-      });
-    }
-  } catch (e) {
-    console.error("Chyba při sdílení:", e);
-  }
-};
-
-const openWhatsAppWithImage = async (phone: string, imageUri: string, text: string) => {
+// Pomocné funkce pro sdílení textových odkazů na soubory z cloudu (bez fyzických příloh!)
+const openWhatsAppWithText = async (phone: string, text: string) => {
   let cleanPhone = phone.replace(/[^0-9]/g, '');
   if (cleanPhone.length === 9) cleanPhone = '420' + cleanPhone;
 
@@ -478,51 +434,21 @@ const openWhatsAppWithImage = async (phone: string, imageUri: string, text: stri
     await clipboardModule.setStringAsync(text);
   }
 
-  if (Platform.OS === 'android') {
-    let fileSystemModule: any = null;
-    try { fileSystemModule = require('expo-file-system'); } catch (e) {}
-    if (fileSystemModule && fileSystemModule.getContentUriAsync) {
-      try {
-        const contentUri = await fileSystemModule.getContentUriAsync(imageUri);
-        const intentLauncher = require('expo-intent-launcher');
-        await intentLauncher.startActivityAsync('android.intent.action.SEND', {
-          type: 'image/png',
-          packageName: 'com.whatsapp',
-          extra: {
-            'android.intent.extra.STREAM': contentUri,
-            'android.intent.extra.TEXT': text,
-            'jid': `${cleanPhone}@s.whatsapp.net`
-          },
-          flags: 1,
-        });
-        return;
-      } catch (e) {
-        console.log("Cílený WhatsApp intent selhal, pád do záložního:", e);
-      }
-    }
-  }
-
-  // iOS a záložní řešení: Využijeme sdílení napřímo
-  let sharingModule: any = null;
+  const encText = encodeURIComponent(text);
   try {
-    const nativeModule = requireOptionalNativeModule('ExpoSharing');
-    if (nativeModule) sharingModule = require('expo-sharing');
-  } catch (e) {}
-
-  if (sharingModule && sharingModule.shareAsync) {
-    await sharingModule.shareAsync(imageUri, {
-      mimeType: 'image/png',
-      dialogTitle: text,
-      UTI: 'public.png',
-    });
+    await Linking.openURL(`https://wa.me/${cleanPhone}?text=${encText}`);
+  } catch (e) {
+    Alert.alert("Aplikace nedostupná", "Nepodařilo se otevřít WhatsApp.");
   }
 };
 
-// Pomocná metoda pro vygenerování PNG z neviditelného (off-screen) Stageplanu z akce
-export const generateOffscreenStageplanImage = async (band: Band, members: BandMember[]) => {
-    // V této chvíli z akce nemáme nakreslené Views (nejsme v okně),
-    // takže spoléháme na sdílení vygenerovaného PDF jako primární přílohy
-    // a přikládání případného naposledy uloženého PNG ze zálohy na disku.
+const shareTextToSystem = async (text: string, title: string) => {
+  try {
+    const { Share } = require('react-native');
+    await Share.share({ message: text, title });
+  } catch (e) {
+    console.error("Nativní sdílení selhalo", e);
+  }
 };
 
 // Přímé sdílení Stageplanu z karty koncertu s podporou WhatsApp na telefonní číslo a e-mailu na pořadatele
