@@ -580,75 +580,46 @@ export async function shareConcertStageplan({
       }
     }
 
-    // 3. Zkontrolujeme PNG obrázek pro přiložení z cloudu Firebase
-    let shareFileUri = '';
-    let shareMimeType = 'image/png';
-    let shareUTI = 'public.png';
-
-    const fileSystemModule = getFileSystemModule();
-    if (fileSystemModule && (band as any)?.stageplanPngUrl) {
-      const pngFileName = `${cleanBand}_stageplan.png`;
-      const docPngPath = `${fileSystemModule.documentDirectory || fileSystemModule.cacheDirectory}${pngFileName}`;
-      try {
-        const downloadRes = await fileSystemModule.downloadAsync((band as any).stageplanPngUrl, docPngPath);
-        if (downloadRes && downloadRes.uri) {
-          shareFileUri = downloadRes.uri;
-        }
-      } catch (e) {
-        console.log("Nepodařilo se stáhnout PNG z cloudu pro sdílení:", e);
-      }
-    }
-
-    // 4. Pokud obrázek (PNG) vůbec neexistuje, zkusíme pro sdílení použít alespoň nově vygenerované PDF
-    if (!shareFileUri) {
-       console.log("PNG není k dispozici (asi nebyl Stageplan od posledního updatu uložen), generuje se záložní PDF");
-       const html = generatePdfHtmlForBand(band, concert, members);
-       const { pdfUri } = await generateNamedPdfFile(html, bandName, concert?.title);
-       shareFileUri = pdfUri;
-       shareMimeType = 'application/pdf';
-       shareUTI = 'com.adobe.pdf';
-    }
-
-    // 5. Získáme přímé URL z Firebase Storage pro textový odkaz
-    const storagePath = `kapela_ios_android/${band?.id || cleanBand.toLowerCase()}/stageplan/${pdfFileName}`;
+    // 3. Získáme adresy z databáze (nebo vygenerujeme nové PDF na cloud, pokud chybí)
     let pdfLink = band?.stageplanPdfUrl || '';
-
-    // Pokud z nějakého důvodu v objektu chybí URL na PDF, pokusíme se ji přečíst znovu nahráním
-    if (!pdfLink && shareMimeType === 'application/pdf') {
-       pdfLink = await uploadImageToStorage(shareFileUri, storagePath).catch(() => '');
+    if (!pdfLink) {
+      const html = generatePdfHtmlForBand(band, concert, members);
+      const { pdfUri } = await generateNamedPdfFile(html, bandName, concert?.title);
+      const storagePath = `kapela_ios_android/${band?.id || cleanBand.toLowerCase()}/stageplan/${pdfFileName}`;
+      pdfLink = await uploadImageToStorage(pdfUri, storagePath).catch(() => '');
     }
 
-    const bodyText = `Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\nPřeji krásný den\nza skupinu "${bandName}"\n${senderName}`;
-    const captionText = pdfLink
-      ? `Zasílám Stageplan skupiny "${bandName}"\n\nOdkaz na PDF ke stažení (${pdfFileName}):\n${pdfLink}`
-      : `Zasílám Stageplan skupiny "${bandName}"`;
+    const pngLink = (band as any)?.stageplanPngUrl || '';
+
+    let linksText = '';
+    if (pdfLink) linksText += `Odkaz na PDF ke stažení:\n${pdfLink}\n\n`;
+    if (pngLink) linksText += `Odkaz na obrázek (PNG) ke stažení:\n${pngLink}\n\n`;
+
+    const emailBodyText = `Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\n${linksText}Přeji krásný den\nza skupinu "${bandName}"\n${senderName}`;
+    const whatsappText = `Zasílám Stageplan skupiny "${bandName}"\n\n${linksText}`;
 
     // Zkopírujeme text do schránky
     try {
       let clipboardModule: any = null;
       try { clipboardModule = require('expo-clipboard'); } catch (e) {}
       if (clipboardModule && clipboardModule.setStringAsync) {
-        await clipboardModule.setStringAsync(captionText);
+        await clipboardModule.setStringAsync(whatsappText);
       }
     } catch (e) {}
 
-    // Pomocné odesílací metody s předáním obrázku
+    // Pomocné odesílací metody POUZE TEXT
     const openWhatsAppChat = async (phone: string) => {
-      await openWhatsAppWithImage(phone, shareFileUri, captionText);
+      await openWhatsAppWithText(phone, whatsappText);
     };
 
     const sendEmailToOrganizers = async () => {
       const subject = `Stageplan "${bandName}"`;
-      const emailBodyWithLink = pdfLink ? `${bodyText}\n\nOdkaz na PDF (${pdfFileName}):\n${pdfLink}` : bodyText;
 
       let mailComposerModule: any = null;
       try {
         const nativeModule = requireOptionalNativeModule('ExpoMailComposer');
         if (nativeModule) mailComposerModule = require('expo-mail-composer');
       } catch (e) {}
-
-      const attachmentsToPass: string[] = [];
-      if (shareFileUri) attachmentsToPass.push(shareFileUri);
 
       if (mailComposerModule && mailComposerModule.composeAsync) {
         try {
@@ -657,8 +628,7 @@ export async function shareConcertStageplan({
             await mailComposerModule.composeAsync({
               recipients: emails.length > 0 ? emails : undefined,
               subject: subject,
-              body: emailBodyWithLink,
-              attachments: attachmentsToPass,
+              body: emailBodyText,
             });
             return;
           }
@@ -667,7 +637,7 @@ export async function shareConcertStageplan({
 
       const emailListStr = emails.join(',');
       const encSubject = encodeURIComponent(subject);
-      const encBody = encodeURIComponent(emailBodyWithLink);
+      const encBody = encodeURIComponent(emailBodyText);
       try {
         await Linking.openURL(`mailto:${emailListStr}?subject=${encSubject}&body=${encBody}`);
       } catch (linkErr) {
@@ -676,12 +646,12 @@ export async function shareConcertStageplan({
     };
 
     const openGeneralShare = async () => {
-      await shareImageWithText(shareFileUri, captionText);
+      await shareTextToSystem(whatsappText, `Stageplan "${bandName}"`);
     };
 
     // Pokud nemáme žádné konkrétní kontakty na akce, otevřeme rovnou e-mail nebo sdílení
     if (phoneContacts.length === 0 && emails.length === 0) {
-      await sendEmailToOrganizers();
+      await openGeneralShare();
       return;
     }
 
@@ -999,10 +969,10 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
     try {
       try { await ScreenOrientation.unlockAsync(); } catch (e) {}
 
-      // Pokud ještě nemáme uložený PNG obrázek na disku z aktuálního rozložení, uložíme ho rovnou, aby ho shareConcertStageplan mohl sebrat.
       let fileSystemModule: any = null;
       try { fileSystemModule = require('expo-file-system'); } catch (e) {}
 
+      // Pokud máme Stageplan na obrazovce, nahrajeme PNG obrázek do cloudu na Firebase pro jistotu (bez blokování)
       if (stageViewRef && stageViewRef.current && fileSystemModule) {
         try {
           const rawSnapUri = await captureRef(stageViewRef, { format: 'png', quality: 1.0, result: 'tmpfile' });
@@ -1015,14 +985,18 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
           try { await fileSystemModule.deleteAsync(targetPath, { idempotent: true }); } catch (e) {}
           await fileSystemModule.copyAsync({ from: rawSnapUri, to: targetPath });
 
-          // Rychle a asynchronně hodíme obrázek do cloudu na Firebase pro jistotu (bez blokování)
           uploadImageToStorage(targetPath, `kapela_ios_android/${band.id}/stageplan/${pngFileName}`)
-            .then(url => { if (band.id && url) updateBand(band.id, { stageplanPngUrl: url } as any); })
+            .then(url => {
+              if (band.id && url) {
+                updateBand(band.id, { stageplanPngUrl: url } as any);
+                (band as any).stageplanPngUrl = url;
+              }
+            })
             .catch(() => {});
         } catch (e) {}
       }
 
-      // Nyní zavoláme absolutně stejnou, robustní metodu jako se používá z karty Akce!
+      // Nyní zavoláme absolutně stejnou metodu jako se používá z karty Akce!
       await shareConcertStageplan({ band, concert, members, currentUser });
     } catch (e: any) {
       console.error("Chyba při sdílení Stageplanu:", e);
