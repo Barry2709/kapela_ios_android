@@ -634,6 +634,7 @@ export default function HomeScreen() {
                 Přihlášen: <ThemedText type="smallBold">{currentUser?.displayName}</ThemedText>
               </ThemedText>
 
+              {/* Ladička dočasně podmíněna pouze při kliknutí */}
               {activeRoleView !== 'fan' && (
                 <Pressable
                   onPress={() => setShowTunerModal(true)}
@@ -1020,11 +1021,13 @@ export default function HomeScreen() {
         </Pressable>
       </Modal>
 
-      {/* Ladička nástrojů */}
-      <TunerModal
-        visible={showTunerModal}
-        onClose={() => setShowTunerModal(false)}
-      />
+      {/* Ladička nástrojů - vykreslí se POUZE pokud je modal aktivní */}
+      {showTunerModal && (
+        <TunerModal
+          visible={showTunerModal}
+          onClose={() => setShowTunerModal(false)}
+        />
+      )}
     </ThemedView>
   );
 }
