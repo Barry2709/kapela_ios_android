@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, Modal, Pressable, ScrollView, Platform, Text, Alert } from 'react-native';
-import { AudioModule } from 'expo-audio';
 import { SymbolView } from 'expo-symbols';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from './themed-text';
@@ -392,21 +391,28 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
     </html>
   `;
 
-  // Start/Stop při otevření modalu + vyžádání systémového oprávnění k mikrofonu
+  // Start/Stop při otevření modalu + bezpečné spuštění
   useEffect(() => {
     let timer: any = null;
 
     if (visible) {
-      // 1. Nejprve na úrovni systému vyžádáme oprávnění k mikrofonu přes expo-audio
+      // Bezpečně zkusíme požádat o mikrofon pouze pokud modul existuje
       const requestMicAndStart = async () => {
         try {
-          const status = await AudioModule.requestRecordingPermissionsAsync();
-          if (!status.granted) {
-            Alert.alert("Mikrofon zakázán", "Pro fungování ladičky prosím povolte přístup k mikrofonu.");
-            return;
+          let audioMod: any = null;
+          try {
+            audioMod = require('expo-audio').AudioModule;
+          } catch (e) {}
+
+          if (audioMod && audioMod.requestRecordingPermissionsAsync) {
+            const status = await audioMod.requestRecordingPermissionsAsync();
+            if (!status.granted) {
+              Alert.alert("Mikrofon zakázán", "Pro fungování ladičky prosím povolte přístup k mikrofonu.");
+              return;
+            }
           }
         } catch (e) {
-          console.log("Kontrola mikrofonu přes AudioModule selhala:", e);
+          console.log("Kontrola mikrofonu selhala:", e);
         }
 
         timer = setTimeout(() => {
