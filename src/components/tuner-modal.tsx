@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, Modal, Pressable, ScrollView, Platform, Text } from 'react-native';
+import { View, StyleSheet, Modal, Pressable, ScrollView, Platform, Text, Alert } from 'react-native';
+import { AudioModule } from 'expo-audio';
 import { SymbolView } from 'expo-symbols';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from './themed-text';
@@ -384,15 +385,35 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
     </html>
   `;
 
-  // Start/Stop při otevření modalu
+  // Start/Stop při otevření modalu + vyžádání systémového oprávnění k mikrofonu
   useEffect(() => {
+    let timer: any = null;
+
     if (visible) {
-      const timer = setTimeout(() => {
-        if (webViewRef.current) {
-          webViewRef.current.postMessage('START');
+      // 1. Nejprve na úrovni systému vyžádáme oprávnění k mikrofonu přes expo-audio
+      const requestMicAndStart = async () => {
+        try {
+          const status = await AudioModule.requestRecordingPermissionsAsync();
+          if (!status.granted) {
+            Alert.alert("Mikrofon zakázán", "Pro fungování ladičky prosím povolte přístup k mikrofonu.");
+            return;
+          }
+        } catch (e) {
+          console.log("Kontrola mikrofonu přes AudioModule selhala:", e);
         }
-      }, 500);
-      return () => clearTimeout(timer);
+
+        timer = setTimeout(() => {
+          if (webViewRef.current) {
+            webViewRef.current.postMessage('START');
+          }
+        }, 300);
+      };
+
+      requestMicAndStart();
+
+      return () => {
+        if (timer) clearTimeout(timer);
+      };
     } else {
       if (webViewRef.current) {
         webViewRef.current.postMessage('STOP');
@@ -603,12 +624,18 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
           <View style={{ height: 0, width: 0, opacity: 0 }}>
             <NativeWebView
               ref={webViewRef}
-              source={{ html: tunerHtml }}
+              source={{ html: tunerHtml, baseUrl: 'https://localhost' }}
               onMessage={handleMessage}
               mediaPlaybackRequiresUserAction={false}
               allowsInlineMediaPlayback={true}
               originWhitelist={['*']}
               javaScriptEnabled={true}
+              domStorageEnabled={true}
+              onPermissionRequest={(event: any) => {
+                if (event && event.grant) {
+                  event.grant(event.resources);
+                }
+              }}
             />
           </View>
         ) : null}
