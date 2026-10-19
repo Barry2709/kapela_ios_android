@@ -1,12 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, Modal, Pressable, ScrollView, Platform, Text } from 'react-native';
-import { WebView } from 'react-native-webview';
 import { SymbolView } from 'expo-symbols';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+
+let NativeWebView: any = null;
+try {
+  NativeWebView = require('react-native-webview').WebView;
+} catch (e) {
+  NativeWebView = null;
+}
 
 // Definice ladění a nástrojů
 export interface TuningString {
@@ -593,17 +599,19 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
         </View>
 
         {/* Neviditelný WebView s Web Audio API pro 100% spolehlivou analýzu bez kompilace C++ */}
-        <View style={{ height: 0, width: 0, opacity: 0 }}>
-          <WebView
-            ref={webViewRef}
-            source={{ html: tunerHtml }}
-            onMessage={handleMessage}
-            mediaPlaybackRequiresUserAction={false}
-            allowsInlineMediaPlayback={true}
-            originWhitelist={['*']}
-            javaScriptEnabled={true}
-          />
-        </View>
+        {NativeWebView ? (
+          <View style={{ height: 0, width: 0, opacity: 0 }}>
+            <NativeWebView
+              ref={webViewRef}
+              source={{ html: tunerHtml }}
+              onMessage={handleMessage}
+              mediaPlaybackRequiresUserAction={false}
+              allowsInlineMediaPlayback={true}
+              originWhitelist={['*']}
+              javaScriptEnabled={true}
+            />
+          </View>
+        ) : null}
 
       </ThemedView>
     </Modal>
