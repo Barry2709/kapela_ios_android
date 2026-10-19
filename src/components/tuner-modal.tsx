@@ -14,12 +14,25 @@ try {
   NativeWebView = null;
 }
 
-// Zkontrolujeme, zda nainstalovaný APK balíček má v C++ jádru zkompilovaný RNCWebView
-const hasNativeWebView = Platform.OS === 'web' || (
-  UIManager && UIManager.hasViewManagerConfig
-    ? Boolean(UIManager.hasViewManagerConfig('RNCWebView'))
-    : true
-);
+// Bezpečně ověříme, zda nainstalovaný APK balíček má v C++ jádru zkompilovaný RNCWebView
+const checkNativeWebViewAvailable = (): boolean => {
+  if (Platform.OS === 'web') return true;
+  try {
+    if (!NativeWebView) return false;
+    if (UIManager && typeof UIManager.getViewManagerConfig === 'function') {
+      const config = UIManager.getViewManagerConfig('RNCWebView');
+      return Boolean(config);
+    }
+    if (UIManager && typeof UIManager.hasViewManagerConfig === 'function') {
+      return UIManager.hasViewManagerConfig('RNCWebView');
+    }
+    return Boolean((UIManager as any)?.RNCWebView);
+  } catch (e) {
+    return false;
+  }
+};
+
+const hasNativeWebView = checkNativeWebViewAvailable();
 
 // Definice ladění a nástrojů
 export interface TuningString {
