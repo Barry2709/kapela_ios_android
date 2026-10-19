@@ -1,0 +1,14 @@
+Using src/app as the root directory for Expo Router.
+Starting Metro Bundler
+
+Android Bundling failed 3630ms node_modules\expo-router\entry.js (2547 modules)
+
+SyntaxError: SyntaxError: C:\Users\Lenovo\AndroidStudioProjects\kapela_ios_android\src\components\stageplan-modal.tsx: Identifier 'pdfLink' has already been declared. (620:10)
+
+[0m [90m 618 |[39m        pdfLink [33m=[39m [36mawait[39m uploadImageToStorage(shareFileUri[33m,[39m storagePath)[33m.[39m[36mcatch[39m(() [33m=>[39m [32m''[39m)[33m;[39m
+ [90m 619 |[39m     }
+[31m[1m>[22m[39m[90m 620 |[39m     [36mconst[39m pdfLink [33m=[39m band[33m?[39m[33m.[39mstageplanPdfUrl [33m||[39m [32m''[39m[33m;[39m
+ [90m     |[39m           [31m[1m^[22m[39m
+ [90m 621 |[39m     [36mconst[39m bodyText [33m=[39m [32m`Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\nPřeji krásný den\nza skupinu "${bandName}"\n${senderName}`[39m[33m;[39m
+ [90m 622 |[39m     [36mconst[39m captionText [33m=[39m pdfLink
+ [90m 623 |[39m       [33m?[39m [32m`Zasílám Stageplan skupiny "${bandName}"\n\nOdkaz na PDF ke stažení (${pdfFileName}):\n${pdfLink}`[39m[0m

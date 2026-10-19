@@ -1,0 +1,14 @@
+Using src/app as the root directory for Expo Router.
+Starting Metro Bundler
+
+Android Bundling failed 2077ms node_modules\expo-router\entry.js (2481 modules)
+
+SyntaxError: SyntaxError: C:\Users\Lenovo\AndroidStudioProjects\kapela_ios_android\src\components\stageplan-modal.tsx: Identifier 'pdfFileName' has already been declared. (614:10)
+
+[0m [90m 612 |[39m     [90m// 5. Získáme přímé URL z Firebase Storage pro textový odkaz[39m
+ [90m 613 |[39m     [36mconst[39m cleanBandName [33m=[39m bandName[33m.[39mreplace([35m/[^a-zA-Z0-9_-]/g[39m[33m,[39m [32m'_'[39m)[33m;[39m
+[31m[1m>[22m[39m[90m 614 |[39m     [36mconst[39m pdfFileName [33m=[39m [32m`${cleanBandName}_stageplan.pdf`[39m[33m;[39m
+ [90m     |[39m           [31m[1m^[22m[39m
+ [90m 615 |[39m     [36mconst[39m storagePath [33m=[39m [32m`kapela_ios_android/${band?.id || cleanBandName.toLowerCase()}/stageplan/${pdfFileName}`[39m[33m;[39m
+ [90m 616 |[39m     [36mlet[39m pdfLink [33m=[39m band[33m?[39m[33m.[39mstageplanPdfUrl [33m||[39m [32m''[39m[33m;[39m
+ [90m 617 |[39m[0m

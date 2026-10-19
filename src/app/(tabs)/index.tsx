@@ -18,6 +18,7 @@ import { BandHeader } from '@/components/band-header';
 import { AddMemberForm } from '@/components/add-member-form';
 import { EditBandForm } from '@/components/edit-band-form';
 import { StageplanModal, shareConcertStageplan } from '@/components/stageplan-modal';
+import { TunerModal } from '@/components/tuner-modal';
 
 export default function HomeScreen() {
   const theme = useTheme();
@@ -51,6 +52,7 @@ export default function HomeScreen() {
   const [showEditBandModal, setShowEditBandModal] = useState(false);
   const [editingMember, setEditingMember] = useState<BandMember | null>(null);
   const [selectedConcertForStageplan, setSelectedConcertForStageplan] = useState<Concert | null>(null);
+  const [showTunerModal, setShowTunerModal] = useState(false);
   interface AttendanceEditState {
     member: BandMember;
     eventId: string;
@@ -626,11 +628,24 @@ export default function HomeScreen() {
           <BandHeader />
 
           <View style={[styles.contentPadding, { marginTop: 3 }]}>
-            {/* Rychlý řádek s informací o přihlášení a viditelné tlačítko odhlášení */}
+            {/* Rychlý řádek s informací o přihlášení, tlačítko Ladička a odhlášení */}
             <View style={styles.loggedInRow}>
               <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1, marginRight: 8 }} numberOfLines={1}>
                 Přihlášen: <ThemedText type="smallBold">{currentUser?.displayName}</ThemedText>
               </ThemedText>
+
+              {activeRoleView !== 'fan' && (
+                <Pressable
+                  onPress={() => setShowTunerModal(true)}
+                  style={[styles.logoutBtnInline, { backgroundColor: '#ff9800', marginRight: 8, borderColor: '#ff9800', flexDirection: 'row', alignItems: 'center', gap: 4 }]}
+                >
+                  <SymbolView name={{ ios: 'tuningfork', android: 'graphic_eq', web: 'graphic_eq' }} size={13} tintColor="#fff" />
+                  <ThemedText type="smallBold" style={{ color: '#fff' }}>
+                    Ladička
+                  </ThemedText>
+                </Pressable>
+              )}
+
               <Pressable onPress={handleLogout} style={styles.logoutBtnInline}>
                 <ThemedText type="smallBold" style={{ color: theme.text }}>
                   Odhlásit
@@ -1004,6 +1019,12 @@ export default function HomeScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Ladička nástrojů */}
+      <TunerModal
+        visible={showTunerModal}
+        onClose={() => setShowTunerModal(false)}
+      />
     </ThemedView>
   );
 }
