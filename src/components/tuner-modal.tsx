@@ -275,8 +275,9 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
   const insets = useSafeAreaInsets();
   const webViewRef = useRef<WebView>(null);
 
+  const [selectedPreset, setSelectedPreset] = useState<InstrumentPreset>(INSTRUMENT_PRESETS[3]); // Default Kytara (6 strun Standard E)
+  const [selectedStringIndex, setSelectedStringIndex] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('Vše');
-  const [showCategoryPicker, setShowCategoryPicker] = useState<boolean>(false);
 
   // Unikátní kategorie
   const categories = ['Vše', 'Baskytara', 'Kytara', 'Banjo & Dobro', 'Mandolína & Ukulele', 'Smyčce'];
@@ -516,33 +517,6 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
   // Barva indikátoru podle přesnosti (±3 centy = naladěno, zelená)
   const isTuned = Math.abs(centsDiff) <= 3 && detectedPitch !== null;
   const needleColor = isTuned ? '#4caf50' : (Math.abs(centsDiff) < 15 ? '#ff9800' : '#f44336');
-
-  // Pokud nainstalované APK v mobilu nemá nativní modul RNCWebView, zobrazíme informaci místo pádu
-  if (!hasNativeWebView) {
-    return (
-      <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
-        <ThemedView style={[styles.container, { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 16), justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }]}>
-          <Pressable onPress={onClose} style={[styles.closeBtn, { position: 'absolute', top: Math.max(insets.top, 16), left: 16 }]}>
-            <SymbolView name={{ ios: 'xmark', android: 'close', web: 'close' }} size={22} tintColor={theme.text} />
-          </Pressable>
-
-          <SymbolView name={{ ios: 'exclamationmark.triangle.fill', android: 'warning', web: 'warning' }} size={56} tintColor="#ff9800" />
-          <ThemedText type="subtitle" style={{ fontSize: 20, fontWeight: 'bold', marginTop: 16, textAlign: 'center' }}>
-            Vyžaduje nový instalační balíček (APK)
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', marginTop: 10, lineHeight: 20 }}>
-            Akustická ladička pro živý poslech z mikrofonu vyžaduje novou verzi APK instalátoru. Po stažení a nainstalování nového APK bude ladička plně funkční.
-          </ThemedText>
-          <Pressable
-            style={{ marginTop: 24, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10, backgroundColor: '#ff9800' }}
-            onPress={onClose}
-          >
-            <ThemedText type="smallBold" style={{ color: '#fff' }}>Rozumím</ThemedText>
-          </Pressable>
-        </ThemedView>
-      </Modal>
-    );
-  }
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
