@@ -292,6 +292,10 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
   const [isListening, setIsListening] = useState<boolean>(false);
   const [targetString, setTargetString] = useState<TuningString | null>(null);
 
+  // Refy pro vyhlazování tónu a pohybu ručičky (EMA filtr)
+  const smoothedPitchRef = useRef<number | null>(null);
+  const smoothedCentsRef = useRef<number>(0);
+
   // Web Audio HTML pro analýzu zvuku přes autokorelaci (YIN alg.)
   const tunerHtml = `
     <!DOCTYPE html>
@@ -315,7 +319,7 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
             rms += val * val;
           }
           rms = Math.sqrt(rms / SIZE);
-          if (rms < 0.01) return -1; // Příliš tichý signál
+          if (rms < 0.018) return -1; // Vyšší prahový filtr proti okolnímu šumu
 
           let r1 = 0, r2 = SIZE - 1, thres = 0.2;
           for (let i = 0; i < SIZE / 2; i++) {
@@ -458,24 +462,32 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
     }
   }, [visible]);
 
-  // Výpočet odchylky v centech
-  const handlePitchDetected = (freq: number) => {
+  // Výpočet odchylky v centech s matematickým vyhlazením (EMA filtr)
+  const handlePitchDetected = (rawFreq: number) => {
+    // 0. Vyhlazení frekvence proti mikro-kolísání (EMA filtr)
+    let freq = rawFreq;
+    if (smoothedPitchRef.current !== null) {
+      const diffRatio = Math.abs(rawFreq - smoothedPitchRef.current) / smoothedPitchRef.current;
+      // Při velkém skoku na jinou strunu (>10%) reagujeme hned (alpha=0.3), jinak silně vyhlazujeme (alpha=0.75)
+      const alpha = diffRatio > 0.10 ? 0.3 : 0.75;
+      freq = smoothedPitchRef.current * alpha + rawFreq * (1 - alpha);
+    }
+    smoothedPitchRef.current = freq;
     setDetectedPitch(freq);
 
     // 1. Výpočet nejbližší chromatické noty
     const noteNum = 12 * (Math.log(freq / 440) / Math.log(2));
     const midi = Math.round(noteNum) + 69;
-    const noteIndex = midi % 12;
+    const noteIndex = (midi % 12 + 12) % 12;
     const octave = Math.floor(midi / 12) - 1;
     const noteName = NOTE_STRINGS[noteIndex];
 
     // Výpočet cílové struny podle režimu (ruční výběr vs automatika)
     let currentTarget: TuningString | null = null;
 
-    if (selectedStringIndex !== null && selectedPreset.strings[selectedStringIndex]) {
+    if (selectedStringIndex !== null && selectedPreset?.strings?.[selectedStringIndex]) {
       currentTarget = selectedPreset.strings[selectedStringIndex];
-    } else {
-      // Automatický výběr: Najdeme strunu daného nástroje s nejmenším rozdílem frekvence
+    } else if (selectedPreset?.strings) {
       let minDiff = Infinity;
       selectedPreset.strings.forEach(str => {
         const diff = Math.abs(str.freq - freq);
@@ -488,19 +500,25 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
 
     setTargetString(currentTarget);
 
+    let rawCents = 0;
     if (currentTarget) {
       setDetectedNote(currentTarget.note);
       setDetectedOctave(currentTarget.octave);
-      // Odchylka v centech = 1200 * log2(freq / targetFreq)
-      const cents = Math.round(1200 * (Math.log(freq / currentTarget.freq) / Math.log(2)));
-      setCentsDiff(Math.max(-50, Math.min(50, cents)));
+      rawCents = Math.round(1200 * (Math.log(freq / currentTarget.freq) / Math.log(2)));
     } else {
       setDetectedNote(noteName);
       setDetectedOctave(octave);
       const standardFreq = 440 * Math.pow(2, (midi - 69) / 12);
-      const cents = Math.round(1200 * (Math.log(freq / standardFreq) / Math.log(2)));
-      setCentsDiff(Math.max(-50, Math.min(50, cents)));
+      rawCents = Math.round(1200 * (Math.log(freq / standardFreq) / Math.log(2)));
     }
+
+    const clampedCents = Math.max(-50, Math.min(50, rawCents));
+
+    // Vyhlazení pohybu ručičky pro plynulý, klidný pohyb
+    const smoothedCents = Math.round(smoothedCentsRef.current * 0.75 + clampedCents * 0.25);
+    smoothedCentsRef.current = smoothedCents;
+
+    setCentsDiff(smoothedCents);
   };
 
   const handleMessage = (event: any) => {
