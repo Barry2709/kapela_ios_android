@@ -663,7 +663,7 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
 
         {/* Neviditelný WebView s Web Audio API pro 100% spolehlivou analýzu bez kompilace C++ */}
         {NativeWebView ? (
-          <View style={{ height: 0, width: 0, opacity: 0 }}>
+          <View style={{ height: 1, width: 1, position: 'absolute', bottom: -10, left: -10, opacity: 0.01, overflow: 'hidden' }}>
             <NativeWebView
               ref={webViewRef}
               source={{ html: tunerHtml, baseUrl: 'https://localhost' }}
@@ -673,6 +673,8 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
               originWhitelist={['*']}
               javaScriptEnabled={true}
               domStorageEnabled={true}
+              onError={(e: any) => console.log("WebView error:", e)}
+              onHttpError={(e: any) => console.log("WebView http error:", e)}
               onPermissionRequest={(event: any) => {
                 if (event && event.grant) {
                   event.grant(event.resources);
