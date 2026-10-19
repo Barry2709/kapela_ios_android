@@ -29,6 +29,10 @@ interface AppState {
   // Aktivní podzáložka na stránce Pokladna ('prijem' | 'vydej' | 'doklady' | 'kniha_jizd')
   treasuryTab: 'overview' | 'prijem' | 'vydej' | 'doklady' | 'kniha_jizd';
   setTreasuryTab: (tab: 'overview' | 'prijem' | 'vydej' | 'doklady' | 'kniha_jizd') => void;
+
+  // Stav otevření Ladičky nástrojů
+  showTunerModal: boolean;
+  setShowTunerModal: (show: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -57,4 +61,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   treasuryTab: 'overview',
   setTreasuryTab: (tab) => set({ treasuryTab: tab }),
+
+  showTunerModal: false,
+  setShowTunerModal: (show) => set({ showTunerModal: show }),
 }));

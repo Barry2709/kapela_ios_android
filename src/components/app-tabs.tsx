@@ -7,13 +7,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '@/store/useAppStore';
 import { useTheme } from '@/hooks/use-theme';
 import { ThemedText } from './themed-text';
+import { TunerModal } from './tuner-modal';
 
 export default function AppTabs() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
   // Stav role uživatele a aktivní pod-záložky pro správu kapely, akce, zpěvník a pokladnu
-  const { activeRoleView, manageBandTab, setManageBandTab, eventsTab, setEventsTab, repertoireTab, setRepertoireTab, treasuryTab, setTreasuryTab } = useAppStore();
+  const { activeRoleView, manageBandTab, setManageBandTab, eventsTab, setEventsTab, repertoireTab, setRepertoireTab, treasuryTab, setTreasuryTab, showTunerModal, setShowTunerModal } = useAppStore();
 
   const renderCustomTabBar = (props: any) => {
     const currentRoute = props.state.routes[props.state.index].name;
@@ -502,6 +503,25 @@ export default function AppTabs() {
             </ThemedText>
           </Pressable>
 
+          {/* Tlačítko Ladička */}
+          <Pressable
+            style={styles.tabItem}
+            onPress={() => setShowTunerModal(true)}
+          >
+            <SymbolView
+              name={{ ios: 'tuningfork', android: 'graphic_eq', web: 'graphic_eq' }}
+              tintColor={showTunerModal ? theme.text : theme.textSecondary}
+              size={22}
+            />
+            <ThemedText
+              type="smallBold"
+              style={{ color: showTunerModal ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              numberOfLines={1}
+            >
+              Ladička
+            </ThemedText>
+          </Pressable>
+
           {/* Tlačítko Nastavení */}
           <Pressable
             style={styles.tabItem}
@@ -580,6 +600,7 @@ export default function AppTabs() {
   };
 
   return (
+    <>
     <Tabs
       tabBar={renderCustomTabBar}
       screenOptions={{
@@ -640,6 +661,14 @@ export default function AppTabs() {
       />
 
     </Tabs>
+
+    {showTunerModal && (
+      <TunerModal
+        visible={showTunerModal}
+        onClose={() => setShowTunerModal(false)}
+      />
+    )}
+    </>
   );
 }
 

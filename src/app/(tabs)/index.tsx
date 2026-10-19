@@ -628,24 +628,11 @@ export default function HomeScreen() {
           <BandHeader />
 
           <View style={[styles.contentPadding, { marginTop: 3 }]}>
-            {/* Rychlý řádek s informací o přihlášení, tlačítko Ladička a odhlášení */}
+            {/* Rychlý řádek s informací o přihlášení a viditelné tlačítko odhlášení */}
             <View style={styles.loggedInRow}>
               <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1, marginRight: 8 }} numberOfLines={1}>
                 Přihlášen: <ThemedText type="smallBold">{currentUser?.displayName}</ThemedText>
               </ThemedText>
-
-              {/* Ladička dočasně podmíněna pouze při kliknutí */}
-              {activeRoleView !== 'fan' && (
-                <Pressable
-                  onPress={() => setShowTunerModal(true)}
-                  style={[styles.logoutBtnInline, { backgroundColor: '#ff9800', marginRight: 8, borderColor: '#ff9800', flexDirection: 'row', alignItems: 'center', gap: 4 }]}
-                >
-                  <SymbolView name={{ ios: 'tuningfork', android: 'graphic_eq', web: 'graphic_eq' }} size={13} tintColor="#fff" />
-                  <ThemedText type="smallBold" style={{ color: '#fff' }}>
-                    Ladička
-                  </ThemedText>
-                </Pressable>
-              )}
 
               <Pressable onPress={handleLogout} style={styles.logoutBtnInline}>
                 <ThemedText type="smallBold" style={{ color: theme.text }}>
@@ -1020,14 +1007,6 @@ export default function HomeScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-
-      {/* Ladička nástrojů - vykreslí se POUZE pokud je modal aktivní */}
-      {showTunerModal && (
-        <TunerModal
-          visible={showTunerModal}
-          onClose={() => setShowTunerModal(false)}
-        />
-      )}
     </ThemedView>
   );
 }
