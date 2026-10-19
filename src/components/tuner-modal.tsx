@@ -256,8 +256,15 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
   const insets = useSafeAreaInsets();
   const webViewRef = useRef<WebView>(null);
 
-  const [selectedPreset, setSelectedPreset] = useState<InstrumentPreset>(INSTRUMENT_PRESETS[3]); // Default Kytara 6 strun
-  const [selectedStringIndex, setSelectedStringIndex] = useState<number | null>(null); // null = automatická detekce struny
+  const [selectedCategory, setSelectedCategory] = useState<string>('Vše');
+  const [showCategoryPicker, setShowCategoryPicker] = useState<boolean>(false);
+
+  // Unikátní kategorie
+  const categories = ['Vše', 'Baskytara', 'Kytara', 'Banjo & Dobro', 'Mandolína & Ukulele', 'Smyčce'];
+
+  const filteredPresets = selectedCategory === 'Vše'
+    ? INSTRUMENT_PRESETS
+    : INSTRUMENT_PRESETS.filter(p => p.category === selectedCategory);
   const [detectedPitch, setDetectedPitch] = useState<number | null>(null);
   const [detectedNote, setDetectedNote] = useState<string>('--');
   const [detectedOctave, setDetectedOctave] = useState<number | null>(null);
@@ -497,21 +504,50 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
           <View style={{ width: 40 }} />
         </View>
 
-        {/* Výběr Nástroje (Kategorie / Presety) */}
-        <View style={{ maxHeight: 50, marginBottom: 10 }}>
+        {/* Výběr Nástroje (Kategorie a Presety přehledně) */}
+        <View style={{ marginBottom: 12 }}>
+          {/* Kategorie (Vše, Kytara, Baskytara, Banjo, Smyčce...) */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 6, marginBottom: 8 }}>
+            {categories.map((cat) => {
+              const isCatSelected = selectedCategory === cat;
+              return (
+                <Pressable
+                  key={cat}
+                  style={[
+                    styles.catChip,
+                    { backgroundColor: isCatSelected ? theme.text : 'rgba(150,150,150,0.12)' }
+                  ]}
+                  onPress={() => setSelectedCategory(cat)}
+                >
+                  <ThemedText type="smallBold" style={{ color: isCatSelected ? theme.background : theme.text, fontSize: 11 }}>
+                    {cat}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          {/* Konkrétní nástroje */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
-            {INSTRUMENT_PRESETS.map((preset) => {
+            {filteredPresets.map((preset) => {
               const isSelected = selectedPreset.id === preset.id;
               return (
                 <Pressable
                   key={preset.id}
-                  style={[styles.presetChip, { backgroundColor: isSelected ? '#2196f3' : 'rgba(150,150,150,0.15)' }]}
+                  style={[
+                    styles.presetChip,
+                    {
+                      backgroundColor: isSelected ? '#ff9800' : 'rgba(150,150,150,0.15)',
+                      borderWidth: isSelected ? 2 : 1,
+                      borderColor: isSelected ? '#ff9800' : 'rgba(150,150,150,0.25)',
+                    }
+                  ]}
                   onPress={() => {
                     setSelectedPreset(preset);
                     setSelectedStringIndex(null);
                   }}
                 >
-                  <ThemedText type="smallBold" style={{ color: isSelected ? '#fff' : theme.text, fontSize: 12 }}>
+                  <ThemedText type="smallBold" style={{ color: isSelected ? '#fff' : theme.text, fontSize: 13 }}>
                     {preset.name}
                   </ThemedText>
                 </Pressable>
@@ -659,10 +695,17 @@ const styles = StyleSheet.create({
   closeBtn: {
     padding: 8,
   },
+  catChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   presetChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
