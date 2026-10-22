@@ -9,10 +9,12 @@ import { useAppStore } from '@/store/useAppStore';
 import { updateBand } from '@/services/firebaseService';
 import { EditBandForm } from '@/components/edit-band-form';
 import { Band } from '@/types';
+import { useTranslation } from '@/utils/i18n';
 
 export default function ManageBandScreen() {
   const router = useRouter();
   const { activeBand, currentUser, setCurrentUser, setActiveBand } = useAppStore();
+  const { t } = useTranslation();
 
   const handleSaveBandUpdates = async (updates: Partial<Band>) => {
     if (!activeBand) return;
@@ -28,7 +30,7 @@ export default function ManageBandScreen() {
       setActiveBand(updatedBand);
       await AsyncStorage.setItem('savedBand', JSON.stringify(updatedBand));
     } catch (e: any) {
-      Alert.alert("Nelze upravit profil", e.message || "Nastala chyba při úpravě profilu kapely.");
+      Alert.alert(t('band.edit.errorTitle'), e.message || t('band.edit.errorMsg'));
       console.error("Nepodařilo se upravit profil kapely", e);
     }
   };

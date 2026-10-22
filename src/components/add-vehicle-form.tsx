@@ -6,6 +6,7 @@ import { ThemedText } from './themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Vehicle, BandMember } from '@/types';
+import { useTranslation } from '@/utils/i18n';
 
 interface Props {
   members: BandMember[];
@@ -15,6 +16,7 @@ interface Props {
 
 export function AddVehicleForm({ members, onSave, onCancel }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
 
   const [model, setModel] = useState('');
   const [owner, setOwner] = useState('');
@@ -32,18 +34,18 @@ export function AddVehicleForm({ members, onSave, onCancel }: Props) {
 
   const handleSave = () => {
     if (!model.trim()) {
-      Alert.alert('Chyba', 'Vyplňte prosím model vozidla.');
+      Alert.alert(t('home.attendance.errorTitle'), t('form.vehicle.errorModel'));
       return;
     }
 
     if (!plate.trim()) {
-      Alert.alert('Chyba', 'Vyplňte prosím SPZ vozidla.');
+      Alert.alert(t('home.attendance.errorTitle'), t('form.vehicle.errorPlate'));
       return;
     }
 
     const numSeats = parseInt(seats, 10);
     if (isNaN(numSeats) || numSeats <= 0) {
-      Alert.alert('Chyba', 'Zadejte platný počet míst k sezení.');
+      Alert.alert(t('home.attendance.errorTitle'), t('form.vehicle.errorSeats'));
       return;
     }
 
@@ -61,37 +63,37 @@ export function AddVehicleForm({ members, onSave, onCancel }: Props) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <ThemedText type="subtitle" style={styles.title}>Přidat vozidlo do kapely</ThemedText>
+      <ThemedText type="subtitle" style={styles.title}>{t('form.vehicle.title')}</ThemedText>
 
       {/* Model vozidla */}
-      <ThemedText type="smallBold">Model a značka vozidla *</ThemedText>
+      <ThemedText type="smallBold">{t('form.vehicle.model')}</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={model}
         onChangeText={setModel}
-        placeholder="Např. Škoda Octavia Combi, Ford Transit"
+        placeholder={t('form.vehicle.modelPlaceholder')}
         placeholderTextColor={theme.textSecondary}
         autoFocus
       />
 
       {/* SPZ */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>SPZ vozidla *</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>{t('form.vehicle.plate')}</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)', textTransform: 'uppercase' }]}
         value={plate}
         onChangeText={(val) => setPlate(val.toUpperCase())}
-        placeholder="Např. 1U2 3456"
+        placeholder={t('form.vehicle.platePlaceholder')}
         placeholderTextColor={theme.textSecondary}
         autoCapitalize="characters"
       />
 
       {/* Majitel / Řidič */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>Majitel / Řidič</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>{t('form.vehicle.owner')}</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={owner}
         onChangeText={setOwner}
-        placeholder="Např. Jan Novák (nebo Kapela)"
+        placeholder={t('form.vehicle.ownerPlaceholder')}
         placeholderTextColor={theme.textSecondary}
       />
 
@@ -102,7 +104,7 @@ export function AddVehicleForm({ members, onSave, onCancel }: Props) {
             style={[styles.miniChip, { backgroundColor: 'rgba(200,200,200,0.15)' }]}
             onPress={() => setOwner('Kapela')}
           >
-            <ThemedText type="small" style={{ fontSize: 11 }}>Kapela</ThemedText>
+            <ThemedText type="small" style={{ fontSize: 11 }}>{t('form.vehicle.ownerBand')}</ThemedText>
           </Pressable>
           {members.map(m => {
             const name = `${m.firstName} ${m.lastName}`.trim() || m.nickname;
@@ -120,7 +122,7 @@ export function AddVehicleForm({ members, onSave, onCancel }: Props) {
       )}
 
       {/* Druh paliva */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>Druh paliva *</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>{t('form.vehicle.fuelType')} *</ThemedText>
       <View style={styles.fuelRow}>
         {fuelOptions.map(opt => {
           const isSelected = fuel === opt.key;
@@ -137,7 +139,7 @@ export function AddVehicleForm({ members, onSave, onCancel }: Props) {
               onPress={() => setFuel(opt.key)}
             >
               <ThemedText type="smallBold" style={{ color: isSelected ? '#fff' : theme.text, fontSize: 13 }}>
-                {opt.label}
+                {opt.key === 'nafta' ? t('form.vehicle.fuelDiesel') : opt.key === 'benzin' ? t('form.vehicle.fuelGas') : t('form.vehicle.fuelElectric')}
               </ThemedText>
             </Pressable>
           );
@@ -147,7 +149,7 @@ export function AddVehicleForm({ members, onSave, onCancel }: Props) {
       {/* Spotřeba a Počet míst v řádku */}
       <View style={styles.row}>
         <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <ThemedText type="smallBold" style={{ marginBottom: Spacing.one }}>Spotřeba (l / kWh)</ThemedText>
+          <ThemedText type="smallBold" style={{ marginBottom: Spacing.one }}>{t('form.vehicle.consumption')}</ThemedText>
           <TextInput
             style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)', marginTop: 0 }]}
             value={consumption}
@@ -159,7 +161,7 @@ export function AddVehicleForm({ members, onSave, onCancel }: Props) {
         </View>
 
         <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <ThemedText type="smallBold" style={{ marginBottom: Spacing.one }}>Max počet míst *</ThemedText>
+          <ThemedText type="smallBold" style={{ marginBottom: Spacing.one }}>{t('form.vehicle.seats')} *</ThemedText>
           <TextInput
             style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)', marginTop: 0 }]}
             value={seats}
@@ -174,8 +176,8 @@ export function AddVehicleForm({ members, onSave, onCancel }: Props) {
       {/* Tažné zařízení */}
       <View style={styles.switchRow}>
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Tažné zařízení</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">Má vozidlo kouli / tažné zařízení?</ThemedText>
+          <ThemedText type="smallBold">{t('form.vehicle.towbar')}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{t('form.vehicle.towbarDesc')}</ThemedText>
         </View>
         <Switch
           value={hasTowBar}
@@ -187,10 +189,10 @@ export function AddVehicleForm({ members, onSave, onCancel }: Props) {
       {/* Tlačítka */}
       <View style={styles.buttons}>
         <Pressable style={[styles.button, { backgroundColor: '#e91e63' }]} onPress={onCancel}>
-          <ThemedText type="smallBold" style={{ color: '#fff' }}>Zrušit</ThemedText>
+          <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('form.common.cancel')}</ThemedText>
         </Pressable>
         <Pressable style={[styles.button, { backgroundColor: '#4caf50' }]} onPress={handleSave}>
-          <ThemedText type="smallBold" style={{ color: '#fff' }}>Uložit vozidlo</ThemedText>
+          <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('form.vehicle.saveBtn')}</ThemedText>
         </Pressable>
       </View>
     </ScrollView>

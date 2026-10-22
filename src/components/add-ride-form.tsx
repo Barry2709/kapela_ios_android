@@ -8,6 +8,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Ride, Vehicle, Concert } from '@/types';
 import { fetchCurrentFuelPrices, FuelPrices } from '@/services/fuelPriceService';
+import { useTranslation } from '@/utils/i18n';
 
 interface Props {
   initialRide?: Ride | null;
@@ -38,6 +39,7 @@ const roundCustomHundreds = (amount: number): number => {
 
 export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
 
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(initialRide?.vehicleId || vehicles[0]?.id || '');
   const [destination, setDestination] = useState(initialRide?.destination || '');
@@ -48,7 +50,7 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
   const [autoExpense, setAutoExpense] = useState(initialRide?.addedToTreasury ?? true);
 
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
-  const [priceSourceInfo, setPriceSourceInfo] = useState<string>('Nahrávám živé ceny z webu...');
+  const [priceSourceInfo, setPriceSourceInfo] = useState<string>(t('form.ride.loadingPrices'));
 
   const selectedVehicle = vehicles.find(v => v.id === selectedVehicleId) || vehicles[0];
 
@@ -77,7 +79,7 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
   // Při změně vozidla nebo přednastavení aktualizujeme předvyplněnou cenu paliva
   useEffect(() => {
     if (selectedVehicle) {
-      setDriverName(selectedVehicle.owner || 'Řidič');
+      setDriverName(selectedVehicle.owner || t('form.ride.driverDefault'));
       const preset = FUEL_PRICE_PRESETS[selectedPreset];
       const fuelType = selectedVehicle.fuel as 'benzin' | 'nafta' | 'elektro';
       const defaultPrice = preset[fuelType] || 37.50;
@@ -103,17 +105,17 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
 
   const handleSave = () => {
     if (!selectedVehicle) {
-      Alert.alert('Chyba', 'Nejprve zaregistrujte v seznamu alespoň jedno vozidlo.');
+      Alert.alert(t('home.attendance.errorTitle'), t('form.ride.noVehiclesAlert'));
       return;
     }
 
     if (!destination.trim()) {
-      Alert.alert('Chyba', 'Vyplňte prosím cíl / název akce.');
+      Alert.alert(t('home.attendance.errorTitle'), t('form.ride.errorDestination'));
       return;
     }
 
     if (distanceKmNum <= 0) {
-      Alert.alert('Chyba', 'Zadejte platný počet ujetých kilometrů.');
+      Alert.alert(t('home.attendance.errorTitle'), t('form.ride.errorDistance'));
       return;
     }
 
@@ -137,10 +139,10 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <ThemedText type="subtitle" style={styles.title}>Zaznamenat jízdu & cestovné</ThemedText>
+      <ThemedText type="subtitle" style={styles.title}>{initialRide ? t('form.ride.editTitle') : t('form.ride.title')}</ThemedText>
 
       {/* Vybrané vozidlo */}
-      <ThemedText type="smallBold">Vyberte vozidlo *</ThemedText>
+      <ThemedText type="smallBold">{t('form.ride.vehicle')}</ThemedText>
       {vehicles.length > 0 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6, marginBottom: 12 }} contentContainerStyle={{ gap: 8 }}>
           {vehicles.map(v => {
@@ -166,17 +168,17 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
         </ScrollView>
       ) : (
         <ThemedText type="small" style={{ color: '#e91e63', marginBottom: 12 }}>
-          ⚠️ Nejprve přidejte do seznamu vozidel alespoň jedno auto.
+          ⚠️ {t('form.ride.noVehiclesAlert')}
         </ThemedText>
       )}
 
       {/* Cíl / Akce */}
-      <ThemedText type="smallBold">Cíl jízdy / Akce *</ThemedText>
+      <ThemedText type="smallBold">{t('form.ride.destination')}</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={destination}
         onChangeText={setDestination}
-        placeholder="Např. Koncert Festival Klášterec"
+        placeholder={t('form.ride.destinationPlaceholder')}
         placeholderTextColor={theme.textSecondary}
       />
 
@@ -184,7 +186,7 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
       {concerts.length > 0 && (
         <View style={{ marginTop: 6, marginBottom: 12 }}>
           <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: 4 }}>
-            Rychlý výběr z akcí:
+            {t('form.ride.quickConcertSelect')}
           </ThemedText>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
             {concerts.slice(0, 5).map(c => (
@@ -201,7 +203,7 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
       )}
 
       {/* Řidič */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>Řidič / Majitel *</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>{t('form.ride.driver')}</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={driverName}
@@ -215,7 +217,7 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View style={{ flex: 1, marginRight: 8 }}>
             <ThemedText type="smallBold" style={{ color: '#2196f3' }}>
-              🌐 Živé ceny paliv z webu:
+              {t('form.ride.livePrices')}
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11, marginTop: 2 }}>
               {priceSourceInfo}
@@ -234,9 +236,9 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
         {/* Ceníkové chipy */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }} contentContainerStyle={{ gap: 6 }}>
           {[
-            { key: 'ccs', label: FUEL_PRICE_PRESETS.ccs.label },
-            { key: 'discount', label: FUEL_PRICE_PRESETS.discount.label },
-            { key: 'highway', label: FUEL_PRICE_PRESETS.highway.label },
+            { key: 'ccs', label: t('form.ride.presetCcs') },
+            { key: 'discount', label: t('form.ride.presetDiscount') },
+            { key: 'highway', label: t('form.ride.presetHighway') },
           ].map(p => {
             const isSelected = selectedPreset === p.key;
             return (
@@ -264,7 +266,7 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
       {/* Počet ujetých km & Aktuální cena paliva */}
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Ujeto km (tam a zpět) *</ThemedText>
+          <ThemedText type="smallBold">{t('form.ride.distance')}</ThemedText>
           <TextInput
             style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             value={distanceKmStr}

@@ -18,10 +18,12 @@ import { AddSongForm } from '@/components/add-song-form';
 import { SongLyricsViewer } from '@/components/song-lyrics-viewer';
 import { AudioRecorder } from '@/components/audio-recorder';
 import { fixCzechDiacritics, decodeBytesToCzechText, base64ToUint8Array, capitalizeFirstLetter, hasVocalsInProfile, getMemberDisplayName } from '@/utils/diacritics';
+import { useTranslation } from '@/utils/i18n';
 
 export default function RepertoireScreen() {
   const theme = useTheme();
   const { activeBand, activeRoleView, repertoireTab, currentUser } = useAppStore();
+  const { t } = useTranslation();
 
   const [songs, setSongs] = useState<Song[]>([]);
   const [songsPlus, setSongsPlus] = useState<Song[]>([]);
@@ -449,15 +451,15 @@ export default function RepertoireScreen() {
         loadSongs();
       }
     } catch (e) {
-      Alert.alert("Chyba", "Nepodařilo se uložit píseň.");
+      Alert.alert(t('home.attendance.errorTitle'), t('repertoire.msg.errorSave'));
     }
   };
 
   const handleDeleteSong = (songId: string) => {
-    Alert.alert("Smazat píseň", "Opravdu chcete smazat tuto píseň?", [
-      { text: "Zrušit", style: "cancel" },
+    Alert.alert(t('repertoire.alert.deleteSongTitle'), t('repertoire.alert.deleteSongMsg'), [
+      { text: t('home.misc.cancel'), style: "cancel" },
       {
-        text: "Smazat",
+        text: t('events.alert.delete'),
         style: "destructive",
         onPress: async () => {
           if (!activeBand) return;
@@ -478,12 +480,12 @@ export default function RepertoireScreen() {
   const handleClearAllSongs = () => {
     const isPlus = repertoireTab === 'zpevnik_plus';
     Alert.alert(
-      isPlus ? "Smazat Zpěvník +" : "Smazat VŠECHNY písně",
-      isPlus ? "Opravdu chcete smazat VŠECHNY písně ze Zpěvníku +?" : "Opravdu chcete smazat VŠECHNY písně z repertoáru?",
+      isPlus ? t('repertoire.alert.deleteAllPlusTitle') : t('repertoire.alert.deleteAllTitle'),
+      isPlus ? t('repertoire.alert.deleteAllPlusMsg') : t('repertoire.alert.deleteAllMsg'),
       [
-      { text: "Zrušit", style: "cancel" },
+      { text: t('home.misc.cancel'), style: "cancel" },
       {
-        text: "Smazat vše",
+        text: t('repertoire.alert.deleteAllBtn'),
         style: "destructive",
         onPress: async () => {
           if (!activeBand) return;
@@ -537,16 +539,16 @@ export default function RepertoireScreen() {
 
   const notLiveCount = activeSongList.length - liveCount;
 
-  const titleMap = {
-    nase_pisne: 'Naše písně',
-    zpevnik_plus: 'Zpěvník +',
-    audio_zapisnik: 'Audio zápisník',
+  const titleMap: Record<string, string> = {
+    nase_pisne: t('nav.ourSongs'),
+    zpevnik_plus: t('nav.songbookPlus'),
+    audio_zapisnik: t('nav.audioNotepad'),
   };
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-        <PageHeader title={titleMap[repertoireTab] || 'Zpěvník'} />
+        <PageHeader title={titleMap[repertoireTab as string] || t('nav.repertoire')} />
 
         <ScrollView contentContainerStyle={styles.content}>
           {/* SEKCE NAŠE PÍSNĚ A ZPĚVNÍK + */}
@@ -555,7 +557,7 @@ export default function RepertoireScreen() {
               {/* Hlavička s tlačítky pro Obnovení, Rychlou editaci, Smazání všech a Přidání */}
               <View style={styles.sectionHeader}>
                 <ThemedText type="subtitle" style={{ fontSize: 18 }}>
-                  {repertoireTab === 'zpevnik_plus' ? 'Zpěvník +' : 'Repertoár'} ({filteredSongs.length})
+                  {repertoireTab === 'zpevnik_plus' ? t('nav.songbookPlus') : t('repertoire.list.repertoire')} ({filteredSongs.length})
                 </ThemedText>
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
@@ -623,7 +625,7 @@ export default function RepertoireScreen() {
                   style={[styles.searchInput, { color: theme.text }]}
                   value={searchText}
                   onChangeText={setSearchText}
-                  placeholder="Hledat skladbu nebo autora..."
+                  placeholder={t('repertoire.searchPlaceholder')}
                   placeholderTextColor={theme.textSecondary}
                 />
                 {searchText !== '' && (
@@ -636,8 +638,8 @@ export default function RepertoireScreen() {
               {/* Filtrovací štítky: Vše / Hrajeme / Nehrajeme nebo Oblíbené */}
               <View style={styles.filterRow}>
                 {repertoireTab === 'zpevnik_plus' ? [
-                  { mode: 0, label: `Vše (${activeSongList.length})` },
-                  { mode: 1, label: `Oblíbené (${liveCount})` },
+                  { mode: 0, label: `${t('repertoire.filter.all')} (${activeSongList.length})` },
+                  { mode: 1, label: `${t('repertoire.filter.favorite')} (${liveCount})` },
                 ].map(item => {
                   const isActive = filterMode === item.mode;
                   return (
@@ -661,9 +663,9 @@ export default function RepertoireScreen() {
                     </Pressable>
                   );
                 }) : [
-                  { mode: 0, label: `Vše (${activeSongList.length})` },
-                  { mode: 1, label: `Hrajeme (${liveCount})` },
-                  { mode: 2, label: `Nehrajeme (${notLiveCount})` },
+                  { mode: 0, label: `${t('repertoire.filter.all')} (${activeSongList.length})` },
+                  { mode: 1, label: `${t('repertoire.filter.wePlay')} (${liveCount})` },
+                  { mode: 2, label: `${t('repertoire.filter.weDontPlay')} (${notLiveCount})` },
                 ].map(item => {
                   const isActive = filterMode === item.mode;
                   return (

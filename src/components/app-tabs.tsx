@@ -8,10 +8,12 @@ import { useAppStore } from '@/store/useAppStore';
 import { useTheme } from '@/hooks/use-theme';
 import { ThemedText } from './themed-text';
 import { TunerModal } from './tuner-modal';
+import { useTranslation } from '@/utils/i18n';
 
 export default function AppTabs() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   // Stav role uživatele a aktivní pod-záložky pro správu kapely, akce, zpěvník a pokladnu
   const { activeRoleView, manageBandTab, setManageBandTab, eventsTab, setEventsTab, repertoireTab, setRepertoireTab, treasuryTab, setTreasuryTab, showTunerModal, setShowTunerModal } = useAppStore();
@@ -47,7 +49,7 @@ export default function AppTabs() {
               type="smallBold"
               style={{ color: currentRoute === 'index' ? theme.text : theme.textSecondary, fontSize: 11, marginTop: 3 }}
             >
-              Domů
+              {t('nav.home')}
             </ThemedText>
           </Pressable>
 
@@ -68,7 +70,7 @@ export default function AppTabs() {
               type="smallBold"
               style={{ color: currentRoute === 'events' ? theme.text : theme.textSecondary, fontSize: 11, marginTop: 3 }}
             >
-              Poptávky
+              {t('nav.inquiries')}
             </ThemedText>
           </Pressable>
 
@@ -86,7 +88,7 @@ export default function AppTabs() {
               type="smallBold"
               style={{ color: currentRoute === 'manage-band' ? theme.text : theme.textSecondary, fontSize: 11, marginTop: 3 }}
             >
-              Kapela
+              {t('nav.band')}
             </ThemedText>
           </Pressable>
         </View>
@@ -123,7 +125,7 @@ export default function AppTabs() {
               style={{ color: theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Domů
+              {t('nav.home')}
             </ThemedText>
           </Pressable>
 
@@ -142,7 +144,7 @@ export default function AppTabs() {
               style={{ color: eventsTab === 'akce' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Akce Zkoušky
+              {t('nav.eventsRehearsals')}
             </ThemedText>
           </Pressable>
 
@@ -161,7 +163,7 @@ export default function AppTabs() {
               style={{ color: eventsTab === 'poptavky' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Poptávky
+              {t('nav.inquiries')}
             </ThemedText>
           </Pressable>
 
@@ -180,7 +182,7 @@ export default function AppTabs() {
               style={{ color: eventsTab === 'rezervace' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Rezervace
+              {t('nav.reservations')}
             </ThemedText>
           </Pressable>
 
@@ -199,7 +201,7 @@ export default function AppTabs() {
               style={{ color: eventsTab === 'absence' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Absence
+              {t('nav.absences')}
             </ThemedText>
           </Pressable>
         </View>
@@ -236,7 +238,7 @@ export default function AppTabs() {
               style={{ color: theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Domů
+              {t('nav.home')}
             </ThemedText>
           </Pressable>
 
@@ -255,7 +257,7 @@ export default function AppTabs() {
               style={{ color: repertoireTab === 'nase_pisne' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Naše písně
+              {t('nav.ourSongs')}
             </ThemedText>
           </Pressable>
 
@@ -274,7 +276,7 @@ export default function AppTabs() {
               style={{ color: repertoireTab === 'zpevnik_plus' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Zpěvník +
+              {t('nav.songbookPlus')}
             </ThemedText>
           </Pressable>
 
@@ -293,7 +295,7 @@ export default function AppTabs() {
               style={{ color: repertoireTab === 'audio_zapisnik' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Audio zápisník
+              {t('nav.audioNotepad')}
             </ThemedText>
           </Pressable>
         </View>
@@ -330,7 +332,7 @@ export default function AppTabs() {
               style={{ color: theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Domů
+              {t('nav.home')}
             </ThemedText>
           </Pressable>
 
@@ -349,7 +351,7 @@ export default function AppTabs() {
               style={{ color: treasuryTab === 'prijem' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Příjem
+              {t('nav.income')}
             </ThemedText>
           </Pressable>
 
@@ -368,7 +370,7 @@ export default function AppTabs() {
               style={{ color: treasuryTab === 'vydej' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Výdej
+              {t('nav.expense')}
             </ThemedText>
           </Pressable>
 
@@ -387,7 +389,7 @@ export default function AppTabs() {
               style={{ color: treasuryTab === 'doklady' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Doklady
+              {t('nav.receipts')}
             </ThemedText>
           </Pressable>
 
@@ -406,7 +408,7 @@ export default function AppTabs() {
               style={{ color: treasuryTab === 'kniha_jizd' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Kniha jízd
+              {t('nav.logbook')}
             </ThemedText>
           </Pressable>
         </View>
@@ -442,7 +444,7 @@ export default function AppTabs() {
               style={{ color: theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Domů
+              {t('nav.home')}
             </ThemedText>
           </Pressable>
 
@@ -461,7 +463,7 @@ export default function AppTabs() {
               style={{ color: manageBandTab === 'band' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Profil
+              {t('nav.profile')}
             </ThemedText>
           </Pressable>
 
@@ -480,7 +482,7 @@ export default function AppTabs() {
               style={{ color: manageBandTab === 'members' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Členové
+              {t('nav.members')}
             </ThemedText>
           </Pressable>
 
@@ -499,7 +501,7 @@ export default function AppTabs() {
               style={{ color: manageBandTab === 'tech' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Technika
+              {t('nav.tech')}
             </ThemedText>
           </Pressable>
 
@@ -518,7 +520,7 @@ export default function AppTabs() {
               style={{ color: showTunerModal ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Ladička
+              {t('nav.tuner')}
             </ThemedText>
           </Pressable>
 
@@ -537,7 +539,7 @@ export default function AppTabs() {
               style={{ color: manageBandTab === 'settings' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
               numberOfLines={1}
             >
-              Nastavení
+              {t('nav.settings')}
             </ThemedText>
           </Pressable>
         </View>
@@ -610,7 +612,7 @@ export default function AppTabs() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Domů',
+          title: t('nav.home'),
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'house.fill', android: 'home', web: 'home' }} tintColor={color} size={24} />
           ),
@@ -620,7 +622,7 @@ export default function AppTabs() {
       <Tabs.Screen
         name="events"
         options={{
-          title: 'Akce',
+          title: t('nav.events'),
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'calendar', android: 'event', web: 'event' }} tintColor={color} size={24} />
           ),
@@ -630,7 +632,7 @@ export default function AppTabs() {
       <Tabs.Screen
         name="repertoire"
         options={{
-          title: 'Zpěvník',
+          title: t('nav.repertoire'),
           href: activeRoleView === 'fan' ? null : '/repertoire',
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'music.note.list', android: 'library_music', web: 'library_music' }} tintColor={color} size={24} />
@@ -641,7 +643,7 @@ export default function AppTabs() {
       <Tabs.Screen
         name="treasury"
         options={{
-          title: 'Pokladna',
+          title: t('nav.treasury'),
           href: activeRoleView === 'fan' ? null : '/treasury',
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'banknote.fill', android: 'account_balance_wallet', web: 'account_balance_wallet' }} tintColor={color} size={24} />
@@ -652,7 +654,7 @@ export default function AppTabs() {
       <Tabs.Screen
         name="manage-band"
         options={{
-          title: 'Kapela',
+          title: t('nav.band'),
           href: '/manage-band',
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'music.note.house.fill', android: 'domain', web: 'domain' }} tintColor={color} size={24} />

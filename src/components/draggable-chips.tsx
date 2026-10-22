@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable, PanResponder } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { ThemedText } from './themed-text';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/utils/i18n';
 
 interface Props {
   items: string[];
@@ -15,6 +16,7 @@ interface Props {
 
 export function DraggableChips({ items, onReorder, onRemove, onDragStart, onDragEnd, emptyText }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const [activeDragIndex, setActiveDragIndex] = useState<number | null>(null);
 
   // Měření pozic a středů jednotlivých štítků
@@ -117,7 +119,7 @@ export function DraggableChips({ items, onReorder, onRemove, onDragStart, onDrag
   if (items.length === 0) {
     return (
       <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: 8 }}>
-        {emptyText || 'Zatím nebyly přidané žádné položky.'}
+        {emptyText || t('common.emptyItems')}
       </ThemedText>
     );
   }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, ScrollView, Pressable, Modal, Alert, Text, TextInput } from 'react-native';
+import { StyleSheet, View, ScrollView, Pressable, Modal, Alert, Text, TextInput, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 
@@ -26,6 +26,7 @@ import {
   updateConcert,
   addRehearsal,
   addAbsence,
+  updateBand,
   notifyAdminsAboutAttendance
 } from '@/services/firebaseService';
 import { AddConcertForm } from '@/components/add-concert-form';
@@ -34,10 +35,12 @@ import { AddAbsenceForm } from '@/components/add-absence-form';
 import { SetlistEditorModal } from '@/components/setlist-editor-modal';
 import { StageplanModal, shareConcertStageplan } from '@/components/stageplan-modal';
 import { EventsCalendar } from '@/components/calendar/EventsCalendar';
+import { useTranslation } from '@/utils/i18n';
 
 export default function EventsScreen() {
   const theme = useTheme();
-  const { activeBand, currentUser, activeRoleView, eventsTab } = useAppStore();
+  const { activeBand, currentUser, activeRoleView, eventsTab, setActiveBand } = useAppStore();
+  const { t } = useTranslation();
 
   const [rehearsals, setRehearsals] = useState<Rehearsal[]>([]);
   const [concerts, setConcerts] = useState<Concert[]>([]);
@@ -231,31 +234,31 @@ export default function EventsScreen() {
 
       if (editingConcert) {
         await updateConcert(activeBand.id, editingConcert.id, concertData, editingConcert, myMemberId);
-        show2sToast("Koncert byl úspěšně upraven.");
+        show2sToast(t('events.msg.successUpdateConcert'));
       } else {
         await addConcert(activeBand.id, {
           ...concertData,
           bandId: activeBand.id,
         }, myMemberId);
-        show2sToast("Koncert byl úspěšně uložen.");
+        show2sToast(t('events.msg.successSaveConcert'));
       }
       setShowAddConcertModal(false);
       setEditingConcert(null);
       loadConcerts();
     } catch (e) {
       console.error("Chyba při ukládání koncertu:", e);
-      Alert.alert("Chyba", "Nepodařilo se uložit koncert.");
+      Alert.alert(t('home.attendance.errorTitle'), t('events.msg.errorSave'));
     }
   };
 
   const handleDeleteConcert = (concert: Concert) => {
     Alert.alert(
-      "Smazat koncert",
-      `Opravdu chcete smazat koncert "${concert.title}"?`,
+      t('events.alert.deleteConcertTitle'),
+      `${t('events.alert.deleteConcertMsg')} "${concert.title}"?`,
       [
-        { text: "Zrušit", style: "cancel" },
+        { text: t('home.misc.cancel'), style: "cancel" },
         {
-          text: "Smazat",
+          text: t('events.alert.delete'),
           style: "destructive",
           onPress: async () => {
             if (!activeBand) return;
@@ -275,10 +278,10 @@ export default function EventsScreen() {
       });
       setSelectedConcertForSetlist(null);
       loadConcerts();
-      Alert.alert("Úspěch", "Setlist byl úspěšně uložen na akce.");
+      Alert.alert(t('events.alert.success'), t('events.msg.successSaveSetlist'));
     } catch (e) {
       console.error("Chyba při ukládání setlistu:", e);
-      Alert.alert("Chyba", "Nepodařilo se uložit setlist.");
+      Alert.alert(t('home.attendance.errorTitle'), t('events.msg.errorSaveSetlist'));
     }
   };
 
@@ -308,7 +311,7 @@ export default function EventsScreen() {
           editingRehearsal,
           myMemberId
         );
-        show2sToast("Zkouška byla úspěšně upravena.");
+        show2sToast(t('events.msg.successUpdateRehearsal'));
       } else {
         await addRehearsal(
           activeBand.id,
@@ -318,14 +321,14 @@ export default function EventsScreen() {
           },
           myMemberId
         );
-        show2sToast("Zkouška byla úspěšně uložena.");
+        show2sToast(t('events.msg.successSaveRehearsal'));
       }
       setShowAddRehearsalModal(false);
       setEditingRehearsal(null);
       loadRehearsals();
     } catch (e) {
       console.error("Chyba při ukládání zkoušky:", e);
-      Alert.alert("Chyba", "Nepodařilo se uložit zkoušku.");
+      Alert.alert(t('home.attendance.errorTitle'), t('events.msg.errorSave'));
     }
   };
 
@@ -337,18 +340,18 @@ export default function EventsScreen() {
       loadRehearsals();
     } catch (e) {
       console.error("Chyba při změně stavu zkoušky:", e);
-      Alert.alert("Chyba", "Nepodařilo se změnit stav zkoušky.");
+      Alert.alert(t('home.attendance.errorTitle'), t('events.alert.toggleRehearsalError'));
     }
   };
 
   const handleDeleteRehearsal = (rehearsal: Rehearsal) => {
     Alert.alert(
-      "Smazat zkoušku",
-      `Opravdu chcete smazat zkoušku dne ${rehearsal.date}?`,
+      t('events.alert.deleteRehearsalTitle'),
+      `${t('events.alert.deleteRehearsalMsg')} ${rehearsal.date}?`,
       [
-        { text: "Zrušit", style: "cancel" },
+        { text: t('home.misc.cancel'), style: "cancel" },
         {
-          text: "Smazat",
+          text: t('events.alert.delete'),
           style: "destructive",
           onPress: async () => {
             if (!activeBand) return;
@@ -372,12 +375,12 @@ export default function EventsScreen() {
 
   const handleDeleteInquiry = (inquiry: Inquiry) => {
     Alert.alert(
-      "Smazat poptávku",
-      `Opravdu chcete smazat poptávku "${inquiry.title}"?`,
+      t('events.alert.deleteInquiryTitle'),
+      `${t('events.alert.deleteInquiryMsg')} "${inquiry.title}"?`,
       [
-        { text: "Zrušit", style: "cancel" },
+        { text: t('home.misc.cancel'), style: "cancel" },
         {
-          text: "Smazat",
+          text: t('events.alert.delete'),
           style: "destructive",
           onPress: async () => {
             if (!activeBand) return;
@@ -395,21 +398,21 @@ export default function EventsScreen() {
       await addAbsence(activeBand.id, absenceData);
       setShowAddAbsenceModal(false);
       loadAbsences();
-      Alert.alert("Úspěch", "Absence byla úspěšně zaznamenána.");
+      Alert.alert(t('events.alert.success'), t('events.msg.successSaveAbsenceAlert'));
     } catch (e) {
       console.error("Chyba při ukládání absence:", e);
-      Alert.alert("Chyba", "Nepodařilo se uložit absenci.");
+      Alert.alert(t('home.attendance.errorTitle'), t('events.msg.errorSaveAbsence'));
     }
   };
 
   const handleDeleteAbsence = (absence: Absence) => {
     Alert.alert(
-      "Smazat absenci",
-      `Opravdu chcete smazat absenci pro člena ${absence.memberName}?`,
+      t('events.alert.deleteAbsenceTitle'),
+      `${t('events.alert.deleteAbsenceMsg')} ${absence.memberName}?`,
       [
-        { text: "Zrušit", style: "cancel" },
+        { text: t('home.misc.cancel'), style: "cancel" },
         {
-          text: "Smazat",
+          text: t('events.alert.delete'),
           style: "destructive",
           onPress: async () => {
             if (!activeBand) return;
@@ -544,10 +547,10 @@ export default function EventsScreen() {
                   ]}
                 >
                   <ThemedText type="smallBold" style={{ color: d.isFree ? '#4caf50' : '#f44336', fontSize: 13 }}>
-                    {d.dayName} {d.dateStr}
+                    {d.dayName === 'Pátek' ? t('events.list.dayFriday') : t('events.list.daySaturday')} {d.dateStr}
                   </ThemedText>
                   <ThemedText type="small" style={{ fontSize: 11, color: d.isFree ? '#4caf50' : '#f44336' }}>
-                    {d.isFree ? '🟢 Volno' : `🔴 ${d.eventTitle}`}
+                    {d.isFree ? `🟢 ${t('events.list.freeTerm')}` : `🔴 ${t('events.list.occupied')} ${d.eventTitle}`}
                   </ThemedText>
                 </View>
               ))}
@@ -563,11 +566,11 @@ export default function EventsScreen() {
     ...rehearsals.map(r => ({ date: r.date, title: `Zkouška ${r.location}` })),
   ];
 
-  const titleMap = {
-    akce: 'Přehled akcí a zkoušek',
-    poptavky: 'Poptávky hraní',
-    rezervace: 'Rezervace termínů',
-    absence: 'Absence členů',
+  const titleMap: Record<string, string> = {
+    akce: t('events.title.eventsRehearsals'),
+    poptavky: t('events.title.inquiries'),
+    rezervace: t('events.title.reservations'),
+    absence: t('events.title.absences'),
   };
 
   interface AttendanceEditState {
@@ -590,7 +593,7 @@ export default function EventsScreen() {
     const isSelf = member.id === currentUser?.id;
 
     if (!isAdmin && !isSelf) {
-      Alert.alert("Docházka", "Účast ostatních členů může upravovat pouze kapelník.");
+      Alert.alert(t('home.attendance.errorTitle'), t('home.attendance.onlyAdmin'));
       return;
     }
 
@@ -722,9 +725,9 @@ export default function EventsScreen() {
     const isExpanded = expandedEvents[eventId] === true;
 
     const summaryParts = [];
-    if (goingMembers.length > 0) summaryParts.push(`${goingMembers.length} můžou`);
-    if (notGoingMembers.length > 0) summaryParts.push(`${notGoingMembers.length} nemůžou`);
-    if (pendingMembers.length > 0) summaryParts.push(`${pendingMembers.length} čeká`);
+    if (goingMembers.length > 0) summaryParts.push(`${goingMembers.length} ${t('home.attendance.can')}`);
+    if (notGoingMembers.length > 0) summaryParts.push(`${notGoingMembers.length} ${t('home.attendance.cannot')}`);
+    if (pendingMembers.length > 0) summaryParts.push(`${pendingMembers.length} ${t('home.attendance.waiting')}`);
 
     return (
       <View style={{ marginTop: 8, paddingTop: 6, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.15)' }}>
@@ -735,7 +738,7 @@ export default function EventsScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
             <SymbolView name={{ ios: 'person.2.fill', android: 'group', web: 'group' }} size={16} tintColor={theme.textSecondary} />
             <ThemedText type="smallBold" style={{ fontSize: 12 }}>
-              Docházka: {summaryParts.join(' • ') || 'Zatím bez odpovědí'}
+              {t('home.attendance.summary')}{summaryParts.join(' • ') || t('home.attendance.noAnswers')}
             </ThemedText>
           </View>
           <SymbolView
@@ -750,7 +753,7 @@ export default function EventsScreen() {
             {goingMembers.length > 0 && (
               <View>
                 <ThemedText type="smallBold" style={{ color: '#4caf50', marginBottom: 4 }}>
-                  🟢 Můžou ({goingMembers.length}):
+                  {t('home.attendance.canGoPlural')} ({goingMembers.length}):
                 </ThemedText>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                   {goingMembers.map(m => (
@@ -760,7 +763,7 @@ export default function EventsScreen() {
                       onPress={() => handleMemberClick(m, eventId, eventType, attendeesRecord)}
                     >
                       <ThemedText type="small" style={{ color: '#4caf50', fontSize: 11, fontWeight: 'bold' }}>
-                        {m.nickname || m.firstName}{m.id === currentUser?.id ? ' (Vy)' : ''}
+                        {m.nickname || m.firstName}{m.id === currentUser?.id ? t('home.attendance.you') : ''}
                       </ThemedText>
                     </Pressable>
                   ))}
@@ -771,7 +774,7 @@ export default function EventsScreen() {
             {notGoingMembers.length > 0 && (
               <View style={{ marginTop: 2 }}>
                 <ThemedText type="smallBold" style={{ color: '#e91e63', marginBottom: 4 }}>
-                  🔴 Nemůžou ({notGoingMembers.length}):
+                  {t('home.attendance.cannotGoPlural')} ({notGoingMembers.length}):
                 </ThemedText>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                   {notGoingMembers.map(({ member: m, note }) => (
@@ -781,7 +784,7 @@ export default function EventsScreen() {
                       onPress={() => handleMemberClick(m, eventId, eventType, attendeesRecord)}
                     >
                       <ThemedText type="small" style={{ color: '#e91e63', fontSize: 11, fontWeight: 'bold' }}>
-                        {m.nickname || m.firstName}{note ? ` (${note})` : ''}{m.id === currentUser?.id ? ' (Vy)' : ''}
+                        {m.nickname || m.firstName}{note ? ` (${note})` : ''}{m.id === currentUser?.id ? t('home.attendance.you') : ''}
                       </ThemedText>
                     </Pressable>
                   ))}
@@ -792,7 +795,7 @@ export default function EventsScreen() {
             {pendingMembers.length > 0 && (
               <View style={{ marginTop: 2 }}>
                 <ThemedText type="smallBold" themeColor="textSecondary" style={{ marginBottom: 4 }}>
-                  ⚪ Čeká na odpověď ({pendingMembers.length}):
+                  {t('home.attendance.waitingForAnswer')} ({pendingMembers.length}):
                 </ThemedText>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                   {pendingMembers.map(m => (
@@ -802,7 +805,7 @@ export default function EventsScreen() {
                       onPress={() => handleMemberClick(m, eventId, eventType, attendeesRecord)}
                     >
                       <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11 }}>
-                        {m.nickname || m.firstName}{m.id === currentUser?.id ? ' (Vy)' : ''}
+                        {m.nickname || m.firstName}{m.id === currentUser?.id ? t('home.attendance.you') : ''}
                       </ThemedText>
                     </Pressable>
                   ))}
@@ -837,7 +840,7 @@ export default function EventsScreen() {
                 {concert.title}
               </ThemedText>
               <View style={[styles.statusBadge, { backgroundColor: '#e91e63' }]}>
-                <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>Koncert</ThemedText>
+                <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>{t('events.list.concert')}</ThemedText>
               </View>
             </View>
 
@@ -852,12 +855,12 @@ export default function EventsScreen() {
           <View style={styles.badgeColumn}>
             {concert.isCancelled && (
               <View style={[styles.statusBadge, { backgroundColor: '#e91e63' }]}>
-                <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>Zrušeno</ThemedText>
+                <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>{t('events.list.cancelled')}</ThemedText>
               </View>
             )}
             {concert.isPrivate && (
               <View style={[styles.statusBadge, { backgroundColor: '#2196f3' }]}>
-                <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>Soukromá</ThemedText>
+                <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>{t('home.concert.privateBadge')}</ThemedText>
               </View>
             )}
           </View>
@@ -865,7 +868,7 @@ export default function EventsScreen() {
 
         {concert.price ? (
           <View style={styles.detailRow}>
-            <ThemedText type="smallBold" themeColor="textSecondary">Cena: </ThemedText>
+            <ThemedText type="smallBold" themeColor="textSecondary">{t('home.concert.price')}</ThemedText>
             <ThemedText type="small" style={{ fontWeight: 'bold' }}>{concert.price}</ThemedText>
           </View>
         ) : null}
@@ -889,11 +892,11 @@ export default function EventsScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <SymbolView name={{ ios: 'music.note.list', android: 'queue_music', web: 'queue_music' }} size={16} tintColor="#ff9800" />
             <ThemedText type="smallBold" style={{ color: '#ff9800', fontSize: 12 }}>
-              Setlist ({concert.setlist?.length || 0} skladeb)
+              {t('events.btn.setlist')} ({concert.setlist?.length || 0} skladeb)
             </ThemedText>
           </View>
           <ThemedText type="smallBold" style={{ color: '#ff9800', fontSize: 11 }}>
-            {concert.setlist?.length ? 'Zobrazit / Upravit ➔' : '+ Sestavit ➔'}
+            {concert.setlist?.length ? t('events.btn.setlistView') : t('events.btn.setlistCreate')}
           </ThemedText>
         </Pressable>
 
@@ -901,14 +904,14 @@ export default function EventsScreen() {
         {(concert.organizers && concert.organizers.length > 0) || concert.contacts ? (
           <View style={{ marginTop: 6, paddingTop: 4, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.15)' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <ThemedText type="smallBold" themeColor="textSecondary">Kontakty na pořadatele:</ThemedText>
+              <ThemedText type="smallBold" themeColor="textSecondary">{t('home.concert.contacts')}</ThemedText>
               {activeRoleView !== 'fan' && activeBand && (
                 <Pressable
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 6, backgroundColor: 'rgba(33, 150, 243, 0.15)' }}
                   onPress={() => shareConcertStageplan({ band: activeBand, concert, members: bandMembers, currentUser })}
                 >
                   <SymbolView name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }} size={12} tintColor="#2196f3" />
-                  <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11 }}>Sdílet</ThemedText>
+                  <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11 }}>{t('home.concert.share')}</ThemedText>
                 </Pressable>
               )}
             </View>
@@ -918,7 +921,7 @@ export default function EventsScreen() {
                   <View key={org.id} style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                     <View style={[styles.orgBadgeSmall, { backgroundColor: org.role === 'Zvukař' ? 'rgba(255,152,0,0.2)' : (org.role === 'Pořadatel' ? 'rgba(76,175,80,0.2)' : 'rgba(33,150,243,0.2)') }]}>
                       <ThemedText type="smallBold" style={{ color: org.role === 'Zvukař' ? '#ff9800' : (org.role === 'Pořadatel' ? '#4caf50' : '#2196f3'), fontSize: 10 }}>
-                        {org.role || 'Kontakt'}
+                        {org.role || t('home.concert.contactRole')}
                       </ThemedText>
                     </View>
                     <ThemedText type="smallBold" style={{ fontSize: 12 }}>{org.name}</ThemedText>
@@ -948,11 +951,11 @@ export default function EventsScreen() {
           <View style={styles.cardFooter}>
             <Pressable onPress={() => openEditConcert(concert)} style={styles.actionBtnInline}>
               <SymbolView name={{ ios: 'pencil', android: 'edit', web: 'edit' }} size={16} tintColor="#2196f3" />
-              <ThemedText type="small" style={{ color: '#2196f3' }}>Upravit</ThemedText>
+              <ThemedText type="small" style={{ color: '#2196f3' }}>{t('events.btn.edit')}</ThemedText>
             </Pressable>
             <Pressable onPress={() => handleDeleteConcert(concert)} style={styles.actionBtnInline}>
               <SymbolView name={{ ios: 'trash', android: 'delete', web: 'delete' }} size={16} tintColor="#e91e63" />
-              <ThemedText type="small" style={{ color: '#e91e63' }}>Smazat</ThemedText>
+              <ThemedText type="small" style={{ color: '#e91e63' }}>{t('events.btn.delete')}</ThemedText>
             </Pressable>
           </View>
         )}
@@ -979,10 +982,10 @@ export default function EventsScreen() {
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <ThemedText type="subtitle" style={{ fontSize: 18, fontWeight: 'bold' }}>
-                Zkouška {rehearsal.location ? `- ${rehearsal.location}` : ''}
+                {t('events.list.rehearsal')} {rehearsal.location ? `- ${rehearsal.location}` : ''}
               </ThemedText>
               <View style={[styles.statusBadge, { backgroundColor: '#4caf50' }]}>
-                <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>Zkouška</ThemedText>
+                <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>{t('events.list.rehearsal')}</ThemedText>
               </View>
             </View>
 
@@ -1017,16 +1020,16 @@ export default function EventsScreen() {
                 tintColor={rehearsal.isCancelled ? '#4caf50' : '#e91e63'}
               />
               <ThemedText type="small" style={{ color: rehearsal.isCancelled ? '#4caf50' : '#e91e63' }}>
-                {rehearsal.isCancelled ? 'Obnovit' : 'Zrušit'}
+                {rehearsal.isCancelled ? t('events.btn.restore') : t('events.btn.cancel')}
               </ThemedText>
             </Pressable>
             <Pressable onPress={() => openEditRehearsal(rehearsal)} style={styles.actionBtnInline}>
               <SymbolView name={{ ios: 'pencil', android: 'edit', web: 'edit' }} size={16} tintColor="#2196f3" />
-              <ThemedText type="small" style={{ color: '#2196f3' }}>Upravit</ThemedText>
+              <ThemedText type="small" style={{ color: '#2196f3' }}>{t('events.btn.edit')}</ThemedText>
             </Pressable>
             <Pressable onPress={() => handleDeleteRehearsal(rehearsal)} style={styles.actionBtnInline}>
               <SymbolView name={{ ios: 'trash', android: 'delete', web: 'delete' }} size={16} tintColor="#e91e63" />
-              <ThemedText type="small" style={{ color: '#e91e63' }}>Smazat</ThemedText>
+              <ThemedText type="small" style={{ color: '#e91e63' }}>{t('events.btn.delete')}</ThemedText>
             </Pressable>
           </View>
         )}
@@ -1090,7 +1093,7 @@ export default function EventsScreen() {
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
                 <ThemedText type="subtitle" style={{ fontSize: 16, fontWeight: 'bold', flex: 1, marginRight: 8 }} numberOfLines={1}>
-                  Přehled akcí a zkoušek
+                  {t('events.title.eventsRehearsals')}
                 </ThemedText>
 
                 <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
@@ -1098,14 +1101,14 @@ export default function EventsScreen() {
                     style={[styles.addBtn, { backgroundColor: '#e91e63', paddingHorizontal: 10, paddingVertical: 6 }]}
                     onPress={openAddConcert}
                   >
-                    <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 13 }}>+ K</ThemedText>
+                    <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 13 }}>{t('events.btn.plusConcert')}</ThemedText>
                   </Pressable>
 
                   <Pressable
                     style={[styles.addBtn, { backgroundColor: '#4caf50', paddingHorizontal: 10, paddingVertical: 6 }]}
                     onPress={openAddRehearsal}
                   >
-                    <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 13 }}>+ Z</ThemedText>
+                    <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 13 }}>{t('events.btn.plusRehearsal')}</ThemedText>
                   </Pressable>
                 </View>
               </View>
@@ -1113,9 +1116,9 @@ export default function EventsScreen() {
               {/* PŘEPÍNAČ: Koncerty a Zkoušky přímo pod Přehledem */}
               <View style={styles.actionToggleRow}>
                 {[
-                  { key: 'all', label: `Vše (${concerts.length + rehearsals.length})`, color: '#2196f3' },
-                  { key: 'koncerty', label: `Koncerty (${concerts.length})`, color: '#e91e63' },
-                  { key: 'zkousky', label: `Zkoušky (${rehearsals.length})`, color: '#4caf50' },
+                  { key: 'all', label: `${t('events.filter.all')} (${concerts.length + rehearsals.length})`, color: '#2196f3' },
+                  { key: 'koncerty', label: `${t('events.filter.concerts')} (${concerts.length})`, color: '#e91e63' },
+                  { key: 'zkousky', label: `${t('events.filter.rehearsals')} (${rehearsals.length})`, color: '#4caf50' },
                 ].map(item => {
                   const isSelected = actionFilterMode === item.key;
                   return (
@@ -1150,7 +1153,7 @@ export default function EventsScreen() {
                     setShowFreeTerms(false);
                   }}
                 >
-                  <ThemedText type="smallBold" style={{ color: showCalendar ? '#fff' : theme.text, fontSize: 13, textAlign: 'center' }}>Kalendář akcí</ThemedText>
+                  <ThemedText type="smallBold" style={{ color: showCalendar ? '#fff' : theme.text, fontSize: 13, textAlign: 'center' }}>{t('events.action.calendar')}</ThemedText>
                 </Pressable>
                 <Pressable
                   style={[styles.filterChip, showFreeTerms ? { backgroundColor: '#2196f3', borderColor: '#1976d2' } : { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.4)' }]}
@@ -1159,7 +1162,7 @@ export default function EventsScreen() {
                     setShowCalendar(false);
                   }}
                 >
-                  <ThemedText type="smallBold" style={{ color: showFreeTerms ? '#fff' : theme.text, fontSize: 13, textAlign: 'center' }}>Volné termíny</ThemedText>
+                  <ThemedText type="smallBold" style={{ color: showFreeTerms ? '#fff' : theme.text, fontSize: 13, textAlign: 'center' }}>{t('events.action.freeTerms')}</ThemedText>
                 </Pressable>
               </View>
 
@@ -1197,7 +1200,7 @@ export default function EventsScreen() {
                   (actionFilterMode === 'zkousky' && rehearsals.length === 0) ||
                   (actionFilterMode === 'all' && combinedEvents.length === 0)) && (
                   <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', marginTop: 20 }}>
-                    Zatím nejsou evidovány žádné akce.
+                    {t('events.empty.noEventsText')}
                   </ThemedText>
                 )}
               </View>
@@ -1208,7 +1211,7 @@ export default function EventsScreen() {
           {eventsTab === 'poptavky' && (
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
-                <ThemedText type="subtitle" style={{ fontSize: 18 }}>Poptávky hraní</ThemedText>
+                <ThemedText type="subtitle" style={{ fontSize: 18 }}>{t('events.title.inquiries')}</ThemedText>
               </View>
 
               <View style={styles.list}>
@@ -1237,19 +1240,19 @@ export default function EventsScreen() {
                               style={[styles.actionBtnInline, { backgroundColor: '#4caf50' }]}
                               onPress={() => handleInquiryStatusChange(inquiry, 'accepted')}
                             >
-                              <ThemedText type="smallBold" style={{ color: '#fff' }}>Potvrdit</ThemedText>
+                              <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('events.inquiry.accept')}</ThemedText>
                             </Pressable>
                             <Pressable
                               style={[styles.actionBtnInline, { backgroundColor: '#f44336' }]}
                               onPress={() => handleInquiryStatusChange(inquiry, 'declined')}
                             >
-                              <ThemedText type="smallBold" style={{ color: '#fff' }}>Odmítnout</ThemedText>
+                              <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('events.inquiry.decline')}</ThemedText>
                             </Pressable>
                           </>
                         )}
                         <Pressable onPress={() => handleDeleteInquiry(inquiry)} style={styles.actionBtnInline}>
                           <SymbolView name={{ ios: 'trash', android: 'delete', web: 'delete' }} size={16} tintColor="#e91e63" />
-                          <ThemedText type="small" style={{ color: '#e91e63' }}>Smazat</ThemedText>
+                          <ThemedText type="small" style={{ color: '#e91e63' }}>{t('events.inquiry.delete')}</ThemedText>
                         </Pressable>
                       </View>
                     )}
@@ -1269,13 +1272,13 @@ export default function EventsScreen() {
           {eventsTab === 'absence' && (
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
-                <ThemedText type="subtitle" style={{ fontSize: 18 }}>Absence členů kapely</ThemedText>
+                <ThemedText type="subtitle" style={{ fontSize: 18 }}>{t('events.title.absences')}</ThemedText>
                 <Pressable
                   style={[styles.addBtn, { backgroundColor: '#2196f3' }]}
                   onPress={() => setShowAddAbsenceModal(true)}
                 >
                   <SymbolView name={{ ios: 'plus', android: 'add', web: 'add' }} size={16} tintColor="#fff" />
-                  <ThemedText type="smallBold" style={{ color: '#fff', marginLeft: 4 }}>+ Nahlásit absenci</ThemedText>
+                  <ThemedText type="smallBold" style={{ color: '#fff', marginLeft: 4 }}>{t('events.btn.addAbsenceMain')}</ThemedText>
                 </Pressable>
               </View>
 
@@ -1298,7 +1301,7 @@ export default function EventsScreen() {
                       <View style={styles.cardFooter}>
                         <Pressable onPress={() => handleDeleteAbsence(absence)} style={styles.actionBtnInline}>
                           <SymbolView name={{ ios: 'trash', android: 'delete', web: 'delete' }} size={16} tintColor="#e91e63" />
-                          <ThemedText type="small" style={{ color: '#e91e63' }}>Smazat absenci</ThemedText>
+                          <ThemedText type="small" style={{ color: '#e91e63' }}>{t('events.absence.delete')}</ThemedText>
                         </Pressable>
                       </View>
                     )}
@@ -1307,7 +1310,7 @@ export default function EventsScreen() {
 
                 {absences.length === 0 && (
                   <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', marginTop: 20 }}>
-                    Žádný člen kapely nemá nahlášenou absenci.
+                    {t('events.absence.empty')}
                   </ThemedText>
                 )}
               </View>
@@ -1434,7 +1437,7 @@ export default function EventsScreen() {
             {/* Input pro poznámku */}
             <TextInput
               style={[styles.noteInput, { color: theme.text, borderColor: 'rgba(150,150,150,0.3)', backgroundColor: 'rgba(150,150,150,0.1)' }]}
-              placeholder="Poznámka (volitelná - např. zpoždění)..."
+              placeholder={t('home.attendance.notePlaceholder')}
               placeholderTextColor={theme.textSecondary}
               value={editAttendanceState?.note || ''}
               onChangeText={text => setEditAttendanceState(prev => prev ? { ...prev, note: text } : null)}
@@ -1443,10 +1446,10 @@ export default function EventsScreen() {
             {/* Tlačítka Uložit / Zrušit */}
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
               <Pressable onPress={() => setEditAttendanceState(null)} style={styles.modalCancelBtn}>
-                <ThemedText type="smallBold" themeColor="textSecondary">Zrušit</ThemedText>
+                <ThemedText type="smallBold" themeColor="textSecondary">{t('home.misc.cancel')}</ThemedText>
               </Pressable>
               <Pressable onPress={saveMemberAttendance} style={styles.modalSaveBtn}>
-                <ThemedText type="smallBold" style={{ color: '#fff' }}>Uložit</ThemedText>
+                <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('setlist.saveBtn')}</ThemedText>
               </Pressable>
             </View>
           </Pressable>

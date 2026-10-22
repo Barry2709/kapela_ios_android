@@ -7,11 +7,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from './themed-text';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/useAppStore';
+import { useTranslation } from '@/utils/i18n';
 
 export function BandHeader() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { activeBand } = useAppStore();
+  const { t } = useTranslation();
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
 
   const handleLogoPress = () => {
@@ -49,7 +51,7 @@ export function BandHeader() {
           onPress={handleLogoPress}
         >
           <ThemedText type="title" style={styles.titlePlaceholder}>
-            {activeBand?.name || 'Načítání...'}
+            {activeBand?.name || t('common.loading')}
           </ThemedText>
           {activeBand?.genre ? (
             <ThemedText type="subtitle" themeColor="textSecondary" style={styles.genrePlaceholder}>

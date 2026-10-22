@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { StyleSheet, View, Modal, Pressable, ScrollView } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { format, addMonths, startOfMonth, parseISO, isWithinInterval } from 'date-fns';
-import { cs } from 'date-fns/locale';
+import { cs, sk } from 'date-fns/locale';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -10,6 +10,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Concert, Rehearsal, Absence } from '@/types';
 import { SymbolView } from 'expo-symbols';
+import { useTranslation } from '@/utils/i18n';
 
 // Nastavení češtiny pro kalendář
 LocaleConfig.locales['cs'] = {
@@ -27,6 +28,24 @@ LocaleConfig.locales['cs'] = {
   dayNamesShort: ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So'],
   today: 'Dnes'
 };
+
+// Nastavení slovenštiny pro kalendář
+LocaleConfig.locales['sk'] = {
+  monthNames: [
+    'Január', 'Február', 'Marec', 'Apríl', 'Máj', 'Jún',
+    'Júl', 'August', 'September', 'Október', 'November', 'December'
+  ],
+  monthNamesShort: [
+    'Jan', 'Feb', 'Mar', 'Apr', 'Máj', 'Jún',
+    'Júl', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'
+  ],
+  dayNames: [
+    'Nedeľa', 'Pondelok', 'Utorok', 'Streda', 'Štvrtok', 'Piatok', 'Sobota'
+  ],
+  dayNamesShort: ['Ne', 'Po', 'Ut', 'St', 'Št', 'Pi', 'So'],
+  today: 'Dnes'
+};
+
 LocaleConfig.defaultLocale = 'cs';
 
 interface EventsCalendarProps {
@@ -38,6 +57,9 @@ interface EventsCalendarProps {
 
 export function EventsCalendar({ concerts = [], rehearsals = [], absences = {}, rawAbsences = [] }: EventsCalendarProps) {
   const theme = useTheme();
+  const { t, currentLang } = useTranslation();
+
+  LocaleConfig.defaultLocale = currentLang;
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -289,7 +311,7 @@ export function EventsCalendar({ concerts = [], rehearsals = [], absences = {}, 
           }}
           renderHeader={(date: any) => {
              const dateObj = new Date(date.getTime());
-             const monthName = format(dateObj, 'LLLL', { locale: cs });
+             const monthName = format(dateObj, 'LLLL', { locale: currentLang === 'sk' ? sk : cs });
              const year = format(dateObj, 'yyyy');
              return (
                <ThemedText style={styles.monthHeader}>
@@ -307,19 +329,19 @@ export function EventsCalendar({ concerts = [], rehearsals = [], absences = {}, 
       <View style={styles.legendContainer}>
         <View style={styles.legendItem}>
           <View style={[styles.legendColor, { backgroundColor: '#DC143C' }]} />
-          <ThemedText type="small">Akce</ThemedText>
+          <ThemedText type="small">{t('calendar.legend.action')}</ThemedText>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendColor, { backgroundColor: '#4169E1' }]} />
-          <ThemedText type="small">Zkouška</ThemedText>
+          <ThemedText type="small">{t('calendar.legend.rehearsal')}</ThemedText>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendColor, { backgroundColor: '#FFD700' }]} />
-          <ThemedText type="small">Absence</ThemedText>
+          <ThemedText type="small">{t('calendar.legend.absence')}</ThemedText>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendColor, { backgroundColor: '#FFA500' }]} />
-          <ThemedText type="small">Konflikt</ThemedText>
+          <ThemedText type="small">{t('calendar.legend.conflict')}</ThemedText>
         </View>
       </View>
 

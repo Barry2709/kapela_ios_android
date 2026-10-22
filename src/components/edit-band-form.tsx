@@ -18,6 +18,7 @@ import { getBandMembers, addBandMember, updateBandMember } from '@/services/fire
 import { AddMemberForm } from './add-member-form';
 import { DraggableChips } from './draggable-chips';
 import { StageplanModal } from './stageplan-modal';
+import { useTranslation } from '@/utils/i18n';
 
 interface Props {
   band: Band;
@@ -28,7 +29,8 @@ interface Props {
 export function EditBandForm({ band, onSave, onCancel }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { manageBandTab, currentUser, activeRoleView, setActiveRoleView } = useAppStore();
+  const { manageBandTab, currentUser, activeRoleView, setActiveRoleView, language, setLanguage } = useAppStore();
+  const { t } = useTranslation();
 
   const activeTab = manageBandTab;
   const [isScrollEnabled, setIsScrollEnabled] = useState(true);
@@ -54,6 +56,16 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
 
   const [newTechRiderInput, setNewTechRiderInput] = useState('');
   const [newWhatToTakeInput, setNewWhatToTakeInput] = useState('');
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+
+  const languageOptions = [
+    { key: 'system', label: t('settings.language.system'), flag: '⚙️' },
+    { key: 'cs', label: t('settings.language.cs'), flag: '🇨🇿' },
+    { key: 'sk', label: t('settings.language.sk'), flag: '🇸🇰' },
+    { key: 'en', label: t('settings.language.en'), flag: '🇬🇧' },
+  ] as const;
+
+  const currentLangObj = languageOptions.find(o => o.key === language) || languageOptions[0];
 
   const addTechRiderPreset = () => {
     if (!newTechRiderInput.trim()) return;
@@ -188,7 +200,7 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
 
   const handleSave = async () => {
     if (!name) {
-      Alert.alert('Chyba', 'Název kapely je povinný.');
+      Alert.alert(t('home.attendance.errorTitle'), t('band.edit.errorName'));
       return;
     }
 
@@ -329,7 +341,7 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
 
           {/* Seznam členů kapely (Pouze Jméno, Příjmení a Nástroj/Zpěv) */}
           <ThemedText type="subtitle" style={{ marginTop: Spacing.four, marginBottom: Spacing.three }}>
-            Členové kapely
+            {t('band.edit.membersList')}
           </ThemedText>
 
           <View style={{ gap: Spacing.three }}>
@@ -350,7 +362,7 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
                     </ThemedText>
                     {member.isGuest && (
                       <View style={[styles.badge, { backgroundColor: '#2196f3' }]}>
-                        <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>Host</ThemedText>
+                        <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>{t('band.edit.guest')}</ThemedText>
                       </View>
                     )}
                   </View>
@@ -363,7 +375,7 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
 
             {members.length === 0 && (
               <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', marginTop: 10 }}>
-                Zatím nebyly načteny informace o členech.
+                {t('band.edit.noMembers')}
               </ThemedText>
             )}
           </View>
@@ -375,23 +387,50 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
   return (
     <View style={styles.container}>
       <PageHeader title={
-        activeTab === 'band' ? 'Upravit profil kapely' :
-        activeTab === 'members' ? 'Správa členů kapely' :
-        activeTab === 'tech' ? 'Technický rider kapely' : 'Nastavení aplikace'
+        activeTab === 'band' ? t('header.editBand') :
+        activeTab === 'members' ? t('header.manageMembers') :
+        activeTab === 'tech' ? t('header.techRider') : t('header.appSettings')
       } />
 
       <ScrollView contentContainerStyle={styles.content} scrollEnabled={isScrollEnabled}>
         {activeTab === 'settings' ? (
           <View style={{ gap: Spacing.four }}>
-            <ThemedText type="subtitle">Nastavení kapely & Aplikace</ThemedText>
+            <ThemedText type="subtitle">{t('settings.title')}</ThemedText>
+
+            {/* 0. Volba jazyka jako rolovací menu (Dropdown) */}
+            <ThemedView type="backgroundElement" style={styles.techSummaryCard}>
+              <ThemedText type="default" style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>
+                🌐 {t('settings.language')}
+              </ThemedText>
+
+              <Pressable
+                style={[
+                  styles.dropdownSelectBtn,
+                  { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }
+                ]}
+                onPress={() => setShowLanguageDropdown(true)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <ThemedText style={{ fontSize: 18 }}>{currentLangObj.flag}</ThemedText>
+                  <ThemedText type="smallBold" style={{ color: theme.text, fontSize: 14 }}>
+                    {currentLangObj.label}
+                  </ThemedText>
+                </View>
+                <SymbolView
+                  name={{ ios: 'chevron.down', android: 'arrow_drop_down', web: 'arrow_drop_down' }}
+                  size={20}
+                  tintColor={theme.textSecondary}
+                />
+              </Pressable>
+            </ThemedView>
 
             {/* 1. Nastavit technický rider */}
             <ThemedView type="backgroundElement" style={styles.techSummaryCard}>
               <ThemedText type="default" style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 4 }}>
-                🎛️ Nastavit technický rider
+                {t('settings.techRider.title')}
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: 10 }}>
-                Předvolby techniky a aparatury pro rychlé použití ve formulářích:
+                {t('settings.techRider.desc')}
               </ThemedText>
 
               {/* Vstupní políčko s tlačítkem + */}
@@ -405,7 +444,7 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
                   onChangeText={setNewTechRiderInput}
                   onSubmitEditing={addTechRiderPreset}
                   returnKeyType="done"
-                  placeholder="Přidat položku techniky (např. D.I. box)"
+                  placeholder={t('settings.techRider.placeholder')}
                   placeholderTextColor={theme.textSecondary}
                 />
                 <Pressable
@@ -429,17 +468,17 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
                   setTechRiderPresets(finalItems);
                   onSave({ techRiderPresets: finalItems });
                 }}
-                emptyText="Zatím nemáte přidané žádné položky technického rideru."
+                emptyText={t('settings.techRider.empty')}
               />
             </ThemedView>
 
             {/* 2. Nastavit co vzít s sebou */}
             <ThemedView type="backgroundElement" style={styles.techSummaryCard}>
               <ThemedText type="default" style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 4 }}>
-                🧳 Nastavit co vzít s sebou
+                {t('settings.whatToTake.title')}
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: 10 }}>
-                Seznam věcí a vybavení pro balení na akce a koncerty:
+                {t('settings.whatToTake.desc')}
               </ThemedText>
 
               {/* Vstupní políčko s tlačítkem + */}
@@ -453,7 +492,7 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
                   onChangeText={setNewWhatToTakeInput}
                   onSubmitEditing={addWhatToTakePreset}
                   returnKeyType="done"
-                  placeholder="Přidat věc ke zabalení (např. Stojany mikrofonní)"
+                  placeholder={t('settings.whatToTake.placeholder')}
                   placeholderTextColor={theme.textSecondary}
                 />
                 <Pressable
@@ -477,24 +516,24 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
                   setWhatToTakePresets(finalItems);
                   onSave({ whatToTakePresets: finalItems });
                 }}
-                emptyText="Zatím nemáte přidané žádné položky ke zabalení."
+                emptyText={t('settings.whatToTake.empty')}
               />
             </ThemedView>
 
             {/* Testování pohledu role */}
             <ThemedView type="backgroundElement" style={styles.techSummaryCard}>
               <ThemedText type="default" style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 4 }}>
-                🎭 Přepnout pohled podle role
+                {t('band.edit.roleToggle')}
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: 12 }}>
-                Vyberte roli pro simulaci uživatelského rozhraní v aplikaci:
+                {t('band.edit.roleDesc')}
               </ThemedText>
 
               <View style={{ flexDirection: 'row', gap: Spacing.two }}>
                 {[
-                  { key: 'admin', label: 'Kapelník (Admin)', color: '#ff9800' },
-                  { key: 'member', label: 'Člen kapely', color: '#4caf50' },
-                  { key: 'fan', label: 'Fanoušek', color: '#2196f3' },
+                  { key: 'admin', label: t('band.edit.roleAdmin'), color: '#ff9800' },
+                  { key: 'member', label: t('band.edit.roleMember'), color: '#4caf50' },
+                  { key: 'fan', label: t('band.edit.roleFan'), color: '#2196f3' },
                 ].map(r => (
                   <Pressable
                     key={r.key}
@@ -521,36 +560,36 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
             {/* Přihlášení & Paměť */}
             <ThemedView type="backgroundElement" style={styles.techSummaryCard}>
               <ThemedText type="default" style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>
-                🔑 Účet a automatické přihlášení
+                {t('band.edit.accountTitle')}
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                Na tomto zařízení jste přihlášeni jako: <ThemedText type="smallBold">{currentUser?.displayName || 'Kapelník'}</ThemedText>
+                {t('band.edit.accountUser')} <ThemedText type="smallBold">{currentUser?.displayName || 'Kapelník'}</ThemedText>
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: 4 }}>
-                Aplikace si pamatuje ověřená zařízení pro okamžité přihlášení bez nutnosti opakovacího hesla.
+                {t('band.edit.accountDesc')}
               </ThemedText>
             </ThemedView>
 
             {/* Informace o systému */}
             <ThemedView type="backgroundElement" style={styles.techSummaryCard}>
               <ThemedText type="default" style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>
-                📱 Systémové informace
+                {t('band.edit.sysInfo')}
               </ThemedText>
               <View style={styles.techRow}>
-                <ThemedText type="smallBold">Aplikace:</ThemedText>
+                <ThemedText type="smallBold">{t('band.edit.sysApp')}</ThemedText>
                 <ThemedText type="small">Band Management App</ThemedText>
               </View>
               <View style={styles.techRow}>
-                <ThemedText type="smallBold">Verze:</ThemedText>
+                <ThemedText type="smallBold">{t('band.edit.sysVer')}</ThemedText>
                 <ThemedText type="small">1.0.0 (Expo & Firebase)</ThemedText>
               </View>
               <View style={styles.techRow}>
-                <ThemedText type="smallBold">Databáze Firestore:</ThemedText>
+                <ThemedText type="smallBold">{t('band.edit.sysDb')}</ThemedText>
                 <ThemedText type="small">kapela / {band.id}</ThemedText>
               </View>
               <View style={styles.techRow}>
-                <ThemedText type="smallBold">Stav spojení:</ThemedText>
-                <ThemedText type="smallBold" style={{ color: '#4caf50' }}>Připojeno online</ThemedText>
+                <ThemedText type="smallBold">{t('band.edit.sysStatus')}</ThemedText>
+                <ThemedText type="smallBold" style={{ color: '#4caf50' }}>{t('band.edit.connected')}</ThemedText>
               </View>
             </ThemedView>
           </View>
@@ -573,13 +612,13 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
                 onPress={() => setShowStageplan(true)}
               >
                 <SymbolView name={{ ios: 'map', android: 'map', web: 'map' }} size={20} tintColor="#fff" />
-                <ThemedText type="default" style={{ color: '#fff', fontWeight: 'bold' }}>Stageplan</ThemedText>
+                <ThemedText type="default" style={{ color: '#fff', fontWeight: 'bold' }}>{t('band.edit.stageplanBtn')}</ThemedText>
               </Pressable>
 
               {/* Souhrnná karta techniky na pódiu */}
               <ThemedView type="backgroundElement" style={styles.techSummaryCard}>
                 <ThemedText type="default" style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>
-                  📊 Požadavek na pódiu ({attendingMembers.length} z {members.length} členů)
+                  {t('band.edit.techReqTitle').replace('{att}', attendingMembers.length.toString()).replace('{total}', members.length.toString())}
                 </ThemedText>
 
                 {techRiderPresets.length > 0 ? (
@@ -597,13 +636,13 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
                   })
                 ) : (
                   <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', marginVertical: 8 }}>
-                    Nemáte zatím nastavené žádné položky technického rideru.{'\n'}Přidat je můžete v Kapela → Nastavení → Nastavit technický rider.
+                    {t('band.edit.noTechReq')}
                   </ThemedText>
                 )}
               </ThemedView>
 
               {/* Rozpis podle jednotlivých členů s přepínačem účasti */}
-              <ThemedText type="subtitle" style={{ fontSize: 16 }}>Účast členů na akci</ThemedText>
+              <ThemedText type="subtitle" style={{ fontSize: 16 }}>{t('band.edit.attendanceTitle')}</ThemedText>
               {members.map(m => {
                 const isPresent = attendingMemberIds[m.id] !== false;
 
@@ -626,7 +665,7 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
 
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         <ThemedText type="smallBold" style={{ color: isPresent ? '#4caf50' : theme.textSecondary, fontSize: 12 }}>
-                          {isPresent ? 'Na akci' : 'Neúčastní se'}
+                          {isPresent ? t('band.edit.attendanceLabel') : t('band.edit.absenceLabel')}
                         </ThemedText>
                         <Switch
                           value={isPresent}
@@ -655,7 +694,7 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
         })() : activeTab === 'band' ? (
           <>
             {/* Změna loga kapely */}
-            <ThemedText type="smallBold">Logo kapely</ThemedText>
+            <ThemedText type="smallBold">{t('band.edit.logo')}</ThemedText>
 
             {logoUri && (
                <Image source={{ uri: logoUri }} style={styles.logoPreview} contentFit="contain" />
@@ -664,41 +703,41 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
             <View style={{flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.four, marginTop: -20}}>
               <Pressable style={[styles.photoBtn, { backgroundColor: 'rgba(200,200,200,0.15)', borderColor: 'rgba(200,200,200,0.25)' }]} onPress={pickImageFromGallery}>
                 <SymbolView name={{ ios: 'photo', android: 'image', web: 'image' }} size={14} tintColor={theme.text} />
-                <ThemedText type="smallBold" style={{fontSize: 12}}>Z galerie</ThemedText>
+                <ThemedText type="smallBold" style={{fontSize: 12}}>{t('band.edit.fromGallery')}</ThemedText>
               </Pressable>
               <Pressable style={[styles.photoBtn, { backgroundColor: 'rgba(200,200,200,0.15)', borderColor: 'rgba(200,200,200,0.25)' }]} onPress={pickImageFromFolder}>
                 <SymbolView name={{ ios: 'folder', android: 'folder', web: 'folder' }} size={14} tintColor={theme.text} />
-                <ThemedText type="smallBold" style={{fontSize: 12}}>Ze složky</ThemedText>
+                <ThemedText type="smallBold" style={{fontSize: 12}}>{t('band.edit.fromFolder')}</ThemedText>
               </Pressable>
             </View>
 
             <View style={{marginTop: -20}}>
-              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16}}>Název kapely *</ThemedText>
+              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16}}>{t('band.edit.nameReq')}</ThemedText>
               <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={name} onChangeText={setName} placeholderTextColor={theme.textSecondary} />
 
-              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16}}>Hudební žánr</ThemedText>
+              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16}}>{t('band.edit.musicGenre')}</ThemedText>
               <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={genre} onChangeText={setGenre} placeholderTextColor={theme.textSecondary} />
 
-              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16}}>Web kapely (URL)</ThemedText>
+              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16}}>{t('band.edit.webUrl')}</ThemedText>
               <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={web} onChangeText={setWeb} placeholder="www.mojekapela.cz" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
 
-              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16, marginTop: 8}}>Facebook kapely (URL)</ThemedText>
+              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16, marginTop: 8}}>{t('band.edit.fbUrl')}</ThemedText>
               <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={facebook} onChangeText={setFacebook} placeholder="facebook.com/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
 
-              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16, marginTop: 8}}>Instagram kapely (URL)</ThemedText>
+              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16, marginTop: 8}}>{t('band.edit.igUrl')}</ThemedText>
               <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={instagram} onChangeText={setInstagram} placeholder="instagram.com/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
 
-              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16, marginTop: 8}}>Bandzone kapely (URL)</ThemedText>
+              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16, marginTop: 8}}>{t('band.edit.bzUrl')}</ThemedText>
               <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={bandzone} onChangeText={setBandzone} placeholder="bandzone.cz/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
             </View>
 
             <View style={styles.buttons}>
               <Pressable style={[styles.button, { backgroundColor: '#e91e63' }]} onPress={onCancel} disabled={isSaving}>
-                <ThemedText type="smallBold" style={{ color: '#fff' }}>Zrušit</ThemedText>
+                <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('home.misc.cancel')}</ThemedText>
               </Pressable>
               <Pressable style={[styles.button, { backgroundColor: '#4caf50', opacity: isSaving ? 0.7 : 1 }]} onPress={handleSave} disabled={isSaving}>
                 <ThemedText type="smallBold" style={{ color: '#fff' }}>
-                  {isSaving ? 'Ukládám...' : 'Uložit změny'}
+                  {isSaving ? t('band.edit.saving') : t('band.edit.saveChanges')}
                 </ThemedText>
               </Pressable>
             </View>
@@ -706,7 +745,7 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
         ) : (
           <>
             <View style={styles.membersHeader}>
-               <ThemedText type="subtitle">Správa členů kapely</ThemedText>
+               <ThemedText type="subtitle">{t('band.edit.manageMembers')}</ThemedText>
                <Pressable style={[styles.addButton, { backgroundColor: theme.backgroundElement }]} onPress={openAddMember}>
                   <SymbolView name={{ ios: 'plus', android: 'add', web: 'add' }} size={20} tintColor={theme.text} />
                </Pressable>
@@ -765,16 +804,16 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
                         )}
                         {member.isGuest ? (
                           <View style={[styles.badge, { backgroundColor: '#2196f3' }]}>
-                            <ThemedText type="smallBold" style={{color: '#fff', fontSize: 10}}>Host</ThemedText>
+                            <ThemedText type="smallBold" style={{color: '#fff', fontSize: 10}}>{t('band.edit.guest')}</ThemedText>
                           </View>
                         ) : (
                           <View style={[styles.badge, { backgroundColor: theme.textSecondary }]}>
-                            <ThemedText type="smallBold" style={{color: theme.background, fontSize: 10}}>Člen</ThemedText>
+                            <ThemedText type="smallBold" style={{color: theme.background, fontSize: 10}}>{t('band.edit.member')}</ThemedText>
                           </View>
                         )}
                         {member.isActive === false && (
                           <View style={[styles.badge, { backgroundColor: '#e91e63' }]}>
-                            <ThemedText type="smallBold" style={{color: '#fff', fontSize: 10}}>Neaktivní</ThemedText>
+                            <ThemedText type="smallBold" style={{color: '#fff', fontSize: 10}}>{t('band.edit.inactive')}</ThemedText>
                           </View>
                         )}
                       </View>
@@ -809,6 +848,56 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
         members={members}
         onSave={(stageplanData) => onSave({ stageplan: stageplanData })}
       />
+
+      {/* Modal pro rolovací menu výběru jazyka */}
+      <Modal visible={showLanguageDropdown} transparent animationType="fade" onRequestClose={() => setShowLanguageDropdown(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowLanguageDropdown(false)}>
+          <ThemedView type="backgroundElement" style={styles.dropdownModalCard}>
+            <ThemedText type="subtitle" style={{ fontSize: 18, marginBottom: 16, textAlign: 'center' }}>
+              🌐 {t('settings.language')}
+            </ThemedText>
+
+            <View style={{ gap: 8 }}>
+              {languageOptions.map((opt) => {
+                const isSelected = language === opt.key;
+                return (
+                  <Pressable
+                    key={opt.key}
+                    style={[
+                      styles.dropdownOptionRow,
+                      {
+                        backgroundColor: isSelected ? 'rgba(33,150,243,0.18)' : 'rgba(200,200,200,0.1)',
+                        borderColor: isSelected ? '#2196f3' : 'rgba(200,200,200,0.2)',
+                      }
+                    ]}
+                    onPress={() => {
+                      setLanguage(opt.key as any);
+                      setShowLanguageDropdown(false);
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <ThemedText style={{ fontSize: 20 }}>{opt.flag}</ThemedText>
+                      <ThemedText type="smallBold" style={{ color: isSelected ? '#2196f3' : theme.text, fontSize: 15 }}>
+                        {opt.label}
+                      </ThemedText>
+                    </View>
+                    {isSelected && (
+                      <SymbolView name={{ ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' }} size={20} tintColor="#2196f3" />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Pressable
+              style={{ alignSelf: 'center', marginTop: 16, paddingVertical: 8, paddingHorizontal: 16 }}
+              onPress={() => setShowLanguageDropdown(false)}
+            >
+              <ThemedText type="smallBold" style={{ color: '#e91e63' }}>{t('setlist.pickerClose')}</ThemedText>
+            </Pressable>
+          </ThemedView>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -964,6 +1053,39 @@ const styles = StyleSheet.create({
   badgeRow: { flexDirection: 'row', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' },
   badge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
   editMemberBtn: { padding: Spacing.one, marginTop: Spacing.two },
+
+  dropdownSelectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dropdownModalCard: {
+    width: '85%',
+    maxWidth: 360,
+    borderRadius: Spacing.three,
+    padding: Spacing.four,
+    borderWidth: 1,
+    borderColor: 'rgba(150,150,150,0.2)',
+  },
+  dropdownOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+  },
 
   bottomBar: {
     borderTopWidth: 1,

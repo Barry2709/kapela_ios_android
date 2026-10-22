@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import { Band, UserProfile, Role } from '../types';
 
 interface AppState {
+  // Jazyk aplikace
+  language: 'system' | 'cs' | 'sk' | 'en';
+  setLanguage: (lang: 'system' | 'cs' | 'sk' | 'en') => void;
+
   // Aktuální uživatel
   currentUser: UserProfile | null;
   setCurrentUser: (user: UserProfile | null) => void;
@@ -36,6 +40,9 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
+  language: 'system',
+  setLanguage: (lang) => set({ language: lang }),
+
   currentUser: null,
   setCurrentUser: (user) => set({ currentUser: user }),
 

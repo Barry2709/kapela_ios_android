@@ -7,6 +7,7 @@ import { ThemedText } from './themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Rehearsal } from '@/types';
+import { useTranslation } from '@/utils/i18n';
 
 interface Props {
   initialRehearsal?: Rehearsal;
@@ -16,6 +17,7 @@ interface Props {
 
 export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
 
   const parseInitialDate = () => {
     if (!initialRehearsal?.date) return new Date();
@@ -92,7 +94,7 @@ export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) 
 
   const handleSave = () => {
     if (!location) {
-      Alert.alert('Chyba', 'Vyplňte prosím místo konání zkoušky.');
+      Alert.alert(t('home.attendance.errorTitle'), 'Vyplňte prosím místo konání zkoušky.'); // TODO: pridať i18n ak treba
       return;
     }
 
@@ -109,14 +111,14 @@ export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <ThemedText type="subtitle" style={styles.title}>
-        {initialRehearsal ? 'Upravit zkoušku' : 'Naplánovat zkoušku'}
+        {initialRehearsal ? t('form.rehearsal.editTitle') : t('form.rehearsal.title')}
       </ThemedText>
 
       {/* Rámce pro Datum a Čas vedle sebe */}
       <View style={styles.row}>
         {/* Výběr data */}
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Datum zkoušky *</ThemedText>
+          <ThemedText type="smallBold">{t('form.rehearsal.date')}</ThemedText>
           <Pressable
             style={[styles.pickerButton, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             onPress={() => setShowDatePicker(true)}
@@ -130,7 +132,7 @@ export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) 
 
         {/* Výběr času */}
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Čas *</ThemedText>
+          <ThemedText type="smallBold">{t('form.rehearsal.time')} *</ThemedText>
           <Pressable
             style={[styles.pickerButton, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             onPress={() => setShowTimePicker(true)}
@@ -145,7 +147,7 @@ export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) 
 
       {/* Rychlé předvolby času */}
       <View style={styles.presetRow}>
-        <ThemedText type="small" themeColor="textSecondary">Rychlý čas:</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">{t('form.rehearsal.quickTime')}</ThemedText>
         {[
           { label: '18:00', h: 18, m: 0 },
           { label: '18:30', h: 18, m: 30 },
@@ -165,12 +167,12 @@ export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) 
 
 
       {/* Místo konání */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>Místo konání *</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>{t('form.rehearsal.location')} *</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={location}
         onChangeText={setLocation}
-        placeholder="Např. Zkušebna Klášterec"
+        placeholder={t('form.rehearsal.location')}
         placeholderTextColor={theme.textSecondary}
       />
 
@@ -186,7 +188,7 @@ export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) 
 
       {Platform.OS === 'ios' && showDatePicker && (
         <Pressable style={{ alignSelf: 'flex-end', padding: 8 }} onPress={() => setShowDatePicker(false)}>
-          <ThemedText type="smallBold" style={{ color: '#2196f3' }}>Zavřít kalendář</ThemedText>
+          <ThemedText type="smallBold" style={{ color: '#2196f3' }}>{t('form.rehearsal.closePickerDate')}</ThemedText>
         </Pressable>
       )}
 
@@ -203,13 +205,13 @@ export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) 
 
       {Platform.OS === 'ios' && showTimePicker && (
         <Pressable style={{ alignSelf: 'flex-end', padding: 8 }} onPress={() => setShowTimePicker(false)}>
-          <ThemedText type="smallBold" style={{ color: '#2196f3' }}>Zavřít hodiny</ThemedText>
+          <ThemedText type="smallBold" style={{ color: '#2196f3' }}>{t('form.rehearsal.closePickerTime')}</ThemedText>
         </Pressable>
       )}
 
       {/* Rychlá tlačítka pro místo */}
       <View style={styles.presetRow}>
-        <ThemedText type="small" themeColor="textSecondary">Častá místa:</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">{t('form.rehearsal.quickPlace')}</ThemedText>
         {['Zkušebna', 'Klub', 'Sál'].map(place => (
           <Pressable
             key={place}
@@ -222,12 +224,12 @@ export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) 
       </View>
 
       {/* Co připravit na zkoušku */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>Co připravit na zkoušku</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>{t('form.rehearsal.whatToPrepare')}</ThemedText>
       <TextInput
         style={[styles.input, styles.multilineInput, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={whatToPrepare}
         onChangeText={setWhatToPrepare}
-        placeholder="Např. Písničky 1-5, vyzkoušet vícehlasy v refrénu..."
+        placeholder={t('form.rehearsal.whatToPreparePlaceholder')}
         placeholderTextColor={theme.textSecondary}
         multiline
         numberOfLines={3}
@@ -249,8 +251,8 @@ export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) 
       {/* Stav zkoušky - Zrušeno */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.four, padding: Spacing.three, borderRadius: Spacing.two, backgroundColor: 'rgba(200,200,200,0.12)' }}>
         <View>
-          <ThemedText type="smallBold">Stav zkoušky</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">Označit zkoušku jako zrušenou</ThemedText>
+          <ThemedText type="smallBold">{t('form.rehearsal.status')}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{t('form.rehearsal.statusDesc')}</ThemedText>
         </View>
         <Pressable
           style={[
@@ -265,7 +267,7 @@ export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) 
           onPress={() => setIsCancelled(!isCancelled)}
         >
           <ThemedText type="smallBold" style={{ color: isCancelled ? '#fff' : theme.text }}>
-            {isCancelled ? '🚫 Zrušeno' : '✅ Platí'}
+            {isCancelled ? t('form.rehearsal.statusCancelled') : t('form.rehearsal.statusValid')}
           </ThemedText>
         </Pressable>
       </View>
@@ -273,11 +275,11 @@ export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) 
       {/* Tlačítka Zrušit formulář a Uložit zkoušku */}
       <View style={styles.buttons}>
         <Pressable style={[styles.button, { backgroundColor: '#e91e63' }]} onPress={onCancel}>
-          <ThemedText type="smallBold" style={{ color: '#fff' }}>Zavřít</ThemedText>
+          <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('form.common.cancel')}</ThemedText>
         </Pressable>
         <Pressable style={[styles.button, { backgroundColor: '#4caf50' }]} onPress={handleSave}>
           <ThemedText type="smallBold" style={{ color: '#fff' }}>
-            {initialRehearsal ? 'Uložit zkoušku' : 'Naplánovat zkoušku'}
+            {t('form.rehearsal.saveBtn')}
           </ThemedText>
         </Pressable>
       </View>

@@ -7,6 +7,7 @@ import { SymbolView } from 'expo-symbols';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/utils/i18n';
 import { useAppStore } from '@/store/useAppStore';
 import { AudioRecord } from '@/types';
 import {
@@ -20,6 +21,7 @@ import {
 
 export function AudioRecorder() {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { activeBand, currentUser, activeRoleView } = useAppStore();
 
   const [records, setRecords] = useState<AudioRecord[]>([]);
@@ -127,11 +129,11 @@ export function AudioRecorder() {
         audioRecorder.record();
         setPendingRecordUri(null);
       } else {
-        Alert.alert('Chyba', 'Aplikace nemá přístup k mikrofonu.');
+        Alert.alert(t('home.attendance.errorTitle'), t('audio.errorMic'));
       }
     } catch (err) {
       console.error('Nepodařilo se spustit nahrávání', err);
-      Alert.alert('Chyba', 'Nepodařilo se spustit nahrávání.');
+      Alert.alert(t('home.attendance.errorTitle'), t('audio.errorStart'));
     }
   };
 
@@ -148,7 +150,7 @@ export function AudioRecorder() {
       setRecordTitle(`Záznam ze zkoušky ${formatDate(Date.now())}`);
     } catch (err) {
       console.error('Chyba při zastavení nahrávky', err);
-      Alert.alert('Chyba', 'Nahrávku se nepodařilo dokončit.');
+      Alert.alert(t('home.attendance.errorTitle'), t('audio.errorStop'));
     }
   };
 
@@ -169,7 +171,7 @@ export function AudioRecorder() {
       }
     } catch (err) {
       console.error('Chyba při výběru souboru z disku', err);
-      Alert.alert('Chyba', 'Nepodařilo se načíst audio soubor z disku.');
+      Alert.alert(t('home.attendance.errorTitle'), t('audio.errorPick'));
     }
   };
 
@@ -204,7 +206,7 @@ export function AudioRecorder() {
     } catch (err) {
       setIsUploading(false);
       console.error('Chyba při ukládání nahrávky', err);
-      Alert.alert('Chyba', 'Nahrávku se nepodařilo uložit na server.');
+      Alert.alert(t('home.attendance.errorTitle'), t('audio.errorSave'));
     }
   };
 
@@ -221,7 +223,7 @@ export function AudioRecorder() {
     try {
       const checkResp = await fetch(record.downloadUrl, { method: 'HEAD' });
       if (!checkResp.ok && checkResp.status === 404) {
-        Alert.alert("Soubor nenalezen", "Tato nahrávka byla ze serveru Storage smazána. Smazáno i z databáze.");
+        Alert.alert(t('home.attendance.errorTitle'), t('audio.errorNotFound'));
         await deleteAudioRecord(activeBand.id, record.id);
         return;
       }
@@ -250,7 +252,7 @@ export function AudioRecorder() {
       setPlayerUri(record.downloadUrl);
     } catch (e) {
       console.error("Nelze přehrát audio:", e);
-      Alert.alert("Chyba", "Nepodařilo se přehrát záznam.");
+      Alert.alert(t('home.attendance.errorTitle'), t('audio.errorPlay'));
       setPlayingId(null);
       setIsPlayingState(false);
     }
@@ -277,16 +279,16 @@ export function AudioRecorder() {
       await updateAudioRecord(activeBand.id, record.id, { isPublic: newStatus });
     } catch (e) {
       console.error("Chyba při změně viditelnosti:", e);
-      Alert.alert("Chyba", "Nepodařilo se upravit viditelnost nahrávky.");
+      Alert.alert(t('home.attendance.errorTitle'), t('audio.errorVisibility'));
     }
   };
 
   // 6. Smazání nahrávky adminem
   const handleDelete = (record: AudioRecord) => {
-    Alert.alert('Smazat záznam', `Opravdu smazat záznam ${record.title}?`, [
-      { text: 'Zrušit', style: 'cancel' },
+    Alert.alert(t('audio.deleteTitle'), t('audio.deleteMsg').replace('{title}', record.title), [
+      { text: t('form.common.cancel'), style: 'cancel' },
       {
-        text: 'Smazat',
+        text: t('form.common.delete'),
         style: 'destructive',
         onPress: async () => {
           if (!activeBand) return;
@@ -315,16 +317,16 @@ export function AudioRecorder() {
           {isUploading ? (
             <View style={styles.uploadingContainer}>
               <ActivityIndicator size="large" color="#f44336" />
-              <ThemedText style={{ marginTop: 12 }}>Ukládám nahrávku do cloudu...</ThemedText>
+              <ThemedText style={{ marginTop: 12 }}>{t('audio.uploading')}</ThemedText>
             </View>
           ) : pendingRecordUri ? (
             <View style={styles.saveContainer}>
               <ThemedText type="smallBold" style={{ marginBottom: 12, textAlign: 'center', fontSize: 16 }}>
-                Nahrávka připravena
+                {t('audio.ready')}
               </ThemedText>
 
               <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: 6 }}>
-                Zadejte název nahrávky:
+                {t('audio.enterName')}
               </ThemedText>
               <TextInput
                 style={[styles.input, { color: theme.text, borderColor: theme.textSecondary }]}
@@ -337,10 +339,10 @@ export function AudioRecorder() {
 
               <View style={styles.saveActions}>
                 <Pressable style={[styles.actionBtn, { backgroundColor: 'rgba(150,150,150,0.2)' }]} onPress={handleCancelPending}>
-                  <ThemedText type="smallBold" style={{ color: theme.text }}>Zahodit</ThemedText>
+                  <ThemedText type="smallBold" style={{ color: theme.text }}>{t('audio.discard')}</ThemedText>
                 </Pressable>
                 <Pressable style={[styles.actionBtn, { backgroundColor: '#4caf50' }]} onPress={handleSavePendingRecord}>
-                  <ThemedText type="smallBold" style={{ color: '#fff' }}>Uložit na server</ThemedText>
+                  <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('audio.saveServer')}</ThemedText>
                 </Pressable>
               </View>
             </View>
@@ -361,18 +363,18 @@ export function AudioRecorder() {
                 <View style={styles.recordingStatus}>
                   <View style={styles.redDot} />
                   <ThemedText type="subtitle" style={{ color: '#f44336' }}>
-                    Nahrávám... {formatDuration((recorderState.durationMillis || audioRecorder.currentTime * 1000) || 0)}
+                    {t('audio.recording')} {formatDuration((recorderState.durationMillis || audioRecorder.currentTime * 1000) || 0)}
                   </ThemedText>
                 </View>
               ) : (
                 <View style={{ alignItems: 'center', gap: 10 }}>
-                  <ThemedText style={{ color: theme.textSecondary }}>Stiskněte mikrofón pro začátek nahrávání</ThemedText>
+                  <ThemedText style={{ color: theme.textSecondary }}>{t('audio.pressMic')}</ThemedText>
 
                   {/* Tlačítko pro nahrání souboru z disku */}
                   <Pressable style={styles.pickFileBtn} onPress={handlePickDocumentAsync}>
                     <SymbolView name={{ ios: 'doc.fill', android: 'folder', web: 'folder' }} size={16} tintColor="#2196f3" />
                     <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 13 }}>
-                      Nahrát soubor z disku / telefonu
+                      {t('audio.pickFile')}
                     </ThemedText>
                   </Pressable>
                 </View>
@@ -384,12 +386,12 @@ export function AudioRecorder() {
 
       {/* Seznam nahrávek */}
       <ThemedText type="subtitle" style={styles.listHeader}>
-        Záznamy kapely ({visibleRecords.length})
+        {t('audio.recordsList').replace('{count}', visibleRecords.length.toString())}
       </ThemedText>
 
       {visibleRecords.length === 0 ? (
         <ThemedText style={{ textAlign: 'center', marginTop: 20, color: theme.textSecondary }}>
-          {activeRoleView === 'fan' ? 'Zatím nebyly zveřejněny žádné nahrávky pro fanoušky.' : 'Zatím nejsou uloženy žádné nahrávky.'}
+          {activeRoleView === 'fan' ? t('audio.noRecordsFan') : t('audio.noRecords')}
         </ThemedText>
       ) : (
         <ScrollView style={styles.list}>
@@ -450,13 +452,13 @@ export function AudioRecorder() {
                     {record.isPublic ? (
                       <View style={styles.publicBadge}>
                         <ThemedText type="smallBold" style={{ color: '#4caf50', fontSize: 10 }}>
-                          🌐 Veřejná
+                          {t('audio.public')}
                         </ThemedText>
                       </View>
                     ) : (
                       <View style={styles.privateBadge}>
                         <ThemedText type="smallBold" style={{ color: theme.textSecondary, fontSize: 10 }}>
-                          🔒 Soukromá
+                          {t('audio.private')}
                         </ThemedText>
                       </View>
                     )}
@@ -477,7 +479,7 @@ export function AudioRecorder() {
                           {formatDuration(playbackTimeSec * 1000)} / {formatDuration(totalDurationSec * 1000)}
                         </ThemedText>
                         <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11 }}>
-                          {isPlayingState ? 'Přehrává se...' : 'Pozastaveno'}
+                          {isPlayingState ? t('audio.playing') : t('audio.paused')}
                         </ThemedText>
                       </View>
 

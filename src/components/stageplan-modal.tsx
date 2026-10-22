@@ -11,6 +11,7 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation, getTranslation } from '@/utils/i18n';
 import { useAppStore } from '@/store/useAppStore';
 import { Band, BandMember, StageplanMember, Concert } from '@/types';
 import { uploadImageToStorage, updateBand } from '@/services/firebaseService';
@@ -425,6 +426,7 @@ export const generateNamedPdfFile = async (html: string, bandName: string, conce
 
 // Pomocné funkce pro sdílení textových odkazů na soubory z cloudu (bez fyzických příloh!)
 const openWhatsAppWithText = async (phone: string, text: string) => {
+  const t = getTranslation;
   let cleanPhone = phone.replace(/[^0-9]/g, '');
   if (cleanPhone.length === 9) cleanPhone = '420' + cleanPhone;
 
@@ -438,7 +440,7 @@ const openWhatsAppWithText = async (phone: string, text: string) => {
   try {
     await Linking.openURL(`https://wa.me/${cleanPhone}?text=${encText}`);
   } catch (e) {
-    Alert.alert("Aplikace nedostupná", "Nepodařilo se otevřít WhatsApp.");
+    Alert.alert(t('stageplan.appUnavailable'), t('stageplan.errorApp'));
   }
 };
 
@@ -463,6 +465,7 @@ export async function shareConcertStageplan({
   members: BandMember[];
   currentUser: any;
 }) {
+  const t = getTranslation;
   try {
     const bandName = band?.name || 'Naplech';
     const cleanBand = bandName.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -570,7 +573,7 @@ export async function shareConcertStageplan({
       try {
         await Linking.openURL(`mailto:${emailListStr}?subject=${encSubject}&body=${encBody}`);
       } catch (linkErr) {
-        Alert.alert("E-mail klient", "Nebylo možné otevřít e-mailový klient.");
+        Alert.alert(t('stageplan.emailClient'), t('stageplan.errorEmail'));
       }
     };
 
@@ -589,39 +592,40 @@ export async function shareConcertStageplan({
 
     phoneContacts.forEach(c => {
       alertButtons.push({
-        text: `💬 WhatsApp: ${c.role} (${c.name})`,
+        text: t('stageplan.shareWhatsapp').replace('{role}', c.role).replace('{name}', c.name),
         onPress: () => openWhatsAppChat(c.phone)
       });
     });
 
     if (emails.length > 0) {
       alertButtons.push({
-        text: `📧 E-mail pořadatelům (${emails.join(', ')})`,
+        text: t('stageplan.shareEmail').replace('{emails}', emails.join(', ')),
         onPress: () => sendEmailToOrganizers()
       });
     }
 
     alertButtons.push({
-      text: `📲 Obecné sdílení souboru`,
+      text: t('stageplan.shareGeneral'),
       onPress: () => openGeneralShare()
     });
 
-    alertButtons.push({ text: 'Zrušit', style: 'cancel' });
+    alertButtons.push({ text: t('stageplan.cancel'), style: 'cancel' });
 
     Alert.alert(
-      `Sdílet Stageplan (${concert?.title || bandName})`,
-      `Vyberte způsob sdílení Stageplanu pro akci ${concert?.title || 'Koncert'}:`,
+      t('stageplan.title').replace('{title}', concert?.title || bandName),
+      t('stageplan.shareMsg').replace('{title}', concert?.title || 'Koncert'),
       alertButtons
     );
 
   } catch (err: any) {
     console.error("Chyba při sdílení Stageplanu z akce:", err);
-    Alert.alert("Chyba", err?.message || "Nepodařilo se sdílet Stageplan.");
+    Alert.alert(t('home.attendance.errorTitle'), err?.message || t('stageplan.errorShare'));
   }
 }
 
 export function StageplanModal({ visible, onClose, band, members, onSave, concert }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { currentUser } = useAppStore();
   const stageViewRef = useRef<View>(null);
@@ -753,10 +757,10 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
         } catch (e) {}
       }
 
-      Alert.alert("Uloženo", "Stageplan byl úspěšně uložen na server i do zařízení.");
+      Alert.alert(t('stageplan.saveSuccessTitle'), t('stageplan.saveSuccessMsg'));
     } catch (err) {
       console.log("Uložení Stageplanu selhalo:", err);
-      Alert.alert("Uloženo", "Stageplan byl úspěšně uložen.");
+      Alert.alert(t('stageplan.saveSuccessTitle'), t('stageplan.saveSuccessMsgBackup'));
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -874,7 +878,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
           if (perm.granted) {
             if (pdfUri) await mediaLibraryModule.createAssetAsync(pdfUri);
             if (pngUri) await mediaLibraryModule.createAssetAsync(pngUri);
-            Alert.alert("Staženo", `Soubory ${pdfFileName} a ${pngFileName} byly uloženy do vašeho zařízení.`);
+            Alert.alert(t('stageplan.downloaded'), t('stageplan.savedToDevice'));
             setIsGeneratingPdf(false);
             return;
           }
@@ -883,7 +887,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
         console.log("MediaLibrary stahování selhalo:", mediaErr);
       }
 
-      Alert.alert("Staženo", `Soubory ${pdfFileName} a ${pngFileName} byly uloženy v zařízení.`);
+      Alert.alert(t('stageplan.downloaded'), t('stageplan.savedToDevice'));
     } catch (e: any) {
       console.error("Chyba při stahování souborů Stageplanu:", e);
       Alert.alert("Chyba", e?.message || "Nepodařilo se stáhnout soubory.");
@@ -950,7 +954,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       >
         <View style={styles.header}>
           <Pressable onPress={onClose} style={{ paddingHorizontal: Spacing.two, paddingVertical: 4 }}>
-            <ThemedText type="smallBold" style={{ color: '#e91e63' }}>Zrušit</ThemedText>
+            <ThemedText type="smallBold" style={{ color: '#e91e63' }}>{t('home.misc.cancel')}</ThemedText>
           </Pressable>
 
           <View style={{ alignItems: 'center', flex: 1, paddingHorizontal: Spacing.two }}>
@@ -962,7 +966,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
               adjustsFontSizeToFit
               style={{ marginTop: 2, textAlign: 'center' }}
             >
-              Podržením plochy přidáte člena. Přetažením přesouváte. Dvojitým klepnutím mažete.
+              {t('stageplan.helpText')}
             </ThemedText>
           </View>
 
@@ -978,7 +982,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
           </Pressable>
 
           <Pressable onPress={handleSave} style={{ paddingHorizontal: Spacing.two, paddingVertical: 4, marginLeft: 8 }}>
-            <ThemedText type="smallBold" style={{ color: '#4caf50' }}>Uložit</ThemedText>
+            <ThemedText type="smallBold" style={{ color: '#4caf50' }}>{t('setlist.saveBtn')}</ThemedText>
           </Pressable>
         </View>
 
@@ -1082,7 +1086,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
           <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }]}>
             <View style={{ backgroundColor: '#222', padding: 24, borderRadius: 12, alignItems: 'center', minWidth: 160 }}>
               <ActivityIndicator size="large" color="#2196f3" />
-              <ThemedText type="smallBold" style={{ color: '#fff', marginTop: 12 }}>Ukládám...</ThemedText>
+            <ThemedText type="smallBold" style={{ color: '#fff', marginTop: 12 }}>{t('stageplan.dl.saving')}</ThemedText>
             </View>
           </View>
         )}

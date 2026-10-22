@@ -11,6 +11,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { Song, BandMember } from '@/types';
 import { getBandMembers } from '@/services/firebaseService';
 import { fixCzechDiacritics, capitalizeFirstLetter, hasVocalsInProfile, getMemberDisplayName } from '@/utils/diacritics';
+import { useTranslation } from '@/utils/i18n';
 
 interface Props {
   initialSong?: Song;
@@ -31,6 +32,7 @@ const isChordName = (str: string): boolean => {
 export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDelete, onCancel }: Props) {
   const theme = useTheme();
   const { activeBand } = useAppStore();
+  const { t } = useTranslation();
 
   const [title, setTitle] = useState(initialSong?.title || '');
   const [artist, setArtist] = useState(initialSong?.artist || '');
@@ -202,7 +204,7 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
 
   const handleSave = () => {
     if (!title.trim()) {
-      Alert.alert('Chyba', 'Vyplňte prosím název písně.');
+      Alert.alert(t('home.attendance.errorTitle'), t('form.song.errorTitle'));
       return;
     }
 
@@ -235,31 +237,31 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <ThemedText type="subtitle" style={styles.title}>
-        {initialSong ? 'Upravit píseň' : 'Přidat novou píseň'}
+        {initialSong ? t('form.song.editTitle') : t('form.song.titleNew')}
       </ThemedText>
 
       {/* Název písně (povinné) */}
-      <ThemedText type="smallBold">Název písně *</ThemedText>
+      <ThemedText type="smallBold">{t('form.song.titleLabel')}</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={title}
         onChangeText={setTitle}
-        placeholder="Např. Stánky, Jasná zpráva"
+        placeholder={t('form.song.titlePlaceholder')}
         placeholderTextColor={theme.textSecondary}
       />
 
       {/* Interpret / Autor */}
-      <ThemedText type="smallBold">Interpret / Autor</ThemedText>
+      <ThemedText type="smallBold">{t('form.song.artist')}</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={artist}
         onChangeText={setArtist}
-        placeholder="Např. Bratři Nedvědové, Olympic"
+        placeholder={t('form.song.artistPlaceholder')}
         placeholderTextColor={theme.textSecondary}
       />
 
       {/* Stav v repertoáru: Hrajeme / Nehrajeme & Preferované (Žluté srdíčko) */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.one }}>Stav a preference písničky</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.one }}>{t('form.song.isLive')}</ThemedText>
       <View style={styles.liveToggleRow}>
         <Pressable
           style={[
@@ -273,7 +275,7 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
         >
           <SymbolView name={{ ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' }} size={18} tintColor={isLive ? '#4caf50' : theme.textSecondary} />
           <ThemedText type="smallBold" style={{ marginLeft: 6, color: isLive ? '#4caf50' : theme.text, fontSize: 13 }}>
-            Hrajeme
+            {t('repertoire.filter.wePlay')}
           </ThemedText>
         </Pressable>
 
@@ -289,7 +291,7 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
         >
           <SymbolView name={{ ios: 'xmark.circle.fill', android: 'cancel', web: 'cancel' }} size={18} tintColor={!isLive ? '#e91e63' : theme.textSecondary} />
           <ThemedText type="smallBold" style={{ marginLeft: 6, color: !isLive ? '#e91e63' : theme.text, fontSize: 13 }}>
-            Nehrajeme
+            {t('repertoire.filter.weDontPlay')}
           </ThemedText>
         </Pressable>
 
@@ -310,42 +312,42 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
             tintColor={isPreferred ? '#ffc107' : theme.textSecondary}
           />
           <ThemedText type="smallBold" style={{ marginLeft: 6, color: isPreferred ? '#ffc107' : theme.text, fontSize: 13 }}>
-            Preferovaná
+            {t('repertoire.filter.favorite')}
           </ThemedText>
         </Pressable>
       </View>
 
       {/* Detailní preference pro Chytrý generátor setlistů (Otvírák, Zavírák, Přídavek) */}
       <View style={{ marginTop: Spacing.two, padding: Spacing.three, borderRadius: Spacing.two, backgroundColor: 'rgba(200,200,200,0.1)' }}>
-        <ThemedText type="smallBold" style={{ marginBottom: Spacing.two }}>Setlist pozice</ThemedText>
+        <ThemedText type="smallBold" style={{ marginBottom: Spacing.two }}>{t('form.song.setlistPos')}</ThemedText>
 
         <View style={styles.switchRow}>
           <View style={{ flex: 1 }}>
-            <ThemedText type="default" style={{ fontWeight: 'bold' }}>První (Otvírák)</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">Hodí se na začátek koncertu</ThemedText>
+            <ThemedText type="default" style={{ fontWeight: 'bold' }}>{t('form.song.opener')}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">{t('form.song.openerDesc')}</ThemedText>
           </View>
           <Switch value={isFirst} onValueChange={setIsFirst} trackColor={{ false: 'rgba(150,150,150,0.3)', true: '#4caf50' }} />
         </View>
 
         <View style={styles.switchRow}>
           <View style={{ flex: 1 }}>
-            <ThemedText type="default" style={{ fontWeight: 'bold' }}>Poslední (Finále)</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">Hodí se na úplný konec série</ThemedText>
+            <ThemedText type="default" style={{ fontWeight: 'bold' }}>{t('form.song.closer')}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">{t('form.song.closerDesc')}</ThemedText>
           </View>
           <Switch value={isLast} onValueChange={setIsLast} trackColor={{ false: 'rgba(150,150,150,0.3)', true: '#4caf50' }} />
         </View>
 
         <View style={styles.switchRow}>
           <View style={{ flex: 1 }}>
-            <ThemedText type="default" style={{ fontWeight: 'bold' }}>Přídavek (Encore)</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">Vyžadované hity po vytleskání</ThemedText>
+            <ThemedText type="default" style={{ fontWeight: 'bold' }}>{t('form.song.encore')}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">{t('form.song.encoreDesc')}</ThemedText>
           </View>
           <Switch value={isEncore} onValueChange={setIsEncore} trackColor={{ false: 'rgba(150,150,150,0.3)', true: '#4caf50' }} />
         </View>
       </View>
 
       {/* Zpívá - Členové kapely se zpěvem v profilu */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>Zpívá (Členové kapely s vokály)</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>{t('form.song.singer')}</ThemedText>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: Spacing.one, marginBottom: Spacing.two, alignItems: 'center' }}>
         {availableSingers.length > 0 ? (
           availableSingers.map(m => {
@@ -380,7 +382,7 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
           })
         ) : (
           <ThemedText type="small" themeColor="textSecondary">
-            Žádný člen kapely nemá v profilu zadaný zpěv.
+            {t('form.song.noSingers')}
           </ThemedText>
         )}
       </View>
@@ -388,48 +390,48 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
       {/* Tónina, Tempo, Délka v řádku vedle sebe */}
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Tónina</ThemedText>
+          <ThemedText type="smallBold">{t('form.song.key')}</ThemedText>
           <TextInput
             style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             value={key}
             onChangeText={setKey}
-            placeholder="C dur"
+            placeholder={t('form.song.keyPlaceholder')}
             placeholderTextColor={theme.textSecondary}
           />
         </View>
 
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Tempo (BPM)</ThemedText>
+          <ThemedText type="smallBold">{t('form.song.tempo')}</ThemedText>
           <TextInput
             style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             value={tempo}
             onChangeText={setTempo}
-            placeholder="120 BPM"
+            placeholder={t('form.song.tempoPlaceholder')}
             placeholderTextColor={theme.textSecondary}
           />
         </View>
 
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Délka</ThemedText>
+          <ThemedText type="smallBold">{t('form.song.duration')}</ThemedText>
           <TextInput
             style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             value={duration}
             onChangeText={setDuration}
-            placeholder="3:45"
+            placeholder={t('form.song.durationPlaceholder')}
             placeholderTextColor={theme.textSecondary}
           />
         </View>
       </View>
 
       {/* Výběr přílohy (z Disku / Google Disk pro Android, z Disku / iCloud pro iOS) */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>Přiložit soubor (MP3, PDF, noty)</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>{t('form.song.fileAttachment')}</ThemedText>
       <View style={{ flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.one, marginBottom: Spacing.two }}>
         <Pressable
           style={[styles.sourceBtn, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
           onPress={() => handlePickDocument('local')}
         >
           <SymbolView name={{ ios: 'folder', android: 'folder', web: 'folder' }} size={16} tintColor={theme.text} />
-          <ThemedText type="smallBold" style={{ fontSize: 12, marginLeft: 4 }}>Z disku</ThemedText>
+          <ThemedText type="smallBold" style={{ fontSize: 12, marginLeft: 4 }}>{t('form.song.fileLocal')}</ThemedText>
         </Pressable>
 
         {Platform.OS === 'android' ? (
@@ -438,7 +440,7 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
             onPress={() => handlePickDocument('gdrive')}
           >
             <SymbolView name={{ ios: 'cloud', android: 'cloud', web: 'cloud' }} size={16} tintColor="#2196f3" />
-            <ThemedText type="smallBold" style={{ fontSize: 12, marginLeft: 4 }}>Google Disk</ThemedText>
+            <ThemedText type="smallBold" style={{ fontSize: 12, marginLeft: 4 }}>{t('form.song.fileGDrive')}</ThemedText>
           </Pressable>
         ) : (
           <Pressable
@@ -446,7 +448,7 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
             onPress={() => handlePickDocument('icloud')}
           >
             <SymbolView name={{ ios: 'icloud', android: 'cloud', web: 'cloud' }} size={16} tintColor="#2196f3" />
-            <ThemedText type="smallBold" style={{ fontSize: 12, marginLeft: 4 }}>iCloud Drive</ThemedText>
+            <ThemedText type="smallBold" style={{ fontSize: 12, marginLeft: 4 }}>{t('form.song.fileICloud')}</ThemedText>
           </Pressable>
         )}
       </View>
@@ -455,7 +457,7 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
         <View style={styles.attachedFileBox}>
           <SymbolView name={{ ios: 'paperclip', android: 'attach_file', web: 'attach_file' }} size={18} tintColor="#4caf50" />
           <ThemedText type="smallBold" style={{ flex: 1, marginLeft: 6, color: '#4caf50' }} numberOfLines={1}>
-            Připojeno: {fileName}
+            {t('form.song.attached')} {fileName}
           </ThemedText>
           <Pressable onPress={() => { setFileUri(null); setFileName(null); }}>
             <SymbolView name={{ ios: 'xmark.circle.fill', android: 'cancel', web: 'cancel' }} size={18} tintColor={theme.textSecondary} />
@@ -465,14 +467,14 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
 
       {/* Text / Akordy s hlavičkou pro otevření na celou obrazovku */}
       <View style={styles.lyricsHeaderRow}>
-        <ThemedText type="smallBold">Text písně a akordy</ThemedText>
+        <ThemedText type="smallBold">{t('form.song.lyricsChords')}</ThemedText>
 
         <Pressable
           style={[styles.fullScreenBtn, { backgroundColor: 'rgba(200,200,200,0.2)' }]}
           onPress={handleOpenFullScreenEditor}
         >
           <SymbolView name={{ ios: 'arrow.up.left.and.arrow.down.right', android: 'fullscreen', web: 'fullscreen' }} size={14} tintColor={theme.text} />
-          <ThemedText type="smallBold" style={{ fontSize: 12, marginLeft: 4 }}>Celá obrazovka</ThemedText>
+          <ThemedText type="smallBold" style={{ fontSize: 12, marginLeft: 4 }}>{t('form.song.fullScreen')}</ThemedText>
         </Pressable>
       </View>
 
@@ -481,7 +483,7 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
         value={lyrics}
         onChangeText={setLyrics}
         onSelectionChange={handleSelectionChange}
-        placeholder="Vložte text písně, slova nebo akordy..."
+        placeholder={t('form.song.lyricsPlaceholder')}
         placeholderTextColor={theme.textSecondary}
         multiline
         numberOfLines={6}
@@ -490,16 +492,16 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
       {/* Akční tlačítka v jedné řádce */}
       <View style={styles.buttons}>
         <Pressable style={[styles.button, { backgroundColor: 'rgba(150,150,150,0.2)' }]} onPress={onCancel}>
-          <ThemedText type="smallBold" style={{ color: theme.text }}>Zrušit</ThemedText>
+          <ThemedText type="smallBold" style={{ color: theme.text }}>{t('home.misc.cancel')}</ThemedText>
         </Pressable>
         {initialSong && onDelete && (
           <Pressable style={[styles.button, { backgroundColor: '#e91e63' }]} onPress={onDelete}>
-            <ThemedText type="smallBold" style={{ color: '#fff' }}>Smazat píseň</ThemedText>
+            <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('form.song.deleteSong')}</ThemedText>
           </Pressable>
         )}
         <Pressable style={[styles.button, { backgroundColor: '#4caf50' }]} onPress={handleSave}>
           <ThemedText type="smallBold" style={{ color: '#fff' }}>
-            Uložit
+            {t('setlist.saveBtn')}
           </ThemedText>
         </Pressable>
       </View>

@@ -8,6 +8,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/useAppStore';
 import { Absence, BandMember } from '@/types';
+import { useTranslation } from '@/utils/i18n';
 
 interface Props {
   members: BandMember[];
@@ -19,6 +20,7 @@ interface Props {
 export function AddAbsenceForm({ members, onCheckConflicts, onSave, onCancel }: Props) {
   const theme = useTheme();
   const { currentUser, activeRoleView } = useAppStore();
+  const { t } = useTranslation();
 
   const [dateFromObj, setDateFromObj] = useState(new Date());
   const [dateToObj, setDateToObj] = useState(() => {
@@ -56,7 +58,7 @@ export function AddAbsenceForm({ members, onCheckConflicts, onSave, onCancel }: 
 
   const handleSave = () => {
     if (!reason) {
-      Alert.alert('Chyba', 'Vyplňte prosím důvod absence.');
+      Alert.alert(t('home.attendance.errorTitle'), 'Vyplňte prosím důvod absence.'); // TODO i18n
       return;
     }
 
@@ -65,7 +67,7 @@ export function AddAbsenceForm({ members, onCheckConflicts, onSave, onCancel }: 
 
     if (isAdmin) {
       if (!mId) {
-        Alert.alert('Chyba', 'Vyberte člena, kterého se absence týká.');
+        Alert.alert(t('home.attendance.errorTitle'), 'Vyberte člena, kterého se absence týká.');
         return;
       }
       const m = members.find(x => x.id === mId);
@@ -123,11 +125,11 @@ export function AddAbsenceForm({ members, onCheckConflicts, onSave, onCancel }: 
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <ThemedText type="subtitle" style={styles.title}>Přidat absenci</ThemedText>
+      <ThemedText type="subtitle" style={styles.title}>{t('form.absence.title')}</ThemedText>
 
       {isAdmin && (
         <>
-          <ThemedText type="smallBold">Vyberte člena *</ThemedText>
+          <ThemedText type="smallBold">{t('form.absence.member')}</ThemedText>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={{ gap: 8, paddingRight: 20 }}>
             {sortedMembers.map((m) => {
               const isSelected = selectedMemberId === m.id;
@@ -156,13 +158,13 @@ export function AddAbsenceForm({ members, onCheckConflicts, onSave, onCancel }: 
 
       {!isAdmin && (
         <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: Spacing.four, textAlign: 'center' }}>
-          Zadáváte absenci pro člena: {currentUser?.displayName}
+          Zadáváte absenci pro: {currentUser?.displayName}
         </ThemedText>
       )}
 
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Datum od *</ThemedText>
+          <ThemedText type="smallBold">{t('form.absence.dateFrom')}</ThemedText>
           <Pressable
             style={[styles.pickerButton, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             onPress={() => setActivePicker('from')}
@@ -175,7 +177,7 @@ export function AddAbsenceForm({ members, onCheckConflicts, onSave, onCancel }: 
         </View>
 
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Datum do *</ThemedText>
+          <ThemedText type="smallBold">{t('form.absence.dateTo')}</ThemedText>
           <Pressable
             style={[styles.pickerButton, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             onPress={() => setActivePicker('to')}
@@ -188,21 +190,21 @@ export function AddAbsenceForm({ members, onCheckConflicts, onSave, onCancel }: 
         </View>
       </View>
 
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>Důvod (např. dovolená, nemoc) *</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>{t('form.absence.reason')} *</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={reason}
         onChangeText={setReason}
-        placeholder="Např. Dovolená"
+        placeholder={t('form.absence.reasonPlaceholder')}
         placeholderTextColor={theme.textSecondary}
       />
 
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>Poznámka</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>{t('form.absence.note')}</ThemedText>
       <TextInput
         style={[styles.input, styles.multilineInput, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={note}
         onChangeText={setNote}
-        placeholder="Volitelná poznámka..."
+        placeholder={t('form.absence.notePlaceholder')}
         placeholderTextColor={theme.textSecondary}
         multiline
         numberOfLines={3}
@@ -210,11 +212,11 @@ export function AddAbsenceForm({ members, onCheckConflicts, onSave, onCancel }: 
 
       <View style={styles.buttons}>
         <Pressable style={[styles.button, { backgroundColor: '#e91e63' }]} onPress={onCancel}>
-          <ThemedText type="smallBold" style={{ color: '#fff' }}>Zrušit</ThemedText>
+          <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('form.common.cancel')}</ThemedText>
         </Pressable>
         <Pressable style={[styles.button, { backgroundColor: '#4caf50' }]} onPress={handleSave}>
           <ThemedText type="smallBold" style={{ color: '#fff' }}>
-            Uložit absenci
+            {t('form.absence.saveBtn')}
           </ThemedText>
         </Pressable>
       </View>
@@ -230,7 +232,7 @@ export function AddAbsenceForm({ members, onCheckConflicts, onSave, onCancel }: 
 
       {Platform.OS === 'ios' && activePicker && (
         <Pressable style={{ alignSelf: 'flex-end', padding: 8, marginTop: 8 }} onPress={() => setActivePicker(null)}>
-          <ThemedText type="smallBold" style={{ color: '#2196f3' }}>Zavřít kalendář</ThemedText>
+          <ThemedText type="smallBold" style={{ color: '#2196f3' }}>{t('form.absence.closePicker')}</ThemedText>
         </Pressable>
       )}
     </ScrollView>

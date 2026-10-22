@@ -31,6 +31,7 @@ import {
 } from '@/services/firebaseService';
 import { AddVehicleForm } from '@/components/add-vehicle-form';
 import { AddRideForm } from '@/components/add-ride-form';
+import { useTranslation } from '@/utils/i18n';
 
 interface TreasuryItem {
   id: string;
@@ -52,6 +53,7 @@ interface TreasuryItem {
 export default function TreasuryScreen() {
   const theme = useTheme();
   const { activeBand, activeRoleView, treasuryTab, setTreasuryTab } = useAppStore();
+  const { t } = useTranslation();
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [concerts, setConcerts] = useState<Concert[]>([]);
@@ -94,12 +96,12 @@ export default function TreasuryScreen() {
   // Prohlížeč celoobrazovkového dokladu
   const [viewReceiptUrl, setViewReceiptUrl] = useState<string | null>(null);
 
-  const titleMap = {
-    overview: 'Přehled pokladny',
-    prijem: 'Příjmy pokladny',
-    vydej: 'Výdaje pokladny',
-    doklady: 'Účetní doklady',
-    kniha_jizd: 'Kniha jízd a vozidla',
+  const titleMap: Record<string, string> = {
+    overview: t('treasury.title.overview'),
+    prijem: t('treasury.title.income'),
+    vydej: t('treasury.title.expense'),
+    doklady: t('treasury.title.receipts'),
+    kniha_jizd: t('treasury.title.logbook'),
   };
 
   // Při každém příchodu / kliknutí na obrazovku Pokladny VŽDY zrušíme formulář a otevřeme hlavní Přehled
@@ -390,12 +392,12 @@ export default function TreasuryScreen() {
 
     const numAmount = parseFloat(amountStr.replace(',', '.').replace(/\s/g, ''));
     if (isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert("Chyba", "Zadejte platnou kladnou částku v Kč.");
+      Alert.alert(t('home.attendance.errorTitle'), t('treasury.alert.errorAmount'));
       return;
     }
 
     if (!description.trim()) {
-      Alert.alert("Chyba", "Vyplňte prosím důvod / popis transakce.");
+      Alert.alert(t('home.attendance.errorTitle'), t('treasury.alert.errorDesc'));
       return;
     }
 
@@ -438,7 +440,7 @@ export default function TreasuryScreen() {
     } catch (e) {
       setIsSaving(false);
       console.error("Chyba při ukládání transakce:", e);
-      Alert.alert("Chyba", "Nepodařilo se uložit transakci.");
+      Alert.alert(t('home.attendance.errorTitle'), t('treasury.alert.errorSave'));
     }
   };
 
@@ -450,12 +452,12 @@ export default function TreasuryScreen() {
 
   const handleDeleteTransaction = (transaction: Transaction) => {
     Alert.alert(
-      "Potvrdit smazat transakci",
-      `Opravdu chcete smazat položku "${transaction.description}"?`,
+      t('treasury.alert.deleteTransTitle'),
+      `${t('treasury.alert.deleteTransMsg')} "${transaction.description}"?`,
       [
-        { text: "Zrušit", style: "cancel" },
+        { text: t('home.misc.cancel'), style: "cancel" },
         {
-          text: "Smazat",
+          text: t('events.alert.delete'),
           style: "destructive",
           onPress: async () => {
             if (!activeBand) return;
@@ -476,21 +478,21 @@ export default function TreasuryScreen() {
       });
       setShowAddVehicleModal(false);
       loadVehicles();
-      Alert.alert("Úspěch", "Vozidlo bylo úspěšně přidáno do seznamu.");
+      Alert.alert(t('events.alert.success'), t('treasury.msg.successSaveVehicle'));
     } catch (e) {
       console.error("Chyba při ukládání vozidla:", e);
-      Alert.alert("Chyba", "Nepodařilo se uložit vozidlo.");
+      Alert.alert(t('home.attendance.errorTitle'), t('treasury.msg.errorSaveVehicle'));
     }
   };
 
   const handleDeleteVehicle = (vehicle: Vehicle) => {
     Alert.alert(
-      "Potvrdit smazat vozidlo",
-      `Opravdu chcete smazat vozidlo ${vehicle.model} (${vehicle.plate}) ze seznamu kapely?`,
+      t('treasury.alert.deleteVehicleTitle'),
+      `${t('treasury.alert.deleteVehicleMsg')} ${vehicle.model} (${vehicle.plate})?`,
       [
-        { text: "Zrušit", style: "cancel" },
+        { text: t('home.misc.cancel'), style: "cancel" },
         {
-          text: "Smazat",
+          text: t('events.alert.delete'),
           style: "destructive",
           onPress: async () => {
             if (!activeBand) return;
@@ -534,21 +536,21 @@ export default function TreasuryScreen() {
 
       setShowAddRideModal(false);
       loadRides();
-      Alert.alert("Úspěch", `Jízda byla uložena.${autoExpense && !editingRide ? ' Částka byla stržena z pokladny.' : ''}`);
+      Alert.alert(t('events.alert.success'), `${t('treasury.msg.successSaveRide')}${autoExpense && !editingRide ? t('treasury.msg.successSaveRideExpense') : ''}`);
     } catch (e) {
       console.error("Chyba při ukládání jízdy:", e);
-      Alert.alert("Chyba", "Nepodařilo se uložit jízdu.");
+      Alert.alert(t('home.attendance.errorTitle'), t('treasury.msg.errorSaveRide'));
     }
   };
 
   const handleDeleteRide = (ride: Ride) => {
     Alert.alert(
-      "Smazat jízdu",
-      `Opravdu chcete smazat záznam jízdy "${ride.destination}"?`,
+      t('treasury.alert.deleteRideTitle'),
+      `${t('treasury.alert.deleteRideMsg')} "${ride.destination}"?`,
       [
-        { text: "Zrušit", style: "cancel" },
+        { text: t('home.misc.cancel'), style: "cancel" },
         {
-          text: "Smazat",
+          text: t('events.alert.delete'),
           style: "destructive",
           onPress: async () => {
             if (!activeBand) return;
@@ -562,22 +564,22 @@ export default function TreasuryScreen() {
 
   const handleResetTreasury = () => {
     Alert.alert(
-      "Vynulovat pokladnu",
-      "Opravdu chcete VYNULOVAT pokladnu? Tato akce smaže všechny evidované příjmy, výdaje a účetní doklady z databáze.",
+      t('treasury.alert.resetTitle'),
+      t('treasury.alert.resetMsg'),
       [
-        { text: "Zrušit", style: "cancel" },
+        { text: t('home.misc.cancel'), style: "cancel" },
         {
-          text: "Ano, vynulovat pokladnu",
+          text: t('treasury.alert.resetConfirm'),
           style: "destructive",
           onPress: async () => {
             if (!activeBand) return;
             try {
               await deleteAllTransactions(activeBand.id);
               setTransactions([]);
-              Alert.alert("Pokladna vynulována", "Stav pokladny byl úspěšně resetován na 0 Kč.");
+              Alert.alert(t('treasury.alert.resetSuccessTitle'), t('treasury.alert.resetSuccessMsg'));
             } catch (e) {
               console.error("Chyba při vynulování pokladny:", e);
-              Alert.alert("Chyba", "Nepodařilo se vynulovat pokladnu.");
+              Alert.alert(t('home.attendance.errorTitle'), t('treasury.alert.resetError'));
             }
           }
         }
@@ -589,10 +591,10 @@ export default function TreasuryScreen() {
     return (
       <ThemedView style={styles.container}>
         <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-          <PageHeader title="Přístup odepřen" />
+          <PageHeader title={t('treasury.msg.noAccess')} />
           <View style={styles.centered}>
              <ThemedText type="default" themeColor="textSecondary" style={{textAlign: 'center', marginTop: 10}}>
-                Pokladna je dostupná pouze pro členy kapely.
+                {t('treasury.msg.noAccessDesc')}
              </ThemedText>
           </View>
         </SafeAreaView>
@@ -618,18 +620,18 @@ export default function TreasuryScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-        <PageHeader title={activeFormType ? (activeFormType === 'in' ? 'Zadat nový příjem' : 'Zadat nový výdej') : (titleMap[treasuryTab] || 'Pokladna')} />
+        <PageHeader title={activeFormType ? (activeFormType === 'in' ? t('treasury.form.addIncomeTitle') : t('treasury.form.addExpenseTitle')) : (titleMap[treasuryTab] || t('treasury.title.overview'))} />
 
         <ScrollView contentContainerStyle={styles.content}>
           {/* AKCE A: ZOBRAZENÍ FORMULÁŘE (Pokud uživatel klikl na Příjem / Výdej dole) */}
           {activeFormType !== null ? (
             <ThemedView type="backgroundElement" style={styles.formCard}>
               <ThemedText type="subtitle" style={{ textAlign: 'center', marginBottom: Spacing.four }}>
-                {activeFormType === 'in' ? '🟢 Zadat nový příjem pokladny' : '🔴 Zadat nový výdej pokladny'}
+                {activeFormType === 'in' ? t('treasury.form.addIncomeTitle') : t('treasury.form.addExpenseTitle')}
               </ThemedText>
 
               {/* Částka */}
-              <ThemedText type="smallBold">Částka v Kč *</ThemedText>
+              <ThemedText type="smallBold">{t('treasury.form.amountLabel')}</ThemedText>
               <TextInput
                 style={[
                   styles.input,
@@ -650,7 +652,7 @@ export default function TreasuryScreen() {
               />
 
               {/* Důvod / Popis */}
-              <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>Důvod / Popis transakce *</ThemedText>
+              <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>{t('treasury.form.descLabel')}</ThemedText>
               <TextInput
                 style={[
                   styles.input,
@@ -658,12 +660,12 @@ export default function TreasuryScreen() {
                 ]}
                 value={description}
                 onChangeText={setDescription}
-                placeholder={activeFormType === 'in' ? "Např. Honorář za koncert Klášterec" : "Např. Nákup nových kabely ke zvuku"}
+                placeholder={activeFormType === 'in' ? t('treasury.form.descIncomePlaceholder') : t('treasury.form.descExpensePlaceholder')}
                 placeholderTextColor={theme.textSecondary}
               />
 
               {/* Doklad z galerie */}
-              <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>Přiložit účetní doklad (z galerie)</ThemedText>
+              <ThemedText type="smallBold" style={{ marginTop: Spacing.three }}>{t('treasury.form.receiptLabel')}</ThemedText>
               {receiptImageUri ? (
                 <View style={styles.imagePreviewContainer}>
                   <Image source={{ uri: receiptImageUri }} style={styles.imagePreview} />
@@ -678,7 +680,7 @@ export default function TreasuryScreen() {
                 >
                   <SymbolView name={{ ios: 'photo.on.rectangle.angled', android: 'photo_library', web: 'photo_library' }} size={24} tintColor="#2196f3" />
                   <ThemedText type="smallBold" style={{ marginLeft: 10, color: '#2196f3' }}>
-                    Vybrat fotku paragonu z galerie
+                    {t('treasury.form.pickReceiptBtn')}
                   </ThemedText>
                 </Pressable>
               )}
@@ -690,7 +692,7 @@ export default function TreasuryScreen() {
                   onPress={handleCancelForm}
                   disabled={isSaving}
                 >
-                  <ThemedText type="smallBold" style={{ color: '#fff' }}>Zrušit</ThemedText>
+                  <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('home.misc.cancel')}</ThemedText>
                 </Pressable>
 
                 <Pressable
@@ -702,7 +704,7 @@ export default function TreasuryScreen() {
                     <ActivityIndicator color="#fff" size="small" />
                   ) : (
                     <ThemedText type="smallBold" style={{ color: '#fff' }}>
-                      {activeFormType === 'in' ? 'Uložit příjem' : 'Uložit výdej'}
+                      {activeFormType === 'in' ? t('treasury.form.saveIncomeBtn') : t('treasury.form.saveExpenseBtn')}
                     </ThemedText>
                   )}
                 </Pressable>
@@ -712,7 +714,7 @@ export default function TreasuryScreen() {
             /* TAB: DOKLADY */
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
-                <ThemedText type="subtitle" style={{ fontSize: 18 }}>Přiložené účetní doklady ({receiptTransactions.length})</ThemedText>
+                <ThemedText type="subtitle" style={{ fontSize: 18 }}>{t('treasury.receipts.title', { count: receiptTransactions.length })}</ThemedText>
               </View>
 
               <View style={styles.receiptGrid}>
@@ -736,7 +738,7 @@ export default function TreasuryScreen() {
 
                 {receiptTransactions.length === 0 && (
                   <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', marginTop: 20, width: '100%' }}>
-                    Zatím nejsou přiloženy žádné fotografie paragonů či účtenek z galerie.
+                    {t('treasury.receipts.empty')}
                   </ThemedText>
                 )}
               </View>
@@ -756,7 +758,7 @@ export default function TreasuryScreen() {
                     tintColor={theme.text}
                     style={{ transform: [{ rotate: isRidesCollapsed ? '0deg' : '90deg' }] }}
                   />
-                  <ThemedText type="subtitle" style={{ fontSize: 18 }}>Kniha jízd ({rides.length})</ThemedText>
+                  <ThemedText type="subtitle" style={{ fontSize: 18 }}>{t('treasury.logbook.title', { count: rides.length })}</ThemedText>
                 </Pressable>
 
                 <Pressable
@@ -846,7 +848,7 @@ export default function TreasuryScreen() {
 
                                 <Pressable onPress={() => handleDeleteRide(ride)} style={styles.deleteInlineBtn}>
                                   <SymbolView name={{ ios: 'trash', android: 'delete', web: 'delete' }} size={16} tintColor="#e91e63" />
-                                  <ThemedText type="small" style={{ color: '#e91e63' }}>Smazat jízdu</ThemedText>
+                                  <ThemedText type="small" style={{ color: '#e91e63' }}>{t('treasury.deleteRide')}</ThemedText>
                                 </Pressable>
                               </View>
                             )}
@@ -858,7 +860,7 @@ export default function TreasuryScreen() {
 
                   {rides.length === 0 && (
                     <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', marginTop: 10, marginBottom: 10 }}>
-                      Zatím nejsou zaznamenány žádné jízdy.
+                      {t('treasury.logbook.empty')}
                     </ThemedText>
                   )}
                 </View>
@@ -876,7 +878,7 @@ export default function TreasuryScreen() {
                     tintColor={theme.text}
                     style={{ transform: [{ rotate: isVehiclesCollapsed ? '0deg' : '90deg' }] }}
                   />
-                  <ThemedText type="subtitle" style={{ fontSize: 18 }}>Seznam vozidel ({vehicles.length})</ThemedText>
+                  <ThemedText type="subtitle" style={{ fontSize: 18 }}>{t('treasury.vehicles.title', { count: vehicles.length })}</ThemedText>
                 </Pressable>
 
                 <Pressable
@@ -885,7 +887,7 @@ export default function TreasuryScreen() {
                 >
                   <SymbolView name={{ ios: 'plus', android: 'add', web: 'add' }} size={18} tintColor="#fff" />
                   <ThemedText type="smallBold" style={{ color: '#fff', marginLeft: 4 }}>
-                    Přidat vozidlo
+                    {t('treasury.vehicles.addBtn')}
                   </ThemedText>
                 </Pressable>
               </View>
@@ -944,7 +946,7 @@ export default function TreasuryScreen() {
                         <View style={styles.cardFooter}>
                           <Pressable onPress={() => handleDeleteVehicle(vehicle)} style={styles.deleteInlineBtn}>
                             <SymbolView name={{ ios: 'trash', android: 'delete', web: 'delete' }} size={16} tintColor="#e91e63" />
-                            <ThemedText type="small" style={{ color: '#e91e63' }}>Smazat vozidlo</ThemedText>
+                            <ThemedText type="small" style={{ color: '#e91e63' }}>{t('treasury.deleteVehicle')}</ThemedText>
                           </Pressable>
                         </View>
                       )}
@@ -953,7 +955,7 @@ export default function TreasuryScreen() {
 
                   {vehicles.length === 0 && (
                     <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', marginTop: 20 }}>
-                      Zatím nemáte zaregistrována žádná vozidla pro cestovné kapely.
+                      {t('treasury.vehicles.empty')}
                     </ThemedText>
                   )}
                 </View>
@@ -965,7 +967,7 @@ export default function TreasuryScreen() {
               {/* HLAVNÍ KARTA SE STAVEM POKLADNY */}
               <ThemedView type="backgroundElement" style={styles.balanceBox}>
                  <View style={{ alignItems: 'center' }}>
-                   <ThemedText type="smallBold" themeColor="textSecondary">Aktuální stav pokladny kapely</ThemedText>
+                   <ThemedText type="smallBold" themeColor="textSecondary">{t('treasury.balance.title')}</ThemedText>
                    <ThemedText
                      type="title"
                      style={{
@@ -981,19 +983,19 @@ export default function TreasuryScreen() {
 
                  <View style={styles.statsRow}>
                    <View style={styles.statItem}>
-                     <ThemedText type="small" themeColor="textSecondary">Příjmy:</ThemedText>
+                     <ThemedText type="small" themeColor="textSecondary">{t('treasury.balance.income')}</ThemedText>
                      <ThemedText type="smallBold" style={{ color: '#4caf50' }}>+ {formatCurrency(actualIncome)}</ThemedText>
                    </View>
                    <View style={styles.statDivider} />
                    <View style={styles.statItem}>
-                     <ThemedText type="small" themeColor="textSecondary">Výdaje:</ThemedText>
+                     <ThemedText type="small" themeColor="textSecondary">{t('treasury.balance.expense')}</ThemedText>
                      <ThemedText type="smallBold" style={{ color: '#f44336' }}>- {formatCurrency(totalExpense)}</ThemedText>
                    </View>
                    {plannedIncome > 0 && (
                      <>
                        <View style={styles.statDivider} />
                        <View style={styles.statItem}>
-                         <ThemedText type="small" themeColor="textSecondary">Plánované:</ThemedText>
+                         <ThemedText type="small" themeColor="textSecondary">{t('treasury.balance.planned')}</ThemedText>
                          <ThemedText type="smallBold" style={{ color: '#ffc107' }}>+ {formatCurrency(plannedIncome)}</ThemedText>
                        </View>
                      </>
@@ -1005,7 +1007,7 @@ export default function TreasuryScreen() {
                    <Pressable style={styles.resetBtn} onPress={handleResetTreasury}>
                      <SymbolView name={{ ios: 'trash', android: 'delete_sweep', web: 'delete_sweep' }} size={16} tintColor="#e91e63" />
                      <ThemedText type="smallBold" style={{ color: '#e91e63', fontSize: 12 }}>
-                       Vynulovat pokladnu
+                       {t('treasury.balance.reset')}
                      </ThemedText>
                    </Pressable>
                  )}
@@ -1014,10 +1016,10 @@ export default function TreasuryScreen() {
               {/* FILTROVACÍ CHIPY PRO PŘEHLED (Vše na 1. místě) */}
               <View style={styles.filterChipRow}>
                 {[
-                  { key: 'all', label: 'Vše', color: '#2196f3' },
-                  { key: 'in', label: 'Příjmy', color: '#4caf50' },
-                  { key: 'out', label: 'Výdaje', color: '#f44336' },
-                  { key: 'planned', label: 'Plánované', color: '#ffc107' },
+                  { key: 'all', label: t('treasury.filter.all'), color: '#2196f3' },
+                  { key: 'in', label: t('treasury.filter.in'), color: '#4caf50' },
+                  { key: 'out', label: t('treasury.filter.out'), color: '#f44336' },
+                  { key: 'planned', label: t('treasury.filter.planned'), color: '#ffc107' },
                 ].map(chip => {
                   const isSelected = filterMode === chip.key;
                   return (

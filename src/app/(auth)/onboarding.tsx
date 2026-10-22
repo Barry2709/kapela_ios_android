@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/utils/i18n';
 import { useAppStore } from '@/store/useAppStore';
 import { Band, UserProfile, BandMember } from '@/types';
 import { createBand, getBands, getBandMembers, verifyMemberPassword } from '@/services/firebaseService';
@@ -22,6 +23,7 @@ import { db } from '@/config/firebase';
 
 export default function OnboardingScreen() {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { setCurrentUser, setActiveBand, setActiveRoleView } = useAppStore();
 
   // Stavy průvodce
@@ -126,7 +128,7 @@ export default function OnboardingScreen() {
 
   const handleCreateBand = async () => {
     if (!bandName || !adminPassword) {
-      Alert.alert('Chyba', 'Název kapely a heslo jsou povinné údaje.');
+      Alert.alert(t('home.attendance.errorTitle'), t('onboarding.errorCreate'));
       return;
     }
 
@@ -146,7 +148,7 @@ export default function OnboardingScreen() {
       setCurrentUser(adminUser);
       await saveSession(adminUser, newBand);
     } catch (e) {
-      Alert.alert('Chyba', 'Nepodařilo se vytvořit kapelu.');
+      Alert.alert(t('home.attendance.errorTitle'), t('onboarding.errorCreateFail'));
     }
   };
 
@@ -174,20 +176,20 @@ export default function OnboardingScreen() {
 
   const handleAdminLogin = async () => {
     if (!selectedBand || !adminPassword) {
-      Alert.alert('Chyba', 'Zadejte administrátorské heslo.');
+      Alert.alert(t('home.attendance.errorTitle'), t('onboarding.errorPass'));
       return;
     }
 
     try {
       const bandDoc = await getDoc(doc(db, 'kapela_ios_android', selectedBand.id));
       if (!bandDoc.exists()) {
-        Alert.alert('Chyba', 'Kapela nebyla nalezena v databázi.');
+        Alert.alert(t('home.attendance.errorTitle'), t('onboarding.errorNotFound'));
         return;
       }
 
       const data = bandDoc.data();
       if (data.adminPassword !== adminPassword) {
-        Alert.alert('Přístup odepřen', 'Nesprávné heslo administrátora.');
+        Alert.alert(t('home.attendance.errorTitle'), t('onboarding.errorDenied'));
         return;
       }
 
@@ -205,7 +207,7 @@ export default function OnboardingScreen() {
       setCurrentUser(adminUser);
       await saveSession(adminUser, selectedBand);
     } catch (e) {
-      Alert.alert('Chyba', 'Nepodařilo se ověřit heslo.');
+      Alert.alert(t('home.attendance.errorTitle'), t('onboarding.errorVerifyPass'));
       console.error(e);
     }
   };
@@ -248,7 +250,7 @@ export default function OnboardingScreen() {
     const isValid = await verifyMemberPassword(selectedBand.id, selectedMember.id, memberPassword);
 
     if (!isValid) {
-      Alert.alert('Přístup odepřen', 'Zadali jste nesprávné heslo pro tohoto člena.');
+      Alert.alert(t('home.attendance.errorTitle'), t('onboarding.errorMemberDenied'));
       return;
     }
 
@@ -273,7 +275,7 @@ export default function OnboardingScreen() {
 
   const handleFanLogin = async () => {
     if (!fanName || !fanEmail || !selectedBand) {
-      Alert.alert('Chyba', 'Vyplňte jméno, email a vyberte kapelu.');
+      Alert.alert(t('home.attendance.errorTitle'), t('onboarding.errorFan'));
       return;
     }
     const fanUser: UserProfile = {
@@ -297,23 +299,23 @@ export default function OnboardingScreen() {
     return (
       <ThemedView style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
-          <ThemedText type="subtitle" style={styles.mainTitle}>Vítejte v aplikaci!</ThemedText>
-          <ThemedText type="default" style={styles.subTitle}>Vyberte svou funkci:</ThemedText>
+          <ThemedText type="subtitle" style={styles.mainTitle}>{t('onboarding.welcome')}</ThemedText>
+          <ThemedText type="default" style={styles.subTitle}>{t('onboarding.selectRole')}</ThemedText>
 
           <View style={styles.roleContainer}>
             <Pressable style={[styles.roleCard, { backgroundColor: theme.backgroundElement }]} onPress={() => setStep('admin_auth_choice')}>
               <SymbolView name={{ ios: 'star.fill', android: 'star', web: 'star' }} size={40} tintColor={theme.text} />
-              <ThemedText type="default" style={styles.roleText}>Kapelník (Správce)</ThemedText>
+              <ThemedText type="default" style={styles.roleText}>{t('onboarding.roleAdmin')}</ThemedText>
             </Pressable>
 
             <Pressable style={[styles.roleCard, { backgroundColor: theme.backgroundElement }]} onPress={() => setStep('member_band')}>
               <SymbolView name={{ ios: 'guitars.fill', android: 'music_note', web: 'music_note' }} size={40} tintColor={theme.text} />
-              <ThemedText type="default" style={styles.roleText}>Člen kapely</ThemedText>
+              <ThemedText type="default" style={styles.roleText}>{t('onboarding.roleMember')}</ThemedText>
             </Pressable>
 
             <Pressable style={[styles.roleCard, { backgroundColor: theme.backgroundElement }]} onPress={() => setStep('fan_setup')}>
               <SymbolView name={{ ios: 'heart.fill', android: 'favorite', web: 'favorite' }} size={40} tintColor={theme.text} />
-              <ThemedText type="default" style={styles.roleText}>Fanoušek</ThemedText>
+              <ThemedText type="default" style={styles.roleText}>{t('onboarding.roleFan')}</ThemedText>
             </Pressable>
           </View>
         </SafeAreaView>
@@ -327,15 +329,15 @@ export default function OnboardingScreen() {
         <SafeAreaView style={styles.safeArea}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <Pressable onPress={() => setStep('role_selection')} style={styles.backButton}>
-              <ThemedText type="linkPrimary">← Zpět na výběr role</ThemedText>
+              <ThemedText type="linkPrimary">{t('onboarding.backToRole')}</ThemedText>
             </Pressable>
-            <ThemedText type="subtitle" style={styles.mainTitle}>Kapelník (Správce)</ThemedText>
+            <ThemedText type="subtitle" style={styles.mainTitle}>{t('onboarding.roleAdmin')}</ThemedText>
 
             <Pressable style={[styles.primaryButton, { backgroundColor: theme.text, marginBottom: Spacing.six }]} onPress={() => setStep('admin_create')}>
-              <ThemedText type="default" style={{ color: theme.background, fontWeight: 'bold' }}>+ Založit novou kapelu</ThemedText>
+              <ThemedText type="default" style={{ color: theme.background, fontWeight: 'bold' }}>{t('onboarding.createNew')}</ThemedText>
             </Pressable>
 
-            <ThemedText type="smallBold" style={{marginBottom: Spacing.two}}>Nebo se přihlásit k existující kapele:</ThemedText>
+            <ThemedText type="smallBold" style={{marginBottom: Spacing.two}}>{t('onboarding.loginExisting')}</ThemedText>
 
             <View style={styles.bandList}>
               {availableBands.map(band => (
@@ -346,31 +348,31 @@ export default function OnboardingScreen() {
                     {band.logoUri && <Image source={{uri: band.logoUri}} style={{width: 40, height: 40, borderRadius: 20, marginRight: 10}} />}
                     <ThemedText type="default" style={{flex: 1}}>{band.name}</ThemedText>
                     {authHistory.includes(`admin:${band.id}`) && (
-                      <ThemedText type="small" themeColor="linkPrimary" style={{fontWeight: 'bold'}}>Zapamatován 🔓</ThemedText>
+                      <ThemedText type="small" themeColor="linkPrimary" style={{fontWeight: 'bold'}}>{t('onboarding.remembered')}</ThemedText>
                     )}
                   </Pressable>
 
                   {selectedBand?.id === band.id && (
                     <View style={{marginTop: Spacing.two, marginBottom: Spacing.four, paddingHorizontal: Spacing.two}}>
-                      <ThemedText type="smallBold">Heslo kapelníka:</ThemedText>
+                      <ThemedText type="smallBold">{t('onboarding.adminPass')}</ThemedText>
                       <TextInput
                         style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement, marginBottom: Spacing.two }]}
                         value={adminPassword}
                         onChangeText={setAdminPassword}
                         secureTextEntry
-                        placeholder="Zadejte heslo"
+                        placeholder={t('onboarding.placeholder.password')}
                         placeholderTextColor={theme.textSecondary}
                         autoFocus
                       />
-                      <Checkbox label="Zůstat přihlášen" />
+                      <Checkbox label={t('onboarding.stayLogged')} />
                       <Pressable style={[styles.primaryButton, { backgroundColor: '#4caf50', marginTop: 0 }]} onPress={handleAdminLogin}>
-                        <ThemedText type="default" style={{ color: '#fff', fontWeight: 'bold' }}>Přihlásit se jako Kapelník</ThemedText>
+                        <ThemedText type="default" style={{ color: '#fff', fontWeight: 'bold' }}>{t('onboarding.login.titleAdmin')}</ThemedText>
                       </Pressable>
                     </View>
                   )}
                 </View>
               ))}
-              {availableBands.length === 0 && <ThemedText type="small" themeColor="textSecondary">Zatím neexistují žádné kapely.</ThemedText>}
+              {availableBands.length === 0 && <ThemedText type="small" themeColor="textSecondary">{t('onboarding.noBands')}</ThemedText>}
             </View>
 
           </ScrollView>
@@ -385,17 +387,17 @@ export default function OnboardingScreen() {
         <SafeAreaView style={styles.safeArea}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <Pressable onPress={() => setStep('admin_auth_choice')} style={styles.backButton}>
-              <ThemedText type="linkPrimary">← Zpět na výběr kapely</ThemedText>
+              <ThemedText type="linkPrimary">{t('onboarding.backToBand')}</ThemedText>
             </Pressable>
-            <ThemedText type="subtitle" style={styles.mainTitle}>Založení kapely</ThemedText>
+            <ThemedText type="subtitle" style={styles.mainTitle}>{t('onboarding.create.title')}</ThemedText>
 
-            <ThemedText type="smallBold">Název kapely</ThemedText>
-            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={bandName} onChangeText={setBandName} placeholder="Např. Naplech" placeholderTextColor={theme.textSecondary} />
+            <ThemedText type="smallBold">{t('onboarding.create.bandName')}</ThemedText>
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={bandName} onChangeText={setBandName} placeholder={t('onboarding.placeholder.bandName')} placeholderTextColor={theme.textSecondary} />
 
-            <ThemedText type="smallBold">Hudební žánr</ThemedText>
-            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={genre} onChangeText={setGenre} placeholder="Např. Country / Rock" placeholderTextColor={theme.textSecondary} />
+            <ThemedText type="smallBold">{t('onboarding.create.genre')}</ThemedText>
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={genre} onChangeText={setGenre} placeholder={t('onboarding.placeholder.genre')} placeholderTextColor={theme.textSecondary} />
 
-            <ThemedText type="smallBold">Logo kapely (Hranaté na šířku z telefonu)</ThemedText>
+            <ThemedText type="smallBold">{t('onboarding.logoLabel')}</ThemedText>
 
             {logoUri && (
                <Image source={{ uri: logoUri }} style={styles.logoPreview} contentFit="cover" />
@@ -404,33 +406,33 @@ export default function OnboardingScreen() {
             <View style={{flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.four, marginTop: Spacing.two}}>
               <Pressable style={[styles.button, { backgroundColor: theme.backgroundElement }]} onPress={pickImageFromGallery}>
                 <SymbolView name={{ ios: 'photo', android: 'image', web: 'image' }} size={20} tintColor={theme.text} />
-                <ThemedText type="small" style={{marginTop: 5}}>Z galerie</ThemedText>
+                <ThemedText type="small" style={{marginTop: 5}}>{t('band.edit.fromGallery')}</ThemedText>
               </Pressable>
               <Pressable style={[styles.button, { backgroundColor: theme.backgroundElement }]} onPress={pickImageFromFolder}>
                 <SymbolView name={{ ios: 'folder', android: 'folder', web: 'folder' }} size={20} tintColor={theme.text} />
-                <ThemedText type="small" style={{marginTop: 5}}>Ze složky</ThemedText>
+                <ThemedText type="small" style={{marginTop: 5}}>{t('band.edit.fromFolder')}</ThemedText>
               </Pressable>
             </View>
 
-            <ThemedText type="smallBold">Web kapely (URL) - nepovinné</ThemedText>
-            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={web} onChangeText={setWeb} placeholder="Např. www.mojekapela.cz" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
+            <ThemedText type="smallBold">{t('onboarding.webLabel')}</ThemedText>
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={web} onChangeText={setWeb} placeholder={t('onboarding.placeholder.web')} placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
 
-            <ThemedText type="smallBold">Facebook kapely (URL) - nepovinné</ThemedText>
-            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={facebook} onChangeText={setFacebook} placeholder="Např. facebook.com/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
+            <ThemedText type="smallBold">{t('onboarding.fbLabel')}</ThemedText>
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={facebook} onChangeText={setFacebook} placeholder={t('onboarding.placeholder.fb')} placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
 
-            <ThemedText type="smallBold">Instagram kapely (URL) - nepovinné</ThemedText>
-            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={instagram} onChangeText={setInstagram} placeholder="Např. instagram.com/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
+            <ThemedText type="smallBold">{t('onboarding.igLabel')}</ThemedText>
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={instagram} onChangeText={setInstagram} placeholder={t('onboarding.placeholder.ig')} placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
 
-            <ThemedText type="smallBold">Bandzone kapely (URL) - nepovinné</ThemedText>
-            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={bandzone} onChangeText={setBandzone} placeholder="Např. bandzone.cz/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
+            <ThemedText type="smallBold">{t('onboarding.bzLabel')}</ThemedText>
+            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={bandzone} onChangeText={setBandzone} placeholder={t('onboarding.placeholder.bz')} placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
 
-            <ThemedText type="smallBold">Vaše Administrátorské heslo *</ThemedText>
+            <ThemedText type="smallBold">{t('onboarding.adminPassReq')}</ThemedText>
             <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={adminPassword} onChangeText={setAdminPassword} secureTextEntry placeholderTextColor={theme.textSecondary} />
 
-            <Checkbox label="Zůstat přihlášen" />
+            <Checkbox label={t('onboarding.stayLogged')} />
 
             <Pressable style={[styles.primaryButton, { backgroundColor: theme.text }]} onPress={handleCreateBand}>
-              <ThemedText type="default" style={{ color: theme.background, fontWeight: 'bold' }}>Vytvořit kapelu</ThemedText>
+              <ThemedText type="default" style={{ color: theme.background, fontWeight: 'bold' }}>{t('onboarding.create.btn')}</ThemedText>
             </Pressable>
           </ScrollView>
         </SafeAreaView>
@@ -444,9 +446,9 @@ export default function OnboardingScreen() {
         <SafeAreaView style={styles.safeArea}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <Pressable onPress={() => setStep('role_selection')} style={styles.backButton}>
-              <ThemedText type="linkPrimary">← Zpět na výběr</ThemedText>
+              <ThemedText type="linkPrimary">{t('onboarding.btn.back')}</ThemedText>
             </Pressable>
-            <ThemedText type="subtitle" style={styles.mainTitle}>Výběr kapely</ThemedText>
+            <ThemedText type="subtitle" style={styles.mainTitle}>{t('onboarding.select.title')}</ThemedText>
 
             <View style={styles.bandList}>
               {availableBands.map(band => (
@@ -455,7 +457,7 @@ export default function OnboardingScreen() {
                   <ThemedText type="default">{band.name}</ThemedText>
                 </Pressable>
               ))}
-              {availableBands.length === 0 && <ThemedText type="small" themeColor="textSecondary">Nebyly nalezeny žádné kapely.</ThemedText>}
+              {availableBands.length === 0 && <ThemedText type="small" themeColor="textSecondary">{t('onboarding.noBands')}</ThemedText>}
             </View>
           </ScrollView>
         </SafeAreaView>
@@ -469,9 +471,9 @@ export default function OnboardingScreen() {
         <SafeAreaView style={styles.safeArea}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <Pressable onPress={() => setStep('member_band')} style={styles.backButton}>
-              <ThemedText type="linkPrimary">← Zpět na výběr kapely</ThemedText>
+              <ThemedText type="linkPrimary">{t('onboarding.backToBand')}</ThemedText>
             </Pressable>
-            <ThemedText type="subtitle" style={styles.mainTitle}>Kdo jste?</ThemedText>
+            <ThemedText type="subtitle" style={styles.mainTitle}>{t('onboarding.whoAreYou')}</ThemedText>
 
             {!selectedMember ? (
               <View style={styles.bandList}>
@@ -489,15 +491,15 @@ export default function OnboardingScreen() {
                       <ThemedText type="small" themeColor="textSecondary">{member.instrument}</ThemedText>
                     </View>
                     {authHistory.includes(`member:${selectedBand?.id}:${member.id}`) && (
-                      <ThemedText type="small" themeColor="linkPrimary" style={{fontWeight: 'bold'}}>Zapamatován 🔓</ThemedText>
+                      <ThemedText type="small" themeColor="linkPrimary" style={{fontWeight: 'bold'}}>{t('onboarding.remembered')}</ThemedText>
                     )}
                   </Pressable>
                 ))}
-                {availableMembers.length === 0 && <ThemedText type="small" themeColor="textSecondary">Kapelník zatím nepřidal žádné členy.</ThemedText>}
+                {availableMembers.length === 0 && <ThemedText type="small" themeColor="textSecondary">{t('onboarding.noMembers')}</ThemedText>}
               </View>
             ) : (
               <View style={{marginTop: 20}}>
-                <ThemedText type="smallBold">Zadejte heslo pro: {selectedMember.nickname || selectedMember.firstName}</ThemedText>
+                <ThemedText type="smallBold">{t('onboarding.enterPassFor').replace('{name}', selectedMember.nickname || selectedMember.firstName)}</ThemedText>
                 <TextInput
                   style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]}
                   value={memberPassword}
@@ -505,13 +507,13 @@ export default function OnboardingScreen() {
                   secureTextEntry
                   autoFocus
                 />
-                <Checkbox label="Zůstat přihlášen" />
+                <Checkbox label={t('onboarding.stayLogged')} />
                 <View style={{flexDirection: 'row', gap: 10}}>
                    <Pressable style={[styles.primaryButton, { flex: 1, backgroundColor: theme.backgroundElement, marginTop: 0 }]} onPress={() => setSelectedMember(null)}>
-                     <ThemedText type="default">Zpět</ThemedText>
+                     <ThemedText type="default">{t('onboarding.btn.back')}</ThemedText>
                    </Pressable>
                    <Pressable style={[styles.primaryButton, { flex: 1, backgroundColor: theme.text, marginTop: 0 }]} onPress={handleMemberLogin}>
-                     <ThemedText type="default" style={{ color: theme.background, fontWeight: 'bold' }}>Přihlásit se</ThemedText>
+                     <ThemedText type="default" style={{ color: theme.background, fontWeight: 'bold' }}>{t('onboarding.btn.login')}</ThemedText>
                    </Pressable>
                 </View>
               </View>
@@ -528,18 +530,18 @@ export default function OnboardingScreen() {
         <SafeAreaView style={styles.safeArea}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <Pressable onPress={() => setStep('role_selection')} style={styles.backButton}>
-              <ThemedText type="linkPrimary">← Zpět na výběr</ThemedText>
+              <ThemedText type="linkPrimary">{t('onboarding.btn.back')}</ThemedText>
             </Pressable>
 
-            <ThemedText type="subtitle" style={styles.mainTitle}>Jsem fanoušek</ThemedText>
+            <ThemedText type="subtitle" style={styles.mainTitle}>{t('onboarding.fan.title')}</ThemedText>
 
-            <ThemedText type="smallBold">Vaše jméno / přezdívka</ThemedText>
+            <ThemedText type="smallBold">{t('onboarding.fanName')}</ThemedText>
             <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={fanName} onChangeText={setFanName} />
 
-            <ThemedText type="smallBold">Váš email (platný)</ThemedText>
+            <ThemedText type="smallBold">{t('onboarding.fanEmail')}</ThemedText>
             <TextInput style={[styles.input, { color: theme.text, borderColor: theme.backgroundElement }]} value={fanEmail} onChangeText={setFanEmail} keyboardType="email-address" />
 
-            <ThemedText type="smallBold" style={{marginTop: 10}}>Vyberte kapelu:</ThemedText>
+            <ThemedText type="smallBold" style={{marginTop: 10}}>{t('onboarding.fanSelectBand')}</ThemedText>
             <View style={styles.bandList}>
               {availableBands.map(band => (
                 <Pressable
@@ -553,11 +555,11 @@ export default function OnboardingScreen() {
             </View>
 
             <View style={{marginTop: Spacing.four}}>
-              <Checkbox label="Zůstat přihlášen" />
+              <Checkbox label={t('onboarding.stayLogged')} />
             </View>
 
             <Pressable style={[styles.primaryButton, { backgroundColor: theme.text }]} onPress={handleFanLogin}>
-              <ThemedText type="default" style={{ color: theme.background, fontWeight: 'bold' }}>Získat přístup</ThemedText>
+              <ThemedText type="default" style={{ color: theme.background, fontWeight: 'bold' }}>{t('onboarding.fan.btn')}</ThemedText>
             </Pressable>
           </ScrollView>
         </SafeAreaView>

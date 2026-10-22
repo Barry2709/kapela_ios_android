@@ -19,11 +19,13 @@ import { AddMemberForm } from '@/components/add-member-form';
 import { EditBandForm } from '@/components/edit-band-form';
 import { StageplanModal, shareConcertStageplan } from '@/components/stageplan-modal';
 import { TunerModal } from '@/components/tuner-modal';
+import { useTranslation } from '@/utils/i18n';
 
 export default function HomeScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { activeBand, currentUser, setCurrentUser, setActiveBand, activeRoleView } = useAppStore();
+  const { t } = useTranslation();
 
   const formatDateDisplay = (dateStr?: string): string => {
     if (!dateStr) return '';
@@ -145,7 +147,7 @@ export default function HomeScreen() {
     const isSelf = member.id === currentUser?.id || member.id === myId;
 
     if (!isAdmin && !isSelf) {
-      Alert.alert("Docházka", "Účast ostatních členů může upravovat pouze kapelník.");
+      Alert.alert(t('home.attendance'), t('home.attendance.onlyAdmin'));
       return;
     }
 
@@ -252,9 +254,9 @@ export default function HomeScreen() {
     const isExpanded = expandedAttendance[eventId] === true;
 
     const summaryParts = [];
-    if (goingMembers.length > 0) summaryParts.push(`${goingMembers.length} můžou`);
-    if (notGoingMembers.length > 0) summaryParts.push(`${notGoingMembers.length} nemůžou`);
-    if (pendingMembers.length > 0) summaryParts.push(`${pendingMembers.length} čeká`);
+    if (goingMembers.length > 0) summaryParts.push(`${goingMembers.length} ${t('home.attendance.can')}`);
+    if (notGoingMembers.length > 0) summaryParts.push(`${notGoingMembers.length} ${t('home.attendance.cannot')}`);
+    if (pendingMembers.length > 0) summaryParts.push(`${pendingMembers.length} ${t('home.attendance.waiting')}`);
 
     // Pokud uživatel JEŠTĚ NEPOTVRDIL (nemá 'yes' ani 'no'), zobrazit rychlé hlasování.
     // Pokud JIŽ POTVRDIL, rychlé hlasování se schová.
@@ -265,14 +267,14 @@ export default function HomeScreen() {
         {/* Rychlé hlasování – ZOBRAZIT POUZE POKUD JEŠTĚ NEPOTVRDIL */}
         {showQuickVote && (
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <ThemedText type="smallBold" themeColor="textSecondary">Moje docházka:</ThemedText>
+            <ThemedText type="smallBold" themeColor="textSecondary">{t('home.attendance.myAttendance')}</ThemedText>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Pressable
                 style={[styles.attBtn, styles.attBtnYesActive]}
                 onPress={() => handleAnswerAttendance(eventId, eventType, 'yes')}
               >
                 <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 12 }}>
-                  ✓ Můžu
+                  {t('home.attendance.canGo')}
                 </ThemedText>
               </Pressable>
 
@@ -281,7 +283,7 @@ export default function HomeScreen() {
                 onPress={() => handleAnswerAttendance(eventId, eventType, 'no')}
               >
                 <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 12 }}>
-                  ✕ Nemůžu
+                  {t('home.attendance.cannotGo')}
                 </ThemedText>
               </Pressable>
             </View>
@@ -296,7 +298,7 @@ export default function HomeScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
             <SymbolView name={{ ios: 'person.2.fill', android: 'group', web: 'group' }} size={15} tintColor={theme.textSecondary} />
             <ThemedText type="smallBold" style={{ fontSize: 12 }}>
-              Docházka: {summaryParts.join(' • ') || 'Zatím bez odpovědí'}
+              {t('home.attendance.summary')}{summaryParts.join(' • ') || t('home.attendance.noAnswers')}
             </ThemedText>
           </View>
           <SymbolView
@@ -312,7 +314,7 @@ export default function HomeScreen() {
             {goingMembers.length > 0 && (
               <View>
                 <ThemedText type="smallBold" style={{ color: '#4caf50', marginBottom: 4 }}>
-                  🟢 Můžou ({goingMembers.length}):
+                  {t('home.attendance.canGoPlural')} ({goingMembers.length}):
                 </ThemedText>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                   {goingMembers.map(m => {
@@ -324,7 +326,7 @@ export default function HomeScreen() {
                         onPress={() => handleMemberClick(m, eventId, eventType, attendeesRecord)}
                       >
                         <ThemedText type="small" style={{ color: '#4caf50', fontSize: 11, fontWeight: 'bold' }}>
-                          {m.nickname || m.firstName}{isSelf ? ' (Vy)' : ''}
+                          {m.nickname || m.firstName}{isSelf ? t('home.attendance.you') : ''}
                         </ThemedText>
                       </Pressable>
                     );
@@ -336,7 +338,7 @@ export default function HomeScreen() {
             {notGoingMembers.length > 0 && (
               <View style={{ marginTop: 2 }}>
                 <ThemedText type="smallBold" style={{ color: '#e91e63', marginBottom: 4 }}>
-                  🔴 Nemůžou ({notGoingMembers.length}):
+                  {t('home.attendance.cannotGoPlural')} ({notGoingMembers.length}):
                 </ThemedText>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                   {notGoingMembers.map(({ member: m, note }) => {
@@ -348,7 +350,7 @@ export default function HomeScreen() {
                         onPress={() => handleMemberClick(m, eventId, eventType, attendeesRecord)}
                       >
                         <ThemedText type="small" style={{ color: '#e91e63', fontSize: 11, fontWeight: 'bold' }}>
-                          {m.nickname || m.firstName}{note ? ` (${note})` : ''}{isSelf ? ' (Vy)' : ''}
+                          {m.nickname || m.firstName}{note ? ` (${note})` : ''}{isSelf ? t('home.attendance.you') : ''}
                         </ThemedText>
                       </Pressable>
                     );
@@ -360,7 +362,7 @@ export default function HomeScreen() {
             {pendingMembers.length > 0 && (
               <View style={{ marginTop: 2 }}>
                 <ThemedText type="smallBold" themeColor="textSecondary" style={{ marginBottom: 4 }}>
-                  ⚪ Čeká na odpověď ({pendingMembers.length}):
+                  {t('home.attendance.waitingForAnswer')} ({pendingMembers.length}):
                 </ThemedText>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                   {pendingMembers.map(m => {
@@ -372,7 +374,7 @@ export default function HomeScreen() {
                         onPress={() => handleMemberClick(m, eventId, eventType, attendeesRecord)}
                       >
                         <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11 }}>
-                          {m.nickname || m.firstName}{isSelf ? ' (Vy)' : ''}
+                          {m.nickname || m.firstName}{isSelf ? t('home.attendance.you') : ''}
                         </ThemedText>
                       </Pressable>
                     );
@@ -553,12 +555,12 @@ export default function HomeScreen() {
 
   const handleLogout = () => {
     Alert.alert(
-      'Odhlášení',
-      'Opravdu se chcete odhlásit a vrátit na výběr rolí?',
+      t('home.misc.logoutTitle'),
+      t('home.misc.logoutMsg'),
       [
-        { text: 'Zrušit', style: 'cancel' },
+        { text: t('home.misc.cancel'), style: 'cancel' },
         {
-          text: 'Odhlásit',
+          text: t('home.misc.logout'),
           style: 'destructive',
           onPress: async () => {
             await AsyncStorage.removeItem('savedUser');
@@ -631,12 +633,12 @@ export default function HomeScreen() {
             {/* Rychlý řádek s informací o přihlášení a viditelné tlačítko odhlášení */}
             <View style={styles.loggedInRow}>
               <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1, marginRight: 8 }} numberOfLines={1}>
-                Přihlášen: <ThemedText type="smallBold">{currentUser?.displayName}</ThemedText>
+                {t('home.misc.loggedInAs')} <ThemedText type="smallBold">{currentUser?.displayName}</ThemedText>
               </ThemedText>
 
               <Pressable onPress={handleLogout} style={styles.logoutBtnInline}>
                 <ThemedText type="smallBold" style={{ color: theme.text }}>
-                  Odhlásit
+                  {t('home.misc.logout')}
                 </ThemedText>
               </Pressable>
             </View>
@@ -704,7 +706,7 @@ export default function HomeScreen() {
                 <View style={styles.nextRehearsalHeader}>
                   <SymbolView name={{ ios: 'calendar', android: 'event', web: 'event' }} size={18} tintColor="#4caf50" />
                   <ThemedText type="smallBold" style={{ color: '#4caf50', marginLeft: 6 }}>
-                    Příští zkouška
+                    {t('home.upcomingRehearsal')}
                   </ThemedText>
                 </View>
                 <ThemedText type="default" style={{ fontWeight: 'bold', marginTop: 4 }}>
@@ -731,7 +733,7 @@ export default function HomeScreen() {
                 <View style={styles.sectionHeaderRow}>
                   <SymbolView name={{ ios: 'music.mic', android: 'confirmation_number', web: 'confirmation_number' }} size={18} tintColor={theme.text} />
                   <ThemedText type="subtitle" style={{ fontSize: 18, marginLeft: 6 }}>
-                    Koncerty a akce
+                    {t('home.upcomingConcerts')}
                   </ThemedText>
                 </View>
 
@@ -794,12 +796,12 @@ export default function HomeScreen() {
                               <View style={styles.badgeColumn}>
                                 {concert.isCancelled && (
                                   <View style={[styles.statusBadge, { backgroundColor: '#e91e63' }]}>
-                                    <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>Zrušeno</ThemedText>
+                                    <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>{t('home.concert.cancelled')}</ThemedText>
                                   </View>
                                 )}
                                 {concert.isPrivate && (
                                   <View style={[styles.statusBadge, { backgroundColor: '#2196f3' }]}>
-                                    <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>Soukromá</ThemedText>
+                                    <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>{t('home.concert.privateBadge')}</ThemedText>
                                   </View>
                                 )}
                               </View>
@@ -816,14 +818,14 @@ export default function HomeScreen() {
                             <View style={{ marginTop: Spacing.two, paddingTop: Spacing.two, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.2)' }}>
                               {concert.price ? (
                                 <View style={styles.detailRow}>
-                                  <ThemedText type="smallBold" themeColor="textSecondary">Cena: </ThemedText>
+                                  <ThemedText type="smallBold" themeColor="textSecondary">{t('home.concert.price')}</ThemedText>
                                   <ThemedText type="small" style={{ fontWeight: 'bold' }}>{concert.price}</ThemedText>
                                 </View>
                               ) : null}
 
                               {(concert.departureTime || concert.departureLocation) && (
                                 <View style={styles.detailRow}>
-                                  <ThemedText type="smallBold" themeColor="textSecondary">Odjezd: </ThemedText>
+                                  <ThemedText type="smallBold" themeColor="textSecondary">{t('home.concert.departure')}</ThemedText>
                                   <ThemedText type="small">
                                     {concert.departureTime ? `${concert.departureTime} ` : ''}
                                     {concert.departureLocation ? `(${concert.departureLocation})` : ''}
@@ -833,7 +835,7 @@ export default function HomeScreen() {
 
                               {(concert.soundCheckFrom || concert.soundCheckTo) && (
                                 <View style={styles.detailRow}>
-                                  <ThemedText type="smallBold" themeColor="textSecondary">Zvukovka: </ThemedText>
+                                  <ThemedText type="smallBold" themeColor="textSecondary">{t('home.concert.soundcheck')}</ThemedText>
                                   <ThemedText type="small">
                                     {concert.soundCheckFrom ? `${concert.soundCheckFrom}` : ''}
                                     {concert.soundCheckTo ? ` - ${concert.soundCheckTo}` : ''}
@@ -844,14 +846,14 @@ export default function HomeScreen() {
                               {(concert.organizers && concert.organizers.length > 0) || concert.contacts ? (
                                 <View style={{ marginTop: 6, paddingTop: 4, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.15)' }}>
                                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <ThemedText type="smallBold" themeColor="textSecondary">Kontakty na pořadatele:</ThemedText>
+                                    <ThemedText type="smallBold" themeColor="textSecondary">{t('home.concert.contacts')}</ThemedText>
                                     {activeRoleView !== 'fan' && activeBand && (
                                       <Pressable
                                         style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 6, backgroundColor: 'rgba(33, 150, 243, 0.15)' }}
                                         onPress={() => shareConcertStageplan({ band: activeBand, concert, members, currentUser })}
                                       >
                                         <SymbolView name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }} size={12} tintColor="#2196f3" />
-                                        <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11 }}>Sdílet</ThemedText>
+                                        <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11 }}>{t('home.concert.share')}</ThemedText>
                                       </Pressable>
                                     )}
                                   </View>
@@ -861,7 +863,7 @@ export default function HomeScreen() {
                                         <View key={org.id} style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                                           <View style={[styles.orgBadgeSmall, { backgroundColor: org.role === 'Zvukař' ? 'rgba(255,152,0,0.2)' : (org.role === 'Pořadatel' ? 'rgba(76,175,80,0.2)' : 'rgba(33,150,243,0.2)') }]}>
                                             <ThemedText type="smallBold" style={{ color: org.role === 'Zvukař' ? '#ff9800' : (org.role === 'Pořadatel' ? '#4caf50' : '#2196f3'), fontSize: 10 }}>
-                                              {org.role || 'Kontakt'}
+                                              {org.role || t('home.concert.contactRole')}
                                             </ThemedText>
                                           </View>
                                           <ThemedText type="smallBold" style={{ fontSize: 12 }}>{org.name}</ThemedText>
@@ -886,7 +888,7 @@ export default function HomeScreen() {
 
                               {concert.whatToTake && concert.whatToTake.length > 0 ? (
                                 <View style={{ marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.2)' }}>
-                                  <ThemedText type="smallBold" themeColor="textSecondary">Co vzít s sebou:</ThemedText>
+                                  <ThemedText type="smallBold" themeColor="textSecondary">{t('home.concert.whatToTake')}</ThemedText>
                                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                                     {concert.whatToTake.map(item => (
                                       <View key={item} style={styles.takeBadge}>
@@ -989,7 +991,7 @@ export default function HomeScreen() {
             {/* Input pro poznámku */}
             <TextInput
               style={[styles.noteInput, { color: theme.text, borderColor: 'rgba(150,150,150,0.3)', backgroundColor: 'rgba(150,150,150,0.1)' }]}
-              placeholder="Poznámka (volitelná - např. zpoždění)..."
+              placeholder={t('home.attendance.notePlaceholder')}
               placeholderTextColor={theme.textSecondary}
               value={editAttendanceState?.note || ''}
               onChangeText={text => setEditAttendanceState(prev => prev ? { ...prev, note: text } : null)}
@@ -998,10 +1000,10 @@ export default function HomeScreen() {
             {/* Tlačítka Uložit / Zrušit */}
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
               <Pressable onPress={() => setEditAttendanceState(null)} style={styles.modalCancelBtn}>
-                <ThemedText type="smallBold" themeColor="textSecondary">Zrušit</ThemedText>
+                <ThemedText type="smallBold" themeColor="textSecondary">{t('home.misc.cancel')}</ThemedText>
               </Pressable>
               <Pressable onPress={saveMemberAttendance} style={styles.modalSaveBtn}>
-                <ThemedText type="smallBold" style={{ color: '#fff' }}>Uložit</ThemedText>
+                <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('setlist.saveBtn')}</ThemedText>
               </Pressable>
             </View>
           </Pressable>

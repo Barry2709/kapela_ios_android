@@ -10,6 +10,7 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/utils/i18n';
 import { useAppStore } from '@/store/useAppStore';
 import { BandMember, TechSpecs } from '@/types';
 
@@ -21,6 +22,7 @@ interface Props {
 
 export function AddMemberForm({ initialMember, onSave, onCancel }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { activeBand } = useAppStore();
   const techRiderPresets = activeBand?.techRiderPresets || [];
 
@@ -84,7 +86,7 @@ export function AddMemberForm({ initialMember, onSave, onCancel }: Props) {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Oprávnění vyžadováno', 'Pro výběr fotky z galerie je potřeba povolit přístup k fotkám.');
+        Alert.alert(t('form.member.permissionTitle'), t('form.member.permissionMsg'));
         return;
       }
 
@@ -100,7 +102,7 @@ export function AddMemberForm({ initialMember, onSave, onCancel }: Props) {
       }
     } catch (e) {
       console.error("Chyba při výběru fotky z galerie:", e);
-      Alert.alert("Chyba", "Nepodařilo se načíst fotku z galerie.");
+      Alert.alert(t('home.attendance.errorTitle'), t('form.member.errorPhoto'));
     }
   };
 
@@ -120,7 +122,7 @@ export function AddMemberForm({ initialMember, onSave, onCancel }: Props) {
 
   const handleSave = () => {
     if (!firstName || !password || !instrument) {
-      Alert.alert('Chyba', 'Jméno, Nástroj a Heslo jsou povinné údaje.');
+      Alert.alert(t('home.attendance.errorTitle'), t('form.member.errorFields'));
       return;
     }
 
@@ -144,7 +146,7 @@ export function AddMemberForm({ initialMember, onSave, onCancel }: Props) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <ThemedText type="subtitle" style={styles.title}>
-        {initialMember ? 'Upravit člena' : 'Přidat člena'}
+        {initialMember ? t('form.member.editTitle') : t('form.member.title')}
       </ThemedText>
 
       {/* Profilová fotka */}
@@ -157,36 +159,36 @@ export function AddMemberForm({ initialMember, onSave, onCancel }: Props) {
       <View style={{flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.four, marginTop: Spacing.two, alignSelf: 'center'}}>
         <Pressable style={[styles.photoBtn, { backgroundColor: '#2196f3', borderColor: '#1976d2' }]} onPress={pickImageFromGallery}>
           <SymbolView name={{ ios: 'photo', android: 'image', web: 'image' }} size={16} tintColor="#fff" />
-          <ThemedText type="smallBold" style={{fontSize: 12, color: '#fff'}}>Vybrat fotku z galerie</ThemedText>
+          <ThemedText type="smallBold" style={{fontSize: 12, color: '#fff'}}>{t('form.member.photoBtn')}</ThemedText>
         </Pressable>
       </View>
 
-      <ThemedText type="smallBold">Jméno *</ThemedText>
+      <ThemedText type="smallBold">{t('form.member.firstName')}</ThemedText>
       <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={firstName} onChangeText={setFirstName} placeholderTextColor={theme.textSecondary} />
 
-      <ThemedText type="smallBold">Příjmení</ThemedText>
+      <ThemedText type="smallBold">{t('form.member.lastName')}</ThemedText>
       <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={lastName} onChangeText={setLastName} placeholderTextColor={theme.textSecondary} />
 
-      <ThemedText type="smallBold">Přezdívka</ThemedText>
+      <ThemedText type="smallBold">{t('form.member.nickname')}</ThemedText>
       <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={nickname} onChangeText={setNickname} placeholderTextColor={theme.textSecondary} />
 
-      <ThemedText type="smallBold">Nástroj / Zpěv *</ThemedText>
-      <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={instrument} onChangeText={setInstrument} placeholder="Např. Kytara, zpěv" placeholderTextColor={theme.textSecondary} />
+      <ThemedText type="smallBold">{t('form.member.instrument')}</ThemedText>
+      <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={instrument} onChangeText={setInstrument} placeholder={t('form.member.instrumentPlaceholder')} placeholderTextColor={theme.textSecondary} />
 
-      <ThemedText type="smallBold">E-mail</ThemedText>
+      <ThemedText type="smallBold">{t('form.member.email')}</ThemedText>
       <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={email} onChangeText={setEmail} placeholder="jan.novak@email.cz" placeholderTextColor={theme.textSecondary} keyboardType="email-address" autoCapitalize="none" />
 
-      <ThemedText type="smallBold">Telefon</ThemedText>
+      <ThemedText type="smallBold">{t('form.member.phone')}</ThemedText>
       <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={phone} onChangeText={setPhone} placeholder="+420 777 123 456" placeholderTextColor={theme.textSecondary} keyboardType="phone-pad" />
 
       {/* Datum narození - Vpisovací text nebo Kalendář */}
-      <ThemedText type="smallBold">Datum narození (DD.MM.YYYY)</ThemedText>
+      <ThemedText type="smallBold">{t('form.member.dob')}</ThemedText>
       <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
         <TextInput
           style={[styles.input, { flex: 1, color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
           value={birthDateStr}
           onChangeText={setBirthDateStr}
-          placeholder="15.01.1995"
+          placeholder={t('form.member.dobPlaceholder')}
           placeholderTextColor={theme.textSecondary}
         />
         <Pressable
@@ -213,12 +215,12 @@ export function AddMemberForm({ initialMember, onSave, onCancel }: Props) {
         />
       )}
 
-      <ThemedText type="smallBold">Přihlašovací heslo člena *</ThemedText>
-      <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={password} onChangeText={setPassword} secureTextEntry placeholder="Heslo pro přihlášení tohoto člena" placeholderTextColor={theme.textSecondary} />
+      <ThemedText type="smallBold">{t('form.member.password')}</ThemedText>
+      <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={password} onChangeText={setPassword} secureTextEntry placeholder={t('form.member.passwordPlaceholder')} placeholderTextColor={theme.textSecondary} />
 
       <View style={{ marginBottom: Spacing.four, marginTop: Spacing.two, gap: Spacing.three }}>
         <View style={styles.switchRow}>
-          <ThemedText type="default" style={{fontWeight: 'bold'}}>Aktivní člen (Aktivní / Neaktivní)</ThemedText>
+          <ThemedText type="default" style={{fontWeight: 'bold'}}>{t('form.member.isActive')}</ThemedText>
           <Switch
             value={isActive}
             onValueChange={setIsActive}
@@ -226,7 +228,7 @@ export function AddMemberForm({ initialMember, onSave, onCancel }: Props) {
           />
         </View>
         <View style={styles.switchRow}>
-          <ThemedText type="default" style={{fontWeight: 'bold'}}>Je to Host? (Místo stálého člena)</ThemedText>
+          <ThemedText type="default" style={{fontWeight: 'bold'}}>{t('form.member.isGuest')}</ThemedText>
           <Switch
             value={isGuest}
             onValueChange={setIsGuest}
@@ -234,7 +236,7 @@ export function AddMemberForm({ initialMember, onSave, onCancel }: Props) {
           />
         </View>
         <View style={styles.switchRow}>
-          <ThemedText type="default" style={{fontWeight: 'bold'}}>Udělit Admin práva (Správce)</ThemedText>
+          <ThemedText type="default" style={{fontWeight: 'bold'}}>{t('form.member.isAdmin')}</ThemedText>
           <Switch
             value={isAdmin}
             onValueChange={setIsAdmin}
@@ -243,7 +245,7 @@ export function AddMemberForm({ initialMember, onSave, onCancel }: Props) {
         </View>
       </View>
 
-      <ThemedText type="default" style={{marginTop: 10, marginBottom: 10, fontWeight: 'bold'}}>Technický setup člena:</ThemedText>
+      <ThemedText type="default" style={{marginTop: 10, marginBottom: 10, fontWeight: 'bold'}}>{t('form.member.techSetup')}</ThemedText>
       <ThemedView type="backgroundElement" style={styles.techContainer}>
         {techRiderPresets.length > 0 ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -290,10 +292,10 @@ export function AddMemberForm({ initialMember, onSave, onCancel }: Props) {
       {/* Kompaktní akční tlačítka */}
       <View style={styles.buttons}>
         <Pressable style={[styles.button, { backgroundColor: '#e91e63' }]} onPress={onCancel}>
-          <ThemedText type="smallBold" style={{ color: '#fff' }}>Zrušit</ThemedText>
+          <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('home.misc.cancel')}</ThemedText>
         </Pressable>
         <Pressable style={[styles.button, { backgroundColor: '#4caf50' }]} onPress={handleSave}>
-          <ThemedText type="smallBold" style={{ color: '#fff' }}>Uložit člena</ThemedText>
+          <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('form.member.saveBtn')}</ThemedText>
         </Pressable>
       </View>
     </ScrollView>

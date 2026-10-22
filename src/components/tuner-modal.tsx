@@ -6,6 +6,7 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/utils/i18n';
 
 let NativeWebView: any = null;
 try {
@@ -272,6 +273,7 @@ const NOTE_STRINGS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#"
 
 export function TunerModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const webViewRef = useRef<WebView>(null);
 
@@ -432,7 +434,7 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
           if (audioMod && audioMod.requestRecordingPermissionsAsync) {
             const status = await audioMod.requestRecordingPermissionsAsync();
             if (!status.granted) {
-              Alert.alert("Mikrofon zakázán", "Pro fungování ladičky prosím povolte přístup k mikrofonu.");
+              Alert.alert(t('tuner.errorMicTitle'), t('tuner.errorMicMsg'));
               return;
             }
           }
@@ -545,7 +547,7 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
           <Pressable onPress={onClose} style={styles.closeBtn}>
             <SymbolView name={{ ios: 'xmark', android: 'close', web: 'close' }} size={22} tintColor={theme.text} />
           </Pressable>
-          <ThemedText type="subtitle" style={{ fontSize: 19, fontWeight: 'bold' }}>Ladička nástrojů</ThemedText>
+          <ThemedText type="subtitle" style={{ fontSize: 19, fontWeight: 'bold' }}>{t('tuner.title')}</ThemedText>
           <View style={{ width: 40 }} />
         </View>
 
@@ -555,6 +557,13 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 6, marginBottom: 8 }}>
             {categories.map((cat) => {
               const isCatSelected = selectedCategory === cat;
+              const catLabel = cat === 'Vše' ? t('tuner.catAll') :
+                cat === 'Baskytara' ? t('tuner.catBass') :
+                cat === 'Kytara' ? t('tuner.catGuitar') :
+                cat === 'Banjo & Dobro' ? t('tuner.catBanjo') :
+                cat === 'Mandolína & Ukulele' ? t('tuner.catMandolin') :
+                cat === 'Smyčce' ? t('tuner.catStrings') : cat;
+
               return (
                 <Pressable
                   key={cat}
@@ -565,7 +574,7 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
                   onPress={() => setSelectedCategory(cat)}
                 >
                   <ThemedText type="smallBold" style={{ color: isCatSelected ? theme.background : theme.text, fontSize: 11 }}>
-                    {cat}
+                    {catLabel}
                   </ThemedText>
                 </Pressable>
               );
@@ -593,7 +602,7 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
                   }}
                 >
                   <ThemedText type="smallBold" style={{ color: isSelected ? '#fff' : theme.text, fontSize: 13 }}>
-                    {preset.name}
+                    {t(`tuner.preset.${preset.id}` as any) || preset.name}
                   </ThemedText>
                 </Pressable>
               );
@@ -608,7 +617,7 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
             onPress={() => setSelectedStringIndex(null)}
           >
             <ThemedText type="smallBold" style={{ color: selectedStringIndex === null ? '#4caf50' : theme.textSecondary, fontSize: 11 }}>
-              AUTO
+              {t('tuner.auto')}
             </ThemedText>
           </Pressable>
 
@@ -652,13 +661,13 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
 
           {/* Frekvence v Hz */}
           <ThemedText type="subtitle" style={{ fontSize: 20, marginTop: 12, fontWeight: 'bold' }}>
-            {detectedPitch ? `${detectedPitch.toFixed(1)} Hz` : 'Zahrajte tón...'}
+            {detectedPitch ? `${detectedPitch.toFixed(1)} Hz` : t('tuner.playTone')}
           </ThemedText>
 
           {/* Cílová frekvence struny */}
           {targetString && (
             <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: 2 }}>
-              Cíl: {targetString.note}{targetString.octave} ({targetString.freq.toFixed(1)} Hz)
+              {t('tuner.target').replace('{note}', targetString.note).replace('{octave}', targetString.octave.toString()).replace('{freq}', targetString.freq.toFixed(1))}
             </ThemedText>
           )}
 
@@ -679,11 +688,11 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
             </View>
 
             <View style={styles.gaugeLabels}>
-              <ThemedText type="small" style={{ fontSize: 11, color: '#f44336' }}>-50 Podladěno</ThemedText>
+              <ThemedText type="small" style={{ fontSize: 11, color: '#f44336' }}>{t('tuner.tooLow')}</ThemedText>
               <ThemedText type="smallBold" style={{ fontSize: 12, color: isTuned ? '#4caf50' : theme.text }}>
                 {centsDiff > 0 ? `+${centsDiff}` : centsDiff} centů
               </ThemedText>
-              <ThemedText type="small" style={{ fontSize: 11, color: '#f44336' }}>Přetaženo +50</ThemedText>
+              <ThemedText type="small" style={{ fontSize: 11, color: '#f44336' }}>{t('tuner.tooHigh')}</ThemedText>
             </View>
           </View>
         </View>
@@ -696,7 +705,7 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
             tintColor={isListening ? '#4caf50' : '#888'}
           />
           <ThemedText type="small" style={{ color: theme.textSecondary, marginLeft: 6 }}>
-            {isListening ? 'Mikrofon aktivní - poslouchám...' : 'Připojování mikrofonu...'}
+            {isListening ? t('tuner.micActive') : t('tuner.micConnecting')}
           </ThemedText>
         </View>
 

@@ -7,6 +7,7 @@ import { ThemedView } from './themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/useAppStore';
+import { useTranslation } from '@/utils/i18n';
 import { Concert, Rehearsal, Inquiry, BandMember, AttendanceStatus, AttendanceRecord } from '@/types';
 import {
   getBandMembers,
@@ -33,6 +34,7 @@ export interface PendingEventItem {
 export function AttendanceQueueModal() {
   const theme = useTheme();
   const { activeBand, currentUser, activeRoleView } = useAppStore();
+  const { t } = useTranslation();
 
   const [pendingQueue, setPendingQueue] = useState<PendingEventItem[]>([]);
   const [currentMember, setCurrentMember] = useState<BandMember | null>(null);
@@ -225,13 +227,13 @@ export function AttendanceQueueModal() {
         .map(m => m.pushToken as string);
 
       if (adminTokens.length > 0) {
-        const typeLabel = currentItem.type === 'concert' ? 'koncert' : (currentItem.type === 'rehearsal' ? 'zkoušku' : 'poptávku');
-        const statusLabel = status === 'yes' ? '✅ potvrdil/a' : '❌ odmítl/a';
+        const typeLabel = currentItem.type === 'concert' ? t('events.list.concert').toLowerCase() : (currentItem.type === 'rehearsal' ? t('events.list.rehearsal').toLowerCase() : t('events.header.inquiries').toLowerCase());
+        const statusLabel = status === 'yes' ? t('attendanceModal.confirmed') : t('attendanceModal.declined');
 
         sendExpoPushNotifications(
           adminTokens,
-          `Docházka: ${memberName}`,
-          `${memberName} ${statusLabel} účast na ${typeLabel}: ${currentItem.title}`,
+          `${t('home.attendance')}: ${memberName}`,
+          `${memberName} ${statusLabel} ${currentItem.title}`,
           { eventId: currentItem.id, eventType: currentItem.type }
         );
       }
@@ -242,7 +244,7 @@ export function AttendanceQueueModal() {
       updateAppBadgeCount(newQueue.length);
     } catch (error) {
       console.error("Chyba při ukládání docházky:", error);
-      Alert.alert("Chyba", "Nepodařilo se uložit vaši odpověď. Zkuste to prosím znovu.");
+      Alert.alert(t('home.attendance.errorTitle'), t('attendanceModal.error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -255,9 +257,9 @@ export function AttendanceQueueModal() {
   };
 
   const typeNameMap = {
-    concert: 'Koncert',
-    rehearsal: 'Zkouška',
-    inquiry: 'Poptávka',
+    concert: t('events.list.concert'),
+    rehearsal: t('events.list.rehearsal'),
+    inquiry: t('events.list.private'),
   };
 
   return (
@@ -272,7 +274,7 @@ export function AttendanceQueueModal() {
               </ThemedText>
             </View>
             <ThemedText type="small" themeColor="textSecondary">
-              Zbývá k potvzení: {pendingQueue.length}
+              {t('attendanceModal.remaining')} {pendingQueue.length}
             </ThemedText>
           </View>
 

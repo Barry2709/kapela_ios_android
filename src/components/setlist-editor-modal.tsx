@@ -5,6 +5,7 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/utils/i18n';
 import { useAppStore } from '@/store/useAppStore';
 import { Song, Concert } from '@/types';
 import { getSongs } from '@/services/firebaseService';
@@ -19,6 +20,7 @@ interface Props {
 
 export function SetlistEditorModal({ visible, onClose, concert, initialSetlist, onSaveSetlist }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { activeBand } = useAppStore();
 
   const [allSongs, setSongs] = useState<Song[]>([]);
@@ -53,8 +55,8 @@ export function SetlistEditorModal({ visible, onClose, concert, initialSetlist, 
   const createPauseSong = (id: string): Song => ({
     id,
     bandId: '',
-    title: '000.Pauza',
-    artist: 'Přestávka (12 minut)',
+    title: t('setlist.pauseTitle'),
+    artist: t('setlist.pauseDesc'),
     duration: '12:00',
     isLive: true,
   });
@@ -80,7 +82,7 @@ export function SetlistEditorModal({ visible, onClose, concert, initialSetlist, 
   // ALGORITMUS CHYTRÉHO GENERÁTORU
   const generateSmartSetlist = () => {
     if (allSongs.length === 0) {
-      Alert.alert('Chyba', 'V repertoáru nemáte žádné aktivní skladby (Hrajeme = true).');
+      Alert.alert(t('home.attendance.errorTitle'), t('setlist.errorNoSongs'));
       return;
     }
 
@@ -203,7 +205,7 @@ export function SetlistEditorModal({ visible, onClose, concert, initialSetlist, 
 
     setSetlistIds(selectedIds);
     setShowGeneratorSettings(false);
-    Alert.alert('Vygenerováno', `Setlist byl vygenerován (${selectedIds.length} položek včetně pauz, cca ${Math.round(totalDuration)} min).`);
+    Alert.alert(t('events.alert.success'), t('setlist.successGen', { count: selectedIds.length, minutes: Math.round(totalDuration) }));
   };
 
   // Posunutí skladby nahoru
@@ -262,9 +264,9 @@ export function SetlistEditorModal({ visible, onClose, concert, initialSetlist, 
       <ThemedView style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={onClose} style={{ padding: Spacing.two }}>
-            <ThemedText type="smallBold" style={{ color: '#e91e63' }}>Zrušit</ThemedText>
+            <ThemedText type="smallBold" style={{ color: '#e91e63' }}>{t('home.misc.cancel')}</ThemedText>
           </Pressable>
-          <ThemedText type="subtitle" style={{ fontSize: 18 }}>Editor Setlistu</ThemedText>
+          <ThemedText type="subtitle" style={{ fontSize: 18 }}>{t('setlist.title')}</ThemedText>
           <Pressable
             onPress={() => {
               onSaveSetlist(setlistIds);
@@ -272,7 +274,7 @@ export function SetlistEditorModal({ visible, onClose, concert, initialSetlist, 
             }}
             style={{ padding: Spacing.two }}
           >
-            <ThemedText type="smallBold" style={{ color: '#4caf50' }}>Uložit</ThemedText>
+            <ThemedText type="smallBold" style={{ color: '#4caf50' }}>{t('setlist.saveBtn')}</ThemedText>
           </Pressable>
         </View>
 
@@ -283,7 +285,7 @@ export function SetlistEditorModal({ visible, onClose, concert, initialSetlist, 
             onPress={() => setShowGeneratorSettings(true)}
           >
             <SymbolView name={{ ios: 'wand.and.stars', android: 'auto_awesome', web: 'auto_awesome' }} size={16} tintColor="#fff" />
-            <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 12 }}>Chytré generování</ThemedText>
+            <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 12 }}>{t('setlist.smartGenTitle')}</ThemedText>
           </Pressable>
 
           <Pressable
@@ -291,14 +293,14 @@ export function SetlistEditorModal({ visible, onClose, concert, initialSetlist, 
             onPress={() => setShowAddSongPicker(true)}
           >
             <SymbolView name={{ ios: 'plus', android: 'add', web: 'add' }} size={16} tintColor="#fff" />
-            <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 12 }}>Přidat píseň</ThemedText>
+            <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 12 }}>{t('setlist.addSong')}</ThemedText>
           </Pressable>
         </View>
 
         {/* Souhrnné info o setlistu */}
         <View style={styles.infoBar}>
-          <ThemedText type="smallBold">Počet skladeb: {selectedSongObjects.length}</ThemedText>
-          <ThemedText type="smallBold" style={{ color: '#4caf50' }}>Cca {Math.round(currentSetlistDurationMinutes)} min hraní</ThemedText>
+          <ThemedText type="smallBold">{t('setlist.songsCount', { count: selectedSongObjects.length })}</ThemedText>
+          <ThemedText type="smallBold" style={{ color: '#4caf50' }}>{t('setlist.duration', { minutes: Math.round(currentSetlistDurationMinutes) })}</ThemedText>
         </View>
 
         {/* Seznam skladeb v setlistu s možností posunu a mazání */}
@@ -328,31 +330,31 @@ export function SetlistEditorModal({ visible, onClose, concert, initialSetlist, 
                 <View style={{ flex: 1, marginRight: 8 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <ThemedText type="default" style={{ fontWeight: 'bold', color: isPause ? '#ff9800' : theme.text }} numberOfLines={1}>
-                      {isPause ? '☕ 000.Pauza' : item.title}
+                      {isPause ? `☕ ${t('setlist.pauseTitle')}` : item.title}
                     </ThemedText>
                     {!isPause && item.isPreferred && (
                       <SymbolView name={{ ios: 'heart.fill', android: 'favorite', web: 'favorite' }} size={12} tintColor="#ffc107" />
                     )}
                     {!isPause && item.isFirst && (
                       <View style={[styles.miniBadge, { backgroundColor: '#4caf50' }]}>
-                        <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 9 }}>Start</ThemedText>
+                        <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 9 }}>{t('setlist.startBadge')}</ThemedText>
                       </View>
                     )}
                     {!isPause && item.isLast && (
                       <View style={[styles.miniBadge, { backgroundColor: '#2196f3' }]}>
-                        <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 9 }}>Konec</ThemedText>
+                        <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 9 }}>{t('setlist.endBadge')}</ThemedText>
                       </View>
                     )}
                     {!isPause && item.isEncore && (
                       <View style={[styles.miniBadge, { backgroundColor: '#e91e63' }]}>
-                        <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 9 }}>Přídavek</ThemedText>
+                        <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 9 }}>{t('setlist.encore')}</ThemedText>
                       </View>
                     )}
                   </View>
 
                   <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11, marginTop: 1 }}>
                     {isPause
-                      ? 'Přestávka 12 minut'
+                      ? t('setlist.pauseDesc')
                       : `${item.artist ? `${item.artist} • ` : ''}${item.singers?.length ? `🎤 ${item.singers.join(', ')} • ` : ''}${item.duration || '3:30'}`}
                   </ThemedText>
                 </View>
@@ -384,7 +386,7 @@ export function SetlistEditorModal({ visible, onClose, concert, initialSetlist, 
           }}
           ListEmptyComponent={
             <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', marginTop: 30 }}>
-              Setlist je prázdný. Vygenerujte ho automaticky nebo přidejte písně ručně.
+              {t('setlist.emptyList')}
             </ThemedText>
           }
         />
@@ -394,39 +396,39 @@ export function SetlistEditorModal({ visible, onClose, concert, initialSetlist, 
           <Pressable style={styles.modalOverlay} onPress={() => setShowGeneratorSettings(false)}>
             <ThemedView type="backgroundElement" style={styles.generatorModal}>
               <ThemedText type="subtitle" style={{ fontSize: 18, textAlign: 'center', marginBottom: Spacing.three }}>
-                Nastavení generátoru setlistu
+                {t('setlist.genSettingsTitle')}
               </ThemedText>
 
-              <ThemedText type="smallBold">Celková délka koncertu (hodiny)</ThemedText>
+              <ThemedText type="smallBold">{t('setlist.genTotalTime')}</ThemedText>
               <TextInput
                 style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
                 value={playTimeHours}
                 onChangeText={setPlayTimeHours}
                 keyboardType="numeric"
-                placeholder="Např. 2"
+                placeholder={t('setlist.genTotalTimePlaceholder')}
                 placeholderTextColor={theme.textSecondary}
               />
 
-              <ThemedText type="smallBold" style={{ marginTop: Spacing.one }}>Doba jedné série (minuty)</ThemedText>
+              <ThemedText type="smallBold" style={{ marginTop: Spacing.one }}>{t('setlist.genSetTime')}</ThemedText>
               <TextInput
                 style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
                 value={setDurationMinutesStr}
                 onChangeText={setSetDurationMinutesStr}
                 keyboardType="numeric"
-                placeholder="Např. 45 nebo 50"
+                placeholder={t('setlist.genSetTimePlaceholder')}
                 placeholderTextColor={theme.textSecondary}
               />
 
               <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: 2 }}>
-                💡 Po dosažení délky série vkládá automaticky položku "000.Pauza" s délkou 12 minut.
+                {t('setlist.genNote')}
               </ThemedText>
 
               <View style={styles.modalButtons}>
                 <Pressable style={[styles.modalBtn, { backgroundColor: 'rgba(150,150,150,0.2)' }]} onPress={() => setShowGeneratorSettings(false)}>
-                  <ThemedText type="smallBold">Zrušit</ThemedText>
+                  <ThemedText type="smallBold">{t('home.misc.cancel')}</ThemedText>
                 </Pressable>
                 <Pressable style={[styles.modalBtn, { backgroundColor: '#ff9800' }]} onPress={generateSmartSetlist}>
-                  <ThemedText type="smallBold" style={{ color: '#fff' }}>Vygenerovat</ThemedText>
+                  <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('setlist.genBtn')}</ThemedText>
                 </Pressable>
               </View>
             </ThemedView>
@@ -438,7 +440,7 @@ export function SetlistEditorModal({ visible, onClose, concert, initialSetlist, 
           <Pressable style={styles.modalOverlay} onPress={() => setShowAddSongPicker(false)}>
             <ThemedView type="backgroundElement" style={styles.pickerModal}>
               <ThemedText type="subtitle" style={{ fontSize: 18, textAlign: 'center', marginBottom: Spacing.three }}>
-                Přidat píseň do setlistu
+                {t('setlist.pickerTitle')}
               </ThemedText>
 
               <ScrollView style={{ maxHeight: 350 }}>
@@ -452,8 +454,8 @@ export function SetlistEditorModal({ visible, onClose, concert, initialSetlist, 
                   }}
                 >
                   <View style={{ flex: 1 }}>
-                    <ThemedText type="default" style={{ fontWeight: 'bold', color: '#ff9800' }}>☕ + Vložit 000.Pauza</ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">Přestávka 12 minut mezi sériemi</ThemedText>
+                    <ThemedText type="default" style={{ fontWeight: 'bold', color: '#ff9800' }}>{t('setlist.pickerAddPause')}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">{t('setlist.pickerPauseDesc')}</ThemedText>
                   </View>
                   <SymbolView name={{ ios: 'plus.circle.fill', android: 'add_circle', web: 'add_circle' }} size={22} tintColor="#ff9800" />
                 </Pressable>
@@ -473,13 +475,13 @@ export function SetlistEditorModal({ visible, onClose, concert, initialSetlist, 
                 ))}
                 {availableSongsToPicker.length === 0 && (
                   <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', marginVertical: 20 }}>
-                    Všechny hratelné písničky jsou již v setlistu.
+                    {t('setlist.pickerEmpty')}
                   </ThemedText>
                 )}
               </ScrollView>
 
               <Pressable style={{ alignSelf: 'center', marginTop: Spacing.three }} onPress={() => setShowAddSongPicker(false)}>
-                <ThemedText type="smallBold" style={{ color: '#e91e63' }}>Zavřít</ThemedText>
+                <ThemedText type="smallBold" style={{ color: '#e91e63' }}>{t('setlist.pickerClose')}</ThemedText>
               </Pressable>
             </ThemedView>
           </Pressable>

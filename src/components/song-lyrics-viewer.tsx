@@ -7,6 +7,7 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/utils/i18n';
 import { useAppStore } from '@/store/useAppStore';
 import { Song } from '@/types';
 import { fixCzechDiacritics, capitalizeFirstLetter } from '@/utils/diacritics';
@@ -145,6 +146,7 @@ function ClassicMetronomeIcon({ size = 20, color = '#ffffff' }: { size?: number;
 
 export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, onUpdateSong }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { currentUser, activeBand, activeRoleView } = useAppStore();
   const scrollViewRef = useRef<ScrollView>(null);
   const fullScreenInputRef = useRef<TextInput>(null);
@@ -1525,13 +1527,13 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
         <Pressable style={styles.modalOverlay} onPress={() => setShowAddNoteModal(false)}>
           <ThemedView type="backgroundElement" style={styles.noteDialogModal}>
             <ThemedText type="subtitle" style={{ fontSize: 18, marginBottom: 12 }}>
-              📌 Přidat poznámku
+              {t('lyrics.addNoteTitle')}
             </ThemedText>
             <TextInput
               style={[styles.noteInput, { color: theme.text, borderColor: 'rgba(150,150,150,0.3)' }]}
               value={noteInputText}
               onChangeText={setNoteInputText}
-              placeholder="Napište poznámku (např. 'Před mezihrou pauza')..."
+              placeholder={t('lyrics.addNotePlaceholder')}
               placeholderTextColor={theme.textSecondary}
               autoFocus
             />
@@ -1552,17 +1554,17 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
                   tintColor={isNoteAdminShared ? '#FF8C00' : theme.textSecondary}
                 />
                 <ThemedText type="smallBold" style={{ color: isNoteAdminShared ? '#FF8C00' : theme.text }}>
-                  👑 Admin poznámka (oranžová - pro všechny členy)
+                  {t('lyrics.adminSharedLabel')}
                 </ThemedText>
               </Pressable>
             )}
 
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
               <Pressable style={[styles.dialogBtn, { backgroundColor: 'rgba(150,150,150,0.2)' }]} onPress={() => setShowAddNoteModal(false)}>
-                <ThemedText type="smallBold">Zrušit</ThemedText>
+                <ThemedText type="smallBold">{t('home.misc.cancel')}</ThemedText>
               </Pressable>
               <Pressable style={[styles.dialogBtn, { backgroundColor: isNoteAdminShared ? '#FF8C00' : '#2196F3' }]} onPress={handleSaveNewNote}>
-                <ThemedText type="smallBold" style={{ color: '#fff' }}>Uložit</ThemedText>
+                <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('setlist.saveBtn')}</ThemedText>
               </Pressable>
             </View>
           </ThemedView>
@@ -1577,7 +1579,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
               type="subtitle"
               style={{ fontSize: 18, marginBottom: 8, color: selectedNoteForAction?.isAdminNote ? '#FF8C00' : '#2196F3' }}
             >
-              {selectedNoteForAction?.isAdminNote ? '👑 Admin poznámka kapely' : '📌 Osobní poznámka'}
+              {selectedNoteForAction?.isAdminNote ? t('lyrics.adminNoteTitle') : t('lyrics.personalNoteTitle')}
             </ThemedText>
 
             <ThemedText type="default" style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 12 }}>
@@ -1588,26 +1590,26 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
             {selectedNoteForAction?.isAdminNote && activeRoleView !== 'admin' ? (
               <View style={{ gap: 10, marginTop: 8 }}>
                 <ThemedText type="small" themeColor="textSecondary">
-                  Tuto poznámku vytvořil kapelník (Admin). Upravit text nebo smazat ji může pouze kapelník. Pozici poznámky na obrazovce můžete přetáhnout prstem.
+                  {t('lyrics.adminNoteInfo')}
                 </ThemedText>
                 <Pressable style={[styles.actionModalBtn, { backgroundColor: 'rgba(150,150,150,0.2)' }]} onPress={() => setShowNoteActionsModal(false)}>
-                  <ThemedText type="smallBold">Rozumím</ThemedText>
+                  <ThemedText type="smallBold">{t('lyrics.understood')}</ThemedText>
                 </Pressable>
               </View>
             ) : (
               <View style={{ gap: 10, marginTop: 8 }}>
                 <Pressable style={[styles.actionModalBtn, { backgroundColor: selectedNoteForAction?.isAdminNote ? '#FF8C00' : '#2196F3' }]} onPress={handleOpenEditSelectedNote}>
                   <SymbolView name={{ ios: 'pencil', android: 'edit', web: 'edit' }} size={18} tintColor="#fff" />
-                  <ThemedText type="smallBold" style={{ color: '#fff', marginLeft: 8 }}>Editovat poznámku</ThemedText>
+                  <ThemedText type="smallBold" style={{ color: '#fff', marginLeft: 8 }}>{t('lyrics.editNote')}</ThemedText>
                 </Pressable>
 
                 <Pressable style={[styles.actionModalBtn, { backgroundColor: '#e91e63' }]} onPress={handleDeleteSelectedNote}>
                   <SymbolView name={{ ios: 'trash.fill', android: 'delete', web: 'delete' }} size={18} tintColor="#fff" />
-                  <ThemedText type="smallBold" style={{ color: '#fff', marginLeft: 8 }}>Smazat poznámku</ThemedText>
+                  <ThemedText type="smallBold" style={{ color: '#fff', marginLeft: 8 }}>{t('lyrics.deleteNote')}</ThemedText>
                 </Pressable>
 
                 <Pressable style={[styles.actionModalBtn, { backgroundColor: 'rgba(150,150,150,0.2)' }]} onPress={() => setShowNoteActionsModal(false)}>
-                  <ThemedText type="smallBold">Zrušit</ThemedText>
+                  <ThemedText type="smallBold">{t('home.misc.cancel')}</ThemedText>
                 </Pressable>
               </View>
             )}
@@ -1620,13 +1622,13 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
         <Pressable style={styles.modalOverlay} onPress={() => setShowEditNoteModal(false)}>
           <ThemedView type="backgroundElement" style={styles.noteDialogModal}>
             <ThemedText type="subtitle" style={{ fontSize: 18, marginBottom: 12 }}>
-              ✏️ Upravit poznámku
+              {t('lyrics.editNoteTitle')}
             </ThemedText>
             <TextInput
               style={[styles.noteInput, { color: theme.text, borderColor: 'rgba(150,150,150,0.3)' }]}
               value={noteInputText}
               onChangeText={setNoteInputText}
-              placeholder="Upravte text poznámky..."
+              placeholder={t('lyrics.editNotePlaceholder')}
               placeholderTextColor={theme.textSecondary}
               autoFocus
             />
@@ -1647,17 +1649,17 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
                   tintColor={isNoteAdminShared ? '#FF8C00' : theme.textSecondary}
                 />
                 <ThemedText type="smallBold" style={{ color: isNoteAdminShared ? '#FF8C00' : theme.text }}>
-                  👑 Admin poznámka (oranžová - pro všechny členy)
+                  {t('lyrics.adminSharedLabel')}
                 </ThemedText>
               </Pressable>
             )}
 
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
               <Pressable style={[styles.dialogBtn, { backgroundColor: 'rgba(150,150,150,0.2)' }]} onPress={() => setShowEditNoteModal(false)}>
-                <ThemedText type="smallBold">Zrušit</ThemedText>
+                <ThemedText type="smallBold">{t('home.misc.cancel')}</ThemedText>
               </Pressable>
               <Pressable style={[styles.dialogBtn, { backgroundColor: isNoteAdminShared ? '#FF8C00' : '#2196F3' }]} onPress={handleSaveEditedNote}>
-                <ThemedText type="smallBold" style={{ color: '#fff' }}>Uložit</ThemedText>
+                <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('setlist.saveBtn')}</ThemedText>
               </Pressable>
             </View>
           </ThemedView>
@@ -1715,7 +1717,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
 
             {/* 2. Řádek: Varianty akordů pro vybraný tón (C, C7, Cmi, Cmaj, Cmaj7, C6, Csus...) */}
             <ScrollView horizontal keyboardShouldPersistTaps="always" showsHorizontalScrollIndicator={false} style={[styles.quickChordsBar, { backgroundColor: 'rgba(255,193,7,0.12)' }]} contentContainerStyle={{ gap: 6, alignItems: 'center' }}>
-              <ThemedText type="small" themeColor="textSecondary" style={{ marginRight: 2, fontSize: 11 }}>Vložit:</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={{ marginRight: 2, fontSize: 11 }}>{t('lyrics.insertLabel')}</ThemedText>
               {getChordVariants(selectedRootNote).map(chord => (
                 <Pressable
                   key={chord}
@@ -1766,7 +1768,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
             value={editingLyricsText}
             onChangeText={setEditingLyricsText}
             onSelectionChange={handleSelectionChange}
-            placeholder="Zde napište nebo vložte text písně s akordy v hranatých závorkách [C]..."
+            placeholder={t('form.song.lyricsPlaceholder')}
             placeholderTextColor={theme.textSecondary}
             multiline
             autoFocus

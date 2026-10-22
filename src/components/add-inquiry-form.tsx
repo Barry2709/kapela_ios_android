@@ -5,6 +5,7 @@ import { SymbolView } from 'expo-symbols';
 import { ThemedText } from './themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/utils/i18n';
 import { useAppStore } from '@/store/useAppStore';
 import { Inquiry } from '@/types';
 
@@ -25,6 +26,7 @@ interface Props {
 
 export function AddInquiryForm({ existingEvents = [], onSave, onCancel }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { currentUser } = useAppStore();
 
   const [title, setTitle] = useState('');
@@ -84,15 +86,15 @@ export function AddInquiryForm({ existingEvents = [], onSave, onCancel }: Props)
 
   const handleSave = () => {
     if (!title.trim()) {
-      Alert.alert('Chyba', 'Vyplňte prosím název akce.');
+      Alert.alert(t('home.attendance.errorTitle'), t('form.inquiry.errorTitle'));
       return;
     }
     if (!location.trim()) {
-      Alert.alert('Chyba', 'Vyplňte prosím místo konání.');
+      Alert.alert(t('home.attendance.errorTitle'), t('form.inquiry.errorLocation'));
       return;
     }
     if (!phone.trim() && !email.trim()) {
-      Alert.alert('Chyba', 'Zadejte prosím alespoň e-mail nebo telefonní číslo pro kontakt.');
+      Alert.alert(t('home.attendance.errorTitle'), t('form.inquiry.errorContacts'));
       return;
     }
 
@@ -115,20 +117,20 @@ export function AddInquiryForm({ existingEvents = [], onSave, onCancel }: Props)
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <ThemedText type="subtitle" style={styles.title}>Nová poptávka hraní</ThemedText>
+      <ThemedText type="subtitle" style={styles.title}>{t('form.inquiry.title')}</ThemedText>
 
       {/* Název akce (povinné) */}
-      <ThemedText type="smallBold">Název akce *</ThemedText>
+      <ThemedText type="smallBold">{t('form.inquiry.name')}</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={title}
         onChangeText={setTitle}
-        placeholder="Např. Firemní večírek, Svatba, Městské slavnosti"
+        placeholder={t('form.inquiry.namePlaceholder')}
         placeholderTextColor={theme.textSecondary}
       />
 
       {/* Druh akce (štítky) */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>Druh akce *</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>{t('form.inquiry.eventType')}</ThemedText>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: Spacing.one, marginBottom: Spacing.two }}>
         {EVENT_TYPES.map(type => {
           const isSelected = eventType === type;
@@ -157,17 +159,17 @@ export function AddInquiryForm({ existingEvents = [], onSave, onCancel }: Props)
       </View>
 
       {/* Místo konání (povinné) */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.one }}>Místo konání *</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.one }}>{t('form.inquiry.location')}</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={location}
         onChangeText={setLocation}
-        placeholder="Např. Hotel U Růže, Klášterec nad Ohří"
+        placeholder={t('form.inquiry.locationPlaceholder')}
         placeholderTextColor={theme.textSecondary}
       />
 
       {/* Datum (DatePicker - povinné) */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>Datum akce *</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>{t('form.inquiry.dateLabel')}</ThemedText>
       <Pressable
         style={[styles.pickerButton, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         onPress={() => setActivePicker('date')}
@@ -181,7 +183,7 @@ export function AddInquiryForm({ existingEvents = [], onSave, onCancel }: Props)
       {/* Čas od a Čas do (TimePicker - povinné) */}
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Čas od *</ThemedText>
+          <ThemedText type="smallBold">{t('form.inquiry.timeFrom')}</ThemedText>
           <Pressable
             style={[styles.pickerButton, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             onPress={() => setActivePicker('startTime')}
@@ -194,7 +196,7 @@ export function AddInquiryForm({ existingEvents = [], onSave, onCancel }: Props)
         </View>
 
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Čas do *</ThemedText>
+          <ThemedText type="smallBold">{t('form.inquiry.timeTo')}</ThemedText>
           <Pressable
             style={[styles.pickerButton, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             onPress={() => setActivePicker('endTime')}
@@ -208,44 +210,44 @@ export function AddInquiryForm({ existingEvents = [], onSave, onCancel }: Props)
       </View>
 
       {/* Kontakty: Telefon a E-mail (alespoň jeden povinný) */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>Telefonní číslo *</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>{t('form.inquiry.phone')}</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={phone}
         onChangeText={setPhone}
-        placeholder="+420 777 123 456"
+        placeholder={t('form.inquiry.phonePlaceholder')}
         placeholderTextColor={theme.textSecondary}
         keyboardType="phone-pad"
       />
 
-      <ThemedText type="smallBold">E-mail *</ThemedText>
+      <ThemedText type="smallBold">{t('form.inquiry.email')}</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={email}
         onChangeText={setEmail}
-        placeholder="poradatel@email.cz"
+        placeholder={t('form.inquiry.emailPlaceholder')}
         placeholderTextColor={theme.textSecondary}
         keyboardType="email-address"
         autoCapitalize="none"
       />
 
       {/* Nabízená cena */}
-      <ThemedText type="smallBold">Nabízená cena / Rozpočet</ThemedText>
+      <ThemedText type="smallBold">{t('form.inquiry.price')}</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={offeredPrice}
         onChangeText={setOfferedPrice}
-        placeholder="Např. 20 000 Kč"
+        placeholder={t('form.inquiry.pricePlaceholder')}
         placeholderTextColor={theme.textSecondary}
       />
 
       {/* Poznámka */}
-      <ThemedText type="smallBold">Poznámka ke poptávce</ThemedText>
+      <ThemedText type="smallBold">{t('form.inquiry.notes')}</ThemedText>
       <TextInput
         style={[styles.input, styles.multilineInput, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={notes}
         onChangeText={setNotes}
-        placeholder="Upřesňující informace o akci, zvučení, pódiu..."
+        placeholder={t('form.inquiry.notesPlaceholder')}
         placeholderTextColor={theme.textSecondary}
         multiline
         numberOfLines={3}
@@ -264,11 +266,11 @@ export function AddInquiryForm({ existingEvents = [], onSave, onCancel }: Props)
       {/* Akční tlačítka */}
       <View style={styles.buttons}>
         <Pressable style={[styles.button, { backgroundColor: '#e91e63' }]} onPress={onCancel}>
-          <ThemedText type="smallBold" style={{ color: '#fff' }}>Zrušit</ThemedText>
+          <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('home.misc.cancel')}</ThemedText>
         </Pressable>
         <Pressable style={[styles.button, { backgroundColor: '#4caf50' }]} onPress={handleSave}>
           <ThemedText type="smallBold" style={{ color: '#fff' }}>
-            Odeslat poptávku
+            {t('form.inquiry.sendBtn')}
           </ThemedText>
         </Pressable>
       </View>

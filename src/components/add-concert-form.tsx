@@ -9,6 +9,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/useAppStore';
 import { Concert, OrganizerContact } from '@/types';
 import { SetlistEditorModal } from './setlist-editor-modal';
+import { useTranslation } from '@/utils/i18n';
 
 interface Props {
   initialConcert?: Concert;
@@ -19,6 +20,7 @@ interface Props {
 export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
   const theme = useTheme();
   const { activeBand } = useAppStore();
+  const { t } = useTranslation();
   const whatToTakePresets = activeBand?.whatToTakePresets || [];
 
   const [selectedWhatToTake, setSelectedWhatToTake] = useState<string[]>(
@@ -61,7 +63,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
 
   const handleSaveOrganizer = () => {
     if (!orgName.trim()) {
-      Alert.alert('Chyba', 'Zadejte prosím jméno kontaktní osoby.');
+      Alert.alert(t('home.attendance.errorTitle'), t('form.concert.errorName'));
       return;
     }
 
@@ -201,7 +203,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
 
   const handleSave = () => {
     if (!title || !location) {
-      Alert.alert('Chyba', 'Vyplňte prosím název akce a místo konání.');
+      Alert.alert(t('home.attendance.errorTitle'), t('form.concert.errorTitle'));
       return;
     }
 
@@ -229,11 +231,11 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <ThemedText type="subtitle" style={styles.title}>
-        {initialConcert ? 'Upravit koncert' : 'Naplánovat koncert / akci'}
+        {initialConcert ? t('form.concert.editTitle') : t('form.concert.title')}
       </ThemedText>
 
       {/* Název akce */}
-      <ThemedText type="smallBold">Název akce *</ThemedText>
+      <ThemedText type="smallBold">{t('form.concert.name')}</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={title}
@@ -246,17 +248,17 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
       <View style={styles.switchContainer}>
         <View style={styles.switchRow}>
           <Switch value={isPrivate} onValueChange={setIsPrivate} trackColor={{ false: '#767577', true: '#2196f3' }} />
-          <ThemedText type="small">Soukromá akce</ThemedText>
+          <ThemedText type="small">{t('form.concert.isPrivate')}</ThemedText>
         </View>
 
         <View style={styles.switchRow}>
           <Switch value={isCancelled} onValueChange={setIsCancelled} trackColor={{ false: '#767577', true: '#e91e63' }} />
-          <ThemedText type="small" style={{ color: isCancelled ? '#e91e63' : theme.text }}>Zrušeno</ThemedText>
+          <ThemedText type="small" style={{ color: isCancelled ? '#e91e63' : theme.text }}>{t('form.concert.cancelledLabel')}</ThemedText>
         </View>
       </View>
 
       {/* Datum konání */}
-      <ThemedText type="smallBold">Datum akce *</ThemedText>
+      <ThemedText type="smallBold">{t('form.concert.date')}</ThemedText>
       <Pressable
         style={[styles.pickerButton, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         onPress={() => setActivePicker('date')}
@@ -270,7 +272,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
       {/* Časy Od - Do */}
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Začátek *</ThemedText>
+          <ThemedText type="smallBold">{t('form.concert.startTime')}</ThemedText>
           <Pressable
             style={[styles.pickerButton, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             onPress={() => setActivePicker('startTime')}
@@ -283,7 +285,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
         </View>
 
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Konec</ThemedText>
+          <ThemedText type="smallBold">{t('form.concert.endTime')}</ThemedText>
           <Pressable
             style={[styles.pickerButton, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             onPress={() => setActivePicker('endTime')}
@@ -297,7 +299,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
       </View>
 
       {/* Místo konání */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>Místo konání *</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>{t('form.concert.location')} *</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={location}
@@ -307,19 +309,19 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
       />
 
       {/* Cena / Honorář */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>Honorář / Cena za vystoupení</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>{t('form.concert.price')}</ThemedText>
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={price}
         onChangeText={setPrice}
-        placeholder="Např. 15 000 Kč nebo Dle dohody"
+        placeholder={t('form.concert.pricePlaceholder')}
         placeholderTextColor={theme.textSecondary}
       />
 
       {/* Odjezd */}
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Čas odjezdu</ThemedText>
+          <ThemedText type="smallBold">{t('form.concert.departureTime')}</ThemedText>
           <Pressable
             style={[styles.pickerButton, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             onPress={() => setActivePicker('departureTime')}
@@ -332,12 +334,12 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
         </View>
 
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Místo odjezdu</ThemedText>
+          <ThemedText type="smallBold">{t('form.concert.departureLocation')}</ThemedText>
           <TextInput
             style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             value={departureLocation}
             onChangeText={setDepartureLocation}
-            placeholder="Odkud se jede"
+            placeholder={t('form.concert.departureLocation')}
             placeholderTextColor={theme.textSecondary}
           />
         </View>
@@ -346,7 +348,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
       {/* Zvukovka Od - Do */}
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Zvukovka od</ThemedText>
+          <ThemedText type="smallBold">{t('form.concert.soundcheckFrom')}</ThemedText>
           <Pressable
             style={[styles.pickerButton, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             onPress={() => setActivePicker('soundCheckFrom')}
@@ -359,7 +361,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
         </View>
 
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Zvukovka do</ThemedText>
+          <ThemedText type="smallBold">{t('form.concert.soundcheckTo')}</ThemedText>
           <Pressable
             style={[styles.pickerButton, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             onPress={() => setActivePicker('soundCheckTo')}
@@ -375,19 +377,19 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
       {/* Kontakty na pořadatele / organizátory */}
       <View style={{ marginTop: Spacing.three, marginBottom: Spacing.two }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <ThemedText type="smallBold">Kontakty na pořadatele / zvukaře ({organizers.length})</ThemedText>
+          <ThemedText type="smallBold">{t('form.concert.contactsTitle')} ({organizers.length})</ThemedText>
           <Pressable
             style={styles.addOrgBtn}
             onPress={openAddOrganizer}
           >
             <SymbolView name={{ ios: 'plus.circle.fill', android: 'add_circle', web: 'add_circle' }} size={16} tintColor="#2196f3" />
-            <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 12 }}>Přidat kontakt</ThemedText>
+            <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 12 }}>{t('form.concert.addContact')}</ThemedText>
           </Pressable>
         </View>
 
         {organizers.length === 0 ? (
           <ThemedText type="small" themeColor="textSecondary" style={{ fontStyle: 'italic', marginBottom: 4 }}>
-            Zatím nebyly zadány žádné kontakty. Kliknutím na "+ Přidat kontakt" přidejte pořadatele, zvukaře nebo kontaktní osobu.
+            {t('form.concert.noContactsText')}
           </ThemedText>
         ) : (
           <View style={{ gap: 8 }}>
@@ -428,7 +430,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
       </View>
 
       {/* Co vzít s sebou na akci - Dynamické štítky z nastavení */}
-      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>Co vzít s sebou na akci</ThemedText>
+      <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>{t('form.concert.whatToTake')}</ThemedText>
       {whatToTakePresets.length > 0 ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: Spacing.one, marginBottom: Spacing.two }}>
           {whatToTakePresets.map(item => {
@@ -458,24 +460,24 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
         </View>
       ) : (
         <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: Spacing.one, marginBottom: Spacing.two }}>
-          Položky ke zabalení nemáte zatím nastavené. Můžete je přidat v Kapela → Nastavení → Nastavit co vzít s sebou.
+          {t('form.concert.whatToTakeEmpty')}
         </ThemedText>
       )}
 
       {/* Setlist Akce */}
       <View style={{ marginTop: Spacing.three, marginBottom: Spacing.three, padding: Spacing.three, borderRadius: Spacing.two, backgroundColor: 'rgba(200,200,200,0.1)' }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.one }}>
-          <ThemedText type="smallBold">Setlist koncertu</ThemedText>
+          <ThemedText type="smallBold">{t('form.concert.setlistTitle')}</ThemedText>
           {setlist.length > 0 && (
             <View style={{ backgroundColor: '#4caf50', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-              <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>{setlist.length} skladeb</ThemedText>
+              <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>{setlist.length} {t('form.concert.setlistSongsCount')}</ThemedText>
             </View>
           )}
         </View>
         <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: Spacing.two }}>
           {setlist.length > 0
-            ? `Setlist obsahuje ${setlist.length} skladeb. Kliknutím můžete pořadí upravit nebo přegenerovat.`
-            : 'Setlist zatím není sestaven. Můžete jej vygenerovat automaticky nebo poskládat ručně.'}
+            ? t('form.concert.setlistDescHas')
+            : t('form.concert.setlistDescEmpty')}
         </ThemedText>
 
         <Pressable
@@ -492,7 +494,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
         >
           <SymbolView name={{ ios: 'music.note.list', android: 'queue_music', web: 'queue_music' }} size={20} tintColor="#fff" />
           <ThemedText type="smallBold" style={{ color: '#fff' }}>
-            {setlist.length > 0 ? 'Upravit / Přegenerovat setlist' : 'Sestavit / Generovat setlist'}
+            {setlist.length > 0 ? t('form.concert.setlistBtnUpdate') : t('form.concert.setlistBtnCreate')}
           </ThemedText>
         </Pressable>
       </View>
@@ -514,18 +516,18 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
           style={{ alignSelf: 'flex-end', padding: 8, marginTop: -8 }}
           onPress={() => setActivePicker(null)}
         >
-          <ThemedText type="smallBold" style={{ color: '#2196f3' }}>Zavřít výběr</ThemedText>
+          <ThemedText type="smallBold" style={{ color: '#2196f3' }}>{t('form.concert.closeSelection')}</ThemedText>
         </Pressable>
       )}
 
       {/* Akční tlačítka v jedné řádce */}
       <View style={styles.buttons}>
         <Pressable style={[styles.button, { backgroundColor: '#e91e63' }]} onPress={onCancel}>
-          <ThemedText type="smallBold" style={{ color: '#fff' }}>Zrušit</ThemedText>
+          <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('form.concert.cancelBtn')}</ThemedText>
         </Pressable>
         <Pressable style={[styles.button, { backgroundColor: '#4caf50' }]} onPress={handleSave}>
           <ThemedText type="smallBold" style={{ color: '#fff' }}>
-            Uložit koncert
+            {t('form.concert.saveBtn')}
           </ThemedText>
         </Pressable>
       </View>
@@ -544,11 +546,11 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
         <Pressable style={styles.modalOverlay} onPress={() => setShowOrgModal(false)}>
           <Pressable style={[styles.modalBox, { backgroundColor: theme.backgroundElement }]} onPress={e => e.stopPropagation()}>
             <ThemedText type="subtitle" style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}>
-              {editingOrgId ? 'Upravit kontakt' : 'Přidat kontakt pořadatele / zvukaře'}
+              {editingOrgId ? t('form.concert.orgEditTitle') : t('form.concert.orgAddTitle')}
             </ThemedText>
 
             {/* Rychlé volby role: Pořadatel, Zvukař, Kontakt */}
-            <ThemedText type="smallBold" style={{ marginBottom: 6 }}>Role / Typ kontaktu</ThemedText>
+            <ThemedText type="smallBold" style={{ marginBottom: 6 }}>{t('form.concert.orgRoleType')}</ThemedText>
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
               {(['Pořadatel', 'Zvukař', 'Kontakt'] as const).map(roleOption => {
                 const isSelected = orgRole === roleOption;
@@ -562,7 +564,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
                     onPress={() => setOrgRole(roleOption)}
                   >
                     <ThemedText type="smallBold" style={{ color: isSelected ? '#fff' : theme.text, fontSize: 12 }}>
-                      {roleOption}
+                      {roleOption === 'Pořadatel' ? 'Usporiadateľ' : roleOption === 'Zvukař' ? 'Zvukár' : 'Kontakt'}
                     </ThemedText>
                   </Pressable>
                 );
@@ -570,7 +572,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
             </View>
 
             {/* Jméno */}
-            <ThemedText type="smallBold" style={{ marginBottom: 4 }}>Jméno a Příjmení *</ThemedText>
+            <ThemedText type="smallBold" style={{ marginBottom: 4 }}>{t('form.concert.orgName')}</ThemedText>
             <TextInput
               style={[styles.inputModal, { color: theme.text, borderColor: 'rgba(150,150,150,0.3)', backgroundColor: 'rgba(150,150,150,0.1)', marginBottom: 10 }]}
               placeholder="Např. Jan Novák"
@@ -581,7 +583,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
             />
 
             {/* Telefon */}
-            <ThemedText type="smallBold" style={{ marginBottom: 4 }}>Telefonní číslo</ThemedText>
+            <ThemedText type="smallBold" style={{ marginBottom: 4 }}>{t('form.concert.orgPhone')}</ThemedText>
             <TextInput
               style={[styles.inputModal, { color: theme.text, borderColor: 'rgba(150,150,150,0.3)', backgroundColor: 'rgba(150,150,150,0.1)', marginBottom: 10 }]}
               placeholder="Např. +420 777 123 456"
@@ -592,7 +594,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
             />
 
             {/* Email */}
-            <ThemedText type="smallBold" style={{ marginBottom: 4 }}>E-mail</ThemedText>
+            <ThemedText type="smallBold" style={{ marginBottom: 4 }}>{t('form.concert.orgEmail')}</ThemedText>
             <TextInput
               style={[styles.inputModal, { color: theme.text, borderColor: 'rgba(150,150,150,0.3)', backgroundColor: 'rgba(150,150,150,0.1)', marginBottom: 16 }]}
               placeholder="Např. novak@poradatel.cz"
@@ -606,10 +608,10 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
             {/* Tlačítka Uložit / Zrušit */}
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
               <Pressable onPress={() => setShowOrgModal(false)} style={styles.modalCancelBtn}>
-                <ThemedText type="smallBold" themeColor="textSecondary">Zrušit</ThemedText>
+                <ThemedText type="smallBold" themeColor="textSecondary">{t('form.common.cancel')}</ThemedText>
               </Pressable>
               <Pressable onPress={handleSaveOrganizer} style={styles.modalSaveBtn}>
-                <ThemedText type="smallBold" style={{ color: '#fff' }}>Uložit kontakt</ThemedText>
+                <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('form.common.save')}</ThemedText>
               </Pressable>
             </View>
           </Pressable>
