@@ -57,7 +57,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
     setOrgName(contact.name);
     setOrgPhone(contact.phone || '');
     setOrgEmail(contact.email || '');
-    setOrgRole((contact.role as any) || 'Pořadatel');
+    setOrgRole((contact.role as any) || t('form.concert.orgRole.organizer'));
     setShowOrgModal(true);
   };
 
@@ -157,7 +157,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
   const [location, setLocation] = useState(initialConcert?.location || '');
   const [price, setPrice] = useState(initialConcert?.price || '');
   const [departureTimeObj, setDepartureTimeObj] = useState(parseTimeStr(initialConcert?.departureTime, 17, 0));
-  const [departureLocation, setDepartureLocation] = useState(initialConcert?.departureLocation || 'Zkušebna');
+  const [departureLocation, setDepartureLocation] = useState(initialConcert?.departureLocation || t('form.concert.defaultDeparture'));
 
   // Zvukovka
   const [soundCheckFromObj, setSoundCheckFromObj] = useState(parseTimeStr(initialConcert?.soundCheckFrom, 18, 30));
@@ -229,7 +229,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <ThemedText type="subtitle" style={styles.title}>
         {initialConcert ? t('form.concert.editTitle') : t('form.concert.title')}
       </ThemedText>
@@ -240,21 +240,35 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={title}
         onChangeText={setTitle}
-        placeholder="Např. Festival Klášterec, Městské slavnosti"
+        placeholder={t('form.concert.placeholder.festival')}
         placeholderTextColor={theme.textSecondary}
       />
 
       {/* Přepínače Soukromá / Zrušená */}
-      <View style={styles.switchContainer}>
-        <View style={styles.switchRow}>
-          <Switch value={isPrivate} onValueChange={setIsPrivate} trackColor={{ false: '#767577', true: '#2196f3' }} />
-          <ThemedText type="small">{t('form.concert.isPrivate')}</ThemedText>
+      <View style={styles.optionBox}>
+        <View style={{ flex: 1 }}>
+          <ThemedText type="smallBold">{t('form.concert.isPrivateTitle') || 'Soukromá akce'}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{t('form.concert.isPrivateDesc') || 'Skrýt akci před fanoušky'}</ThemedText>
         </View>
+        <Switch value={isPrivate} onValueChange={setIsPrivate} trackColor={{ false: '#767577', true: '#2196f3' }} />
+      </View>
 
-        <View style={styles.switchRow}>
-          <Switch value={isCancelled} onValueChange={setIsCancelled} trackColor={{ false: '#767577', true: '#e91e63' }} />
-          <ThemedText type="small" style={{ color: isCancelled ? '#e91e63' : theme.text }}>{t('form.concert.cancelledLabel')}</ThemedText>
+      <View style={styles.optionBox}>
+        <View style={{ flex: 1 }}>
+          <ThemedText type="smallBold">{t('form.concert.statusTitle') || 'Stav akce'}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">{t('form.concert.statusDesc') || 'Označit akci jako zrušenou'}</ThemedText>
         </View>
+        <Pressable
+          style={[
+            styles.statusBadge,
+            { backgroundColor: isCancelled ? '#e91e63' : '#4caf50' }
+          ]}
+          onPress={() => setIsCancelled(!isCancelled)}
+        >
+          <ThemedText type="smallBold" style={{ color: '#fff' }}>
+            {isCancelled ? (t('form.rehearsal.statusCancelled') || '🚫 Zrušeno') : (t('form.rehearsal.statusValid') || '✅ Platí')}
+          </ThemedText>
+        </Pressable>
       </View>
 
       {/* Datum konání */}
@@ -304,7 +318,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
         style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
         value={location}
         onChangeText={setLocation}
-        placeholder="Např. Amfiteátr, Zámecký park Klášterec"
+        placeholder={t('form.concert.placeholder.location')}
         placeholderTextColor={theme.textSecondary}
       />
 
@@ -397,9 +411,9 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
               <View key={org.id} style={styles.orgContactCard}>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <View style={[styles.orgRoleBadge, { backgroundColor: org.role === 'Zvukař' ? 'rgba(255,152,0,0.2)' : (org.role === 'Pořadatel' ? 'rgba(76,175,80,0.2)' : 'rgba(33,150,243,0.2)') }]}>
-                      <ThemedText type="smallBold" style={{ color: org.role === 'Zvukař' ? '#ff9800' : (org.role === 'Pořadatel' ? '#4caf50' : '#2196f3'), fontSize: 10 }}>
-                        {org.role || 'Kontakt'}
+                    <View style={[styles.orgRoleBadge, { backgroundColor: org.role === t('form.concert.orgRole.sound') ? 'rgba(255,152,0,0.2)' : (org.role === t('form.concert.orgRole.organizer') ? 'rgba(76,175,80,0.2)' : 'rgba(33,150,243,0.2)') }]}>
+                      <ThemedText type="smallBold" style={{ color: org.role === t('form.concert.orgRole.sound') ? '#ff9800' : (org.role === t('form.concert.orgRole.organizer') ? '#4caf50' : '#2196f3'), fontSize: 10 }}>
+                        {org.role || t('form.concert.orgRole.contact')}
                       </ThemedText>
                     </View>
                     <ThemedText type="smallBold" style={{ fontSize: 14 }}>{org.name}</ThemedText>
@@ -564,7 +578,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
                     onPress={() => setOrgRole(roleOption)}
                   >
                     <ThemedText type="smallBold" style={{ color: isSelected ? '#fff' : theme.text, fontSize: 12 }}>
-                      {roleOption === 'Pořadatel' ? 'Usporiadateľ' : roleOption === 'Zvukař' ? 'Zvukár' : 'Kontakt'}
+                      {roleOption === 'Pořadatel' ? t('form.concert.orgRole.organizer') : roleOption === 'Zvukař' ? t('form.concert.orgRole.sound') : t('form.concert.orgRole.contact')}
                     </ThemedText>
                   </Pressable>
                 );
@@ -575,7 +589,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
             <ThemedText type="smallBold" style={{ marginBottom: 4 }}>{t('form.concert.orgName')}</ThemedText>
             <TextInput
               style={[styles.inputModal, { color: theme.text, borderColor: 'rgba(150,150,150,0.3)', backgroundColor: 'rgba(150,150,150,0.1)', marginBottom: 10 }]}
-              placeholder="Např. Jan Novák"
+              placeholder={t('form.concert.placeholder.contactName')}
               placeholderTextColor={theme.textSecondary}
               value={orgName}
               onChangeText={setOrgName}
@@ -586,7 +600,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
             <ThemedText type="smallBold" style={{ marginBottom: 4 }}>{t('form.concert.orgPhone')}</ThemedText>
             <TextInput
               style={[styles.inputModal, { color: theme.text, borderColor: 'rgba(150,150,150,0.3)', backgroundColor: 'rgba(150,150,150,0.1)', marginBottom: 10 }]}
-              placeholder="Např. +420 777 123 456"
+              placeholder={t('form.concert.placeholder.contactPhone')}
               placeholderTextColor={theme.textSecondary}
               keyboardType="phone-pad"
               value={orgPhone}
@@ -597,7 +611,7 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
             <ThemedText type="smallBold" style={{ marginBottom: 4 }}>{t('form.concert.orgEmail')}</ThemedText>
             <TextInput
               style={[styles.inputModal, { color: theme.text, borderColor: 'rgba(150,150,150,0.3)', backgroundColor: 'rgba(150,150,150,0.1)', marginBottom: 16 }]}
-              placeholder="Např. novak@poradatel.cz"
+              placeholder={t('form.concert.placeholder.contactEmail')}
               placeholderTextColor={theme.textSecondary}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -623,6 +637,22 @@ export function AddConcertForm({ initialConcert, onSave, onCancel }: Props) {
 }
 
 const styles = StyleSheet.create({
+  optionBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(200,200,200,0.12)',
+    marginBottom: 12,
+  },
+  statusBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+
   container: {
     flex: 1,
   },

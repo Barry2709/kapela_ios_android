@@ -116,7 +116,7 @@ export function AddInquiryForm({ existingEvents = [], onSave, onCancel }: Props)
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <ThemedText type="subtitle" style={styles.title}>{t('form.inquiry.title')}</ThemedText>
 
       {/* Název akce (povinné) */}

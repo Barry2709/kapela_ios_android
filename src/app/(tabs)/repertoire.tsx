@@ -415,7 +415,7 @@ export default function RepertoireScreen() {
       liveSyncService.broadcastSongChange(
         activeBand.id,
         currentUser?.uid || 'admin',
-        currentUser?.displayName || 'Kapelník',
+        currentUser?.displayName || t('onboarding.defaultAdminName'),
         targetSong.id
       );
     }
@@ -858,7 +858,7 @@ export default function RepertoireScreen() {
 
                 {filteredSongs.length === 0 && (
                   <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', marginTop: 20 }}>
-                    Nenalezeny žádné odpovídající skladby.
+                    {t('repertoire.empty.filter')}
                   </ThemedText>
                 )}
               </View>
@@ -898,7 +898,7 @@ export default function RepertoireScreen() {
         <Pressable style={styles.modalOverlay} onPress={() => setShowSourcePickerModal(false)}>
           <ThemedView type="backgroundElement" style={styles.sourcePickerModal}>
             <ThemedText type="subtitle" style={{ fontSize: 18, textAlign: 'center', marginBottom: Spacing.three }}>
-              Přidat novou píseň do repertoáru
+              {t('repertoire.action.addSongToRep')}
             </ThemedText>
 
             {/* Ruční zápis z klávesnice */}
@@ -912,7 +912,7 @@ export default function RepertoireScreen() {
             >
               <SymbolView name={{ ios: 'square.and.pencil', android: 'edit_note', web: 'edit_note' }} size={22} tintColor="#ffc107" />
               <ThemedText type="smallBold" style={{ marginLeft: 10, fontSize: 15, color: theme.text }}>
-                Ruční zápis (Napsat z klávesnice)
+                {t('repertoire.action.manualEntry')}
               </ThemedText>
             </Pressable>
 
@@ -922,7 +922,7 @@ export default function RepertoireScreen() {
             >
               <SymbolView name={{ ios: 'folder', android: 'folder', web: 'folder' }} size={22} tintColor={theme.text} />
               <ThemedText type="smallBold" style={{ marginLeft: 10, fontSize: 15 }}>
-                Z disku (Lokální paměť / Soubory)
+                {t('repertoire.action.fromDisk')}
               </ThemedText>
             </Pressable>
 
@@ -933,7 +933,7 @@ export default function RepertoireScreen() {
               >
                 <SymbolView name={{ ios: 'cloud', android: 'cloud', web: 'cloud' }} size={22} tintColor="#2196f3" />
                 <ThemedText type="smallBold" style={{ marginLeft: 10, fontSize: 15 }}>
-                  Z Google Disku
+                  {t('repertoire.action.fromGDrive')}
                 </ThemedText>
               </Pressable>
             ) : (
@@ -943,13 +943,13 @@ export default function RepertoireScreen() {
               >
                 <SymbolView name={{ ios: 'icloud', android: 'cloud', web: 'cloud' }} size={22} tintColor="#2196f3" />
                 <ThemedText type="smallBold" style={{ marginLeft: 10, fontSize: 15 }}>
-                  Z iCloud Drive
+                  {t('repertoire.action.fromICloud')}
                 </ThemedText>
               </Pressable>
             )}
 
             <Pressable style={styles.cancelModalBtn} onPress={() => setShowSourcePickerModal(false)}>
-              <ThemedText type="smallBold" style={{ color: '#e91e63' }}>Zrušit</ThemedText>
+              <ThemedText type="smallBold" style={{ color: '#e91e63' }}>{t('home.misc.cancel')}</ThemedText>
             </Pressable>
           </ThemedView>
         </Pressable>

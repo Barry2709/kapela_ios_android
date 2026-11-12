@@ -383,7 +383,7 @@ export default function TreasuryScreen() {
       }
     } catch (e) {
       console.error("Chyba při výběru dokladu z galerie:", e);
-      Alert.alert("Chyba", "Nepodařilo se načíst fotografii z galerie.");
+      Alert.alert(t('home.attendance.errorTitle'), t('treasury.alert.errorPhoto'));
     }
   };
 
@@ -612,9 +612,9 @@ export default function TreasuryScreen() {
   const receiptTransactions = transactions.filter(t => !!t.receiptUrl);
 
   const fuelLabels: Record<string, string> = {
-    nafta: '⛽ Nafta',
-    benzin: '⛽ Benzín',
-    elektro: '⚡ Elektro',
+    nafta: t('treasury.vehicles.fuelDiesel') || '⛽ Nafta',
+    benzin: t('treasury.vehicles.fuelGas') || '⛽ Benzín',
+    elektro: t('treasury.vehicles.fuelElectric') || '⚡ Elektro',
   };
 
   return (
@@ -811,7 +811,7 @@ export default function TreasuryScreen() {
                               </ThemedText>
 
                               <ThemedText type="smallBold">
-                                👤 Řidič / Majitel: <ThemedText type="small">{ride.driverName}</ThemedText>
+                                👤 {t('form.ride.driver')}: <ThemedText type="small">{ride.driverName}</ThemedText>
                               </ThemedText>
 
                               <ThemedText type="smallBold">
@@ -911,7 +911,7 @@ export default function TreasuryScreen() {
                           </View>
 
                           <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: 4 }}>
-                            👤 Majitel / Řidič: <ThemedText type="smallBold">{vehicle.owner}</ThemedText>
+                            {t('treasury.vehicles.owner')} <ThemedText type="smallBold">{vehicle.owner}</ThemedText>
                           </ThemedText>
                         </View>
                       </View>
@@ -931,13 +931,13 @@ export default function TreasuryScreen() {
 
                         <View style={styles.paramTag}>
                           <ThemedText type="smallBold" style={{ fontSize: 11, color: theme.text }}>
-                            👥 {vehicle.seats} míst
+                            👥 {vehicle.seats} {t('treasury.vehicles.seats')}
                           </ThemedText>
                         </View>
 
                         <View style={[styles.paramTag, { backgroundColor: vehicle.hasTowBar ? 'rgba(76,175,80,0.18)' : 'rgba(200,200,200,0.12)' }]}>
                           <ThemedText type="smallBold" style={{ fontSize: 11, color: vehicle.hasTowBar ? '#4caf50' : theme.textSecondary }}>
-                            🧲 Tažné: {vehicle.hasTowBar ? 'Ano' : 'Ne'}
+                            {t('treasury.vehicles.towbar')} {vehicle.hasTowBar ? t('treasury.vehicles.yes') : t('treasury.vehicles.no')}
                           </ThemedText>
                         </View>
                       </View>
@@ -1034,10 +1034,7 @@ export default function TreasuryScreen() {
                       ]}
                       onPress={() => setFilterMode(chip.key as any)}
                     >
-                      <ThemedText
-                        type="smallBold"
-                        style={{ color: isSelected ? '#fff' : theme.text, fontSize: 11 }}
-                      >
+                      <ThemedText type="smallBold" style={{ color: isSelected ? '#fff' : theme.text, fontSize: 11, textAlign: 'center', lineHeight: 13 }} numberOfLines={1} ellipsizeMode="tail">
                         {chip.label}
                       </ThemedText>
                     </Pressable>
@@ -1048,7 +1045,7 @@ export default function TreasuryScreen() {
               {/* SEZNAM TRANSAKCÍ (Příjmy zeleně, Výdaje červeně, Plánované žlutě, Rozbalovací položky) */}
               <View style={styles.sectionContainer}>
                 <ThemedText type="subtitle" style={{ fontSize: 18, marginBottom: Spacing.two }}>
-                  Přehled příjmů a výdajů ({filteredOverviewItems.length})
+                  {t('treasury.title.overviewList', { count: filteredOverviewItems.length })}
                 </ThemedText>
 
                 <View style={styles.list}>
@@ -1092,7 +1089,7 @@ export default function TreasuryScreen() {
                                 textDecorationLine: item.isCancelled ? 'line-through' : 'none',
                               }}
                             >
-                              {getCleanTitle(item.title)}
+                              <ThemedText type="subtitle" style={{ fontSize: 16, fontWeight: 'bold', color: themeColor, textDecorationLine: item.isCancelled ? 'line-through' : 'none' }} numberOfLines={2} ellipsizeMode="tail">{getCleanTitle(item.title)}</ThemedText>
                             </ThemedText>
                           </View>
 
@@ -1143,7 +1140,7 @@ export default function TreasuryScreen() {
                                   <ThemedText type="smallBold" style={{ color: (isPlanned || item.isCancelled) ? '#000' : '#fff', fontSize: 10 }}>
                                     {item.isCancelled
                                       ? '🔵 Zrušená akce (Nezapočteno)'
-                                      : (isPlanned ? '🟡 Plánovaný (Budoucí akce)' : (item.type === 'in' ? '🟢 Skutečný příjem' : '🔴 Výdej'))}
+                                      : (isPlanned ? '🟡 Plánovaný (Budoucí akce)' : (item.type === 'in' ? t('treasury.status.realIncome') : t('treasury.status.expense')))}
                                   </ThemedText>
                                 </View>
                               </View>

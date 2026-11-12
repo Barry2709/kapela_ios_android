@@ -43,7 +43,7 @@ export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  const [location, setLocation] = useState(initialRehearsal?.location || 'Zkušebna');
+  const [location, setLocation] = useState(initialRehearsal?.location || t('form.rehearsal.places.room'));
   const [whatToPrepare, setWhatToPrepare] = useState(initialRehearsal?.whatToPrepare || '');
   const [isCancelled, setIsCancelled] = useState(initialRehearsal?.isCancelled || false);
 
@@ -94,7 +94,7 @@ export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) 
 
   const handleSave = () => {
     if (!location) {
-      Alert.alert(t('home.attendance.errorTitle'), 'Vyplňte prosím místo konání zkoušky.'); // TODO: pridať i18n ak treba
+      Alert.alert(t('home.attendance.errorTitle'), t('form.rehearsal.errorLocation')); // TODO: pridať i18n ak treba
       return;
     }
 
@@ -109,7 +109,7 @@ export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) 
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <ThemedText type="subtitle" style={styles.title}>
         {initialRehearsal ? t('form.rehearsal.editTitle') : t('form.rehearsal.title')}
       </ThemedText>
@@ -212,7 +212,7 @@ export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) 
       {/* Rychlá tlačítka pro místo */}
       <View style={styles.presetRow}>
         <ThemedText type="small" themeColor="textSecondary">{t('form.rehearsal.quickPlace')}</ThemedText>
-        {['Zkušebna', 'Klub', 'Sál'].map(place => (
+        {[t('form.rehearsal.places.room'), t('form.rehearsal.places.club'), t('form.rehearsal.places.hall')].map(place => (
           <Pressable
             key={place}
             style={[styles.chip, { backgroundColor: 'rgba(200,200,200,0.15)', borderColor: 'rgba(200,200,200,0.25)' }]}
@@ -237,7 +237,7 @@ export function AddRehearsalForm({ initialRehearsal, onSave, onCancel }: Props) 
 
       {/* Rychlé návrhy pro co připravit */}
       <View style={[styles.presetRow, { flexWrap: 'wrap' }]}>
-        {['Nové písničky 1-5', 'Zpěvy v refrénu', 'Vzít si noty', 'Příprava na koncert'].map(tip => (
+        {[t('form.rehearsal.tips.songs'), t('form.rehearsal.tips.vocals'), t('form.rehearsal.tips.notes'), t('form.rehearsal.tips.prep')].map(tip => (
           <Pressable
             key={tip}
             style={[styles.chip, { backgroundColor: 'rgba(200,200,200,0.15)', borderColor: 'rgba(200,200,200,0.25)' }]}

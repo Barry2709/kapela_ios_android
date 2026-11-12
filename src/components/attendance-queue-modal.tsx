@@ -44,7 +44,7 @@ export function AttendanceQueueModal() {
 
   // Načtení dat a živé naslouchání na změny docházky
   useEffect(() => {
-    if (!activeBand?.id) {
+    if (!activeBand?.id || currentUser?.role === 'fan') {
       setPendingQueue([]);
       updateAppBadgeCount(0);
       return;
@@ -204,14 +204,14 @@ export function AttendanceQueueModal() {
           ...(concert.attendees || {}),
           [memberId]: responseRecord,
         };
-        await updateConcert(activeBand.id, concert.id, { attendees: updatedAttendees });
+        await updateConcert(activeBand.id, concert.id, { attendees: updatedAttendees as any as any });
       } else if (currentItem.type === 'rehearsal') {
         const rehearsal = currentItem.rawEvent as Rehearsal;
         const updatedAttendees = {
           ...(rehearsal.attendees || {}),
           [memberId]: responseRecord,
         };
-        await updateRehearsal(activeBand.id, rehearsal.id, { attendees: updatedAttendees });
+        await updateRehearsal(activeBand.id, rehearsal.id, { attendees: updatedAttendees as any as any });
       } else if (currentItem.type === 'inquiry') {
         const inquiry = currentItem.rawEvent as Inquiry;
         const updatedAttendees = {
@@ -284,7 +284,7 @@ export function AttendanceQueueModal() {
           </ThemedText>
 
           {/* Detaily události */}
-          <ScrollView style={{ maxHeight: 180, marginVertical: Spacing.two }}>
+          <ScrollView style={{ maxHeight: 180, marginVertical: Spacing.two }} keyboardShouldPersistTaps="handled">
             <ThemedText type="default" style={{ fontWeight: 'bold' }}>
               📅 Datum: {currentItem.date} {currentItem.time ? `v ${currentItem.time}` : ''}
             </ThemedText>

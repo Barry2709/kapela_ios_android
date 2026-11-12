@@ -28,7 +28,7 @@ export function AddVehicleForm({ members, onSave, onCancel }: Props) {
 
   const fuelOptions: { key: 'benzin' | 'nafta' | 'elektro'; label: string; icon: string }[] = [
     { key: 'nafta', label: 'Nafta', icon: 'fuelpump' },
-    { key: 'benzin', label: 'Benzín', icon: 'fuelpump.fill' },
+    { key: 'benzin', label: t('form.vehicle.fuel.gas'), icon: 'fuelpump.fill' },
     { key: 'elektro', label: 'Elektro', icon: 'bolt.car' },
   ];
 
@@ -62,7 +62,7 @@ export function AddVehicleForm({ members, onSave, onCancel }: Props) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <ThemedText type="subtitle" style={styles.title}>{t('form.vehicle.title')}</ThemedText>
 
       {/* Model vozidla */}
@@ -99,7 +99,7 @@ export function AddVehicleForm({ members, onSave, onCancel }: Props) {
 
       {/* Rychlé předvolby členů pro majitele */}
       {members.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }} contentContainerStyle={{ gap: 6 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }} contentContainerStyle={{ gap: 6 }} keyboardShouldPersistTaps="handled">
           <Pressable
             style={[styles.miniChip, { backgroundColor: 'rgba(200,200,200,0.15)' }]}
             onPress={() => setOwner('Kapela')}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Pressable, ScrollView, Modal, Alert, TextInput } from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView, Modal, Alert, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { Image } from 'expo-image';
@@ -12,10 +12,12 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/useAppStore';
-import { BandMember, Band, Rehearsal, Concert } from '@/types';
-import { getBandMembers, addBandMember, updateBand, updateBandMember, subscribeToBand, getRehearsals, getConcerts, subscribeToRehearsals, subscribeToConcerts, updateRehearsal, updateConcert, saveFanToFirebase, notifyAdminsAboutAttendance } from '@/services/firebaseService';
+import { BandMember, Band, Rehearsal, Concert, UserProfile } from '@/types';
+import { getBands, getBandMembers, addBandMember, updateBand, updateBandMember, subscribeToBand, getRehearsals, getConcerts, subscribeToRehearsals, subscribeToConcerts, updateRehearsal, updateConcert, saveFanToFirebase, addFanToBand, notifyAdminsAboutAttendance } from '@/services/firebaseService';
 import { BandHeader } from '@/components/band-header';
 import { AddMemberForm } from '@/components/add-member-form';
+import { AddInquiryForm } from '@/components/add-inquiry-form';
+import { addInquiry } from '@/services/firebaseService';
 import { EditBandForm } from '@/components/edit-band-form';
 import { StageplanModal, shareConcertStageplan } from '@/components/stageplan-modal';
 import { TunerModal } from '@/components/tuner-modal';
@@ -24,7 +26,7 @@ import { useTranslation } from '@/utils/i18n';
 export default function HomeScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { activeBand, currentUser, setCurrentUser, setActiveBand, activeRoleView } = useAppStore();
+  const { activeBand, currentUser, setCurrentUser, setActiveBand, activeRoleView, setActiveRoleView } = useAppStore();
   const { t } = useTranslation();
 
   const formatDateDisplay = (dateStr?: string): string => {
@@ -51,6 +53,11 @@ export default function HomeScreen() {
   const [expandedConcerts, setExpandedConcerts] = useState<Record<string, boolean>>({});
   const [expandedAttendance, setExpandedAttendance] = useState<Record<string, boolean>>({});
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [showSwitchBandModal, setShowSwitchBandModal] = useState(false);
+  const [savedSessions, setSavedSessions] = useState<{user: UserProfile, band: Band}[]>([]);
+  const [allBands, setAllBands] = useState<Band[]>([]);
+  const [fanFeedRefreshKey, setFanFeedRefreshKey] = useState(0);
+  const [showFanInquiryModal, setShowFanInquiryModal] = useState(false);
   const [showEditBandModal, setShowEditBandModal] = useState(false);
   const [editingMember, setEditingMember] = useState<BandMember | null>(null);
   const [selectedConcertForStageplan, setSelectedConcertForStageplan] = useState<Concert | null>(null);
@@ -72,41 +79,41 @@ export default function HomeScreen() {
   const getMyMemberId = (): string | null => {
     if (!currentUser) return null;
     const matched = members.find(m =>
-      m.id === currentUser.id ||
+      m.id === currentUser.uid ||
       (currentUser.email && m.email && m.email.toLowerCase() === currentUser.email.toLowerCase()) ||
-      (currentUser.nickname && m.nickname && m.nickname.toLowerCase() === currentUser.nickname.toLowerCase()) ||
+      (currentUser.displayName && m.nickname && m.nickname.toLowerCase() === currentUser.displayName.toLowerCase()) ||
       (currentUser.displayName && m.nickname && m.nickname.toLowerCase() === currentUser.displayName.toLowerCase()) ||
       (currentUser.displayName && m.firstName && m.firstName.toLowerCase() === currentUser.displayName.toLowerCase())
     );
-    return matched ? matched.id : currentUser.id;
+    return matched ? matched.id : currentUser.uid;
   };
 
   const getUserStatus = (attendeesRecord?: Record<string, any>) => {
     if (!attendeesRecord) return null;
     const myId = getMyMemberId();
-    const resp = (myId && attendeesRecord[myId]) || (currentUser?.id && attendeesRecord[currentUser.id]);
+    const resp = (myId && attendeesRecord[myId]) || (currentUser?.uid && attendeesRecord[currentUser.uid]);
     if (!resp) return null;
     return typeof resp === 'string' ? resp : resp.status;
   };
 
   const handleAnswerAttendance = async (eventId: string, eventType: 'rehearsal' | 'concert', status: 'yes' | 'no') => {
     if (!activeBand?.id) return;
-    const targetId = getMyMemberId() || currentUser?.id;
+    const targetId = getMyMemberId() || currentUser?.uid;
     if (!targetId) return;
 
     try {
-      let eventTitle = eventType === 'rehearsal' ? 'Zkouška' : 'Koncert';
+      let eventTitle = eventType === 'rehearsal' ? t('events.list.rehearsal') : t('events.list.concert');
       if (eventType === 'rehearsal') {
         const rehearsal = upcomingRehearsal;
         if (!rehearsal) return;
-        eventTitle = `Zkouška (${rehearsal.date})`;
+        eventTitle = `${t('events.list.rehearsal')} (${rehearsal.date})`;
         const currentAtt = rehearsal.attendees || {};
         const updatedAtt = {
           ...currentAtt,
           [targetId]: {
             ...(typeof currentAtt[targetId] === 'object' ? currentAtt[targetId] : {}),
             status,
-            updatedAt: new Date().toISOString(),
+            updatedAt: Date.now(),
           }
         };
         await updateRehearsal(activeBand.id, eventId, { attendees: updatedAtt });
@@ -121,18 +128,18 @@ export default function HomeScreen() {
           [targetId]: {
             ...(typeof currentAtt[targetId] === 'object' ? currentAtt[targetId] : {}),
             status,
-            updatedAt: new Date().toISOString(),
+            updatedAt: Date.now(),
           }
         };
         await updateConcert(activeBand.id, eventId, { attendees: updatedAtt });
         setConcerts(prev => prev.map(c => c.id === eventId ? { ...c, attendees: updatedAtt } : c));
       }
 
-      const memberName = members.find(m => m.id === targetId)?.nickname || currentUser?.displayName || 'Člen kapely';
+      const memberName = members.find(m => m.id === targetId)?.nickname || currentUser?.displayName || t('band.edit.member');
       notifyAdminsAboutAttendance(activeBand.id, memberName, eventTitle, status, eventType);
     } catch (e) {
       console.error("Chyba při ukládání docházky:", e);
-      Alert.alert("Chyba", "Nepodařilo se uložit docházku.");
+      Alert.alert(t('home.attendance.errorTitle'), t('home.attendance.errorMsg'));
     }
   };
 
@@ -144,7 +151,7 @@ export default function HomeScreen() {
   ) => {
     const isAdmin = activeRoleView === 'admin' || currentUser?.role === 'admin';
     const myId = getMyMemberId();
-    const isSelf = member.id === currentUser?.id || member.id === myId;
+    const isSelf = member.id === currentUser?.uid || member.id === myId;
 
     if (!isAdmin && !isSelf) {
       Alert.alert(t('home.attendance'), t('home.attendance.onlyAdmin'));
@@ -189,7 +196,7 @@ export default function HomeScreen() {
           currentAtt[member.id] = {
             status,
             note: note.trim() || undefined,
-            updatedAt: new Date().toISOString(),
+            updatedAt: Date.now(),
           };
         }
 
@@ -206,7 +213,7 @@ export default function HomeScreen() {
           currentAtt[member.id] = {
             status,
             note: note.trim() || undefined,
-            updatedAt: new Date().toISOString(),
+            updatedAt: Date.now(),
           };
         }
 
@@ -217,7 +224,7 @@ export default function HomeScreen() {
       setEditAttendanceState(null);
     } catch (e) {
       console.error("Chyba při ukládání docházky člena:", e);
-      Alert.alert("Chyba", "Nepodařilo se uložit docházku.");
+      Alert.alert(t('home.attendance.errorTitle'), t('home.attendance.errorMsg'));
     }
   };
 
@@ -318,7 +325,7 @@ export default function HomeScreen() {
                 </ThemedText>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                   {goingMembers.map(m => {
-                    const isSelf = m.id === currentUser?.id || m.id === getMyMemberId();
+                    const isSelf = m.id === currentUser?.uid || m.id === getMyMemberId();
                     return (
                       <Pressable
                         key={m.id}
@@ -342,7 +349,7 @@ export default function HomeScreen() {
                 </ThemedText>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                   {notGoingMembers.map(({ member: m, note }) => {
-                    const isSelf = m.id === currentUser?.id || m.id === getMyMemberId();
+                    const isSelf = m.id === currentUser?.uid || m.id === getMyMemberId();
                     return (
                       <Pressable
                         key={m.id}
@@ -366,7 +373,7 @@ export default function HomeScreen() {
                 </ThemedText>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                   {pendingMembers.map(m => {
-                    const isSelf = m.id === currentUser?.id || m.id === getMyMemberId();
+                    const isSelf = m.id === currentUser?.uid || m.id === getMyMemberId();
                     return (
                       <Pressable
                         key={m.id}
@@ -472,49 +479,102 @@ export default function HomeScreen() {
     setConcerts([...futureConcerts, ...pastConcerts]);
   };
 
-  // Načíst čerstvá data při každém příchodu na domovskou obrazovku
+  // Načíst čerstvá data při každém příchodu na domovskou obrazovku (pro členy kapely)
   useFocusEffect(
     React.useCallback(() => {
-      if (activeBand?.id) {
+      if (activeBand?.id && activeRoleView !== 'fan') {
         loadConcerts();
         loadUpcomingRehearsal();
       }
-    }, [activeBand?.id])
+    }, [activeBand?.id, activeRoleView])
   );
 
   // Načíst členy kapely, příští zkoušku, koncerty a aktualizovat čerstvá data kapely z Firebase
   useEffect(() => {
-    if (activeBand?.id) {
-      loadMembers();
-      loadUpcomingRehearsal();
+    if (!activeBand?.id) return;
+
+    loadMembers();
+    loadUpcomingRehearsal();
+
+    const unsubs: Array<() => void> = [];
+
+    // Pokud je přihlášen FANOUŠEK, načíst a poslouchat akce ze VŠECH uložených kapel (Agregovaný Feed)
+    if (activeRoleView === 'fan') {
+      Promise.all([AsyncStorage.getItem('savedSessions'), getBands()]).then(([str, allBands]) => {
+        let sessions: Array<{ user: any, band: Band }> = [];
+        if (str) {
+          try { sessions = JSON.parse(str); } catch (e) {}
+        }
+
+        const freshBandsMap = new Map<string, Band>();
+        allBands.forEach((b: Band) => freshBandsMap.set(b.id, b));
+
+        // Získat unikátní seznam kapel (buď ze savedSessions nebo aktuální activeBand)
+        const fanBandsMap = new Map<string, Band>();
+        fanBandsMap.set(activeBand.id, freshBandsMap.get(activeBand.id) || activeBand);
+        sessions.forEach(s => {
+          if (s.band && s.band.id) {
+            const fresh = freshBandsMap.get(s.band.id) || s.band;
+            fanBandsMap.set(s.band.id, fresh);
+          }
+        });
+
+        const allConcertsByBand = new Map<string, Concert[]>();
+
+        fanBandsMap.forEach((bandObj, bId) => {
+          if (currentUser?.email) {
+            saveFanToFirebase(bId, currentUser);
+          }
+
+          const unsub = subscribeToConcerts(bId, (freshConcerts) => {
+            // Označit koncerty čerstvým jménem a logem kapely a filtrovat soukromé
+            const publicConcerts = freshConcerts
+              .filter(c => !c.isPrivate)
+              .map(c => ({
+                ...c,
+                _bandName: bandObj.name,
+                _bandLogoUri: bandObj.logoUri || null,
+                _bandWeb: bandObj.web || null,
+                _bandGenre: bandObj.genre || null,
+                _bandCountry: bandObj.country || null,
+              }));
+
+            allConcertsByBand.set(bId, publicConcerts);
+
+            // Sloučit koncerty ze všech sledovaných kapel
+            const mergedConcerts: Concert[] = [];
+            allConcertsByBand.forEach(cList => mergedConcerts.push(...cList));
+            processConcerts(mergedConcerts);
+          });
+          unsubs.push(unsub);
+        });
+      }).catch(console.error);
+    } else {
+      // PRO ČLENY: Načíst koncerty pouze pro aktivní kapelu
       loadConcerts();
-
-      const unsubscribeRehearsals = subscribeToRehearsals(activeBand.id, (freshRehearsals) => {
-        processRehearsals(freshRehearsals);
-      });
-
-      const unsubscribeConcerts = subscribeToConcerts(activeBand.id, (freshConcerts) => {
+      const unsubConcerts = subscribeToConcerts(activeBand.id, (freshConcerts) => {
         processConcerts(freshConcerts);
       });
-
-      if (activeRoleView === 'fan' && currentUser?.email) {
-        saveFanToFirebase(activeBand.id, currentUser);
-      }
-
-      const unsubscribeBand = subscribeToBand(activeBand.id, (freshBand) => {
-        if (freshBand) {
-          setActiveBand(freshBand);
-          AsyncStorage.setItem('savedBand', JSON.stringify(freshBand));
-        }
-      });
-
-      return () => {
-        unsubscribeRehearsals();
-        unsubscribeConcerts();
-        unsubscribeBand();
-      };
+      unsubs.push(unsubConcerts);
     }
-  }, [activeBand?.id, activeRoleView, currentUser?.email]);
+
+    const unsubscribeRehearsals = subscribeToRehearsals(activeBand.id, (freshRehearsals) => {
+      processRehearsals(freshRehearsals);
+    });
+    unsubs.push(unsubscribeRehearsals);
+
+    const unsubscribeBand = subscribeToBand(activeBand.id, (freshBand) => {
+      if (freshBand) {
+        setActiveBand(freshBand);
+        AsyncStorage.setItem('savedBand', JSON.stringify(freshBand));
+      }
+    });
+    unsubs.push(unsubscribeBand);
+
+    return () => {
+      unsubs.forEach(fn => fn());
+    };
+  }, [activeBand?.id, activeRoleView, currentUser?.email, fanFeedRefreshKey]);
 
   const loadMembers = async () => {
     if (!activeBand) return;
@@ -563,16 +623,128 @@ export default function HomeScreen() {
           text: t('home.misc.logout'),
           style: 'destructive',
           onPress: async () => {
-            await AsyncStorage.removeItem('savedUser');
-            await AsyncStorage.removeItem('savedBand');
+            try {
+              const existingStr = await AsyncStorage.getItem('savedSessions');
+              let sessions = existingStr ? JSON.parse(existingStr) : [];
+              sessions = sessions.filter((s: any) => !(s.band.id === activeBand?.id && s.user.uid === currentUser?.uid));
 
-            setCurrentUser(null);
-            setActiveBand(null);
-            router.replace('/(auth)/onboarding');
+              if (sessions.length > 0) {
+                await AsyncStorage.setItem('savedSessions', JSON.stringify(sessions));
+                // Přepnout na další dostupnou kapelu
+                const nextSession = sessions[0];
+                await AsyncStorage.setItem('lastActiveBandId', nextSession.band.id);
+                setCurrentUser(nextSession.user);
+                setActiveRoleView(nextSession.user.role);
+                setActiveBand(nextSession.band);
+              } else {
+                await AsyncStorage.removeItem('savedSessions');
+                await AsyncStorage.removeItem('savedUser');
+                await AsyncStorage.removeItem('savedBand');
+                setCurrentUser(null);
+                setActiveBand(null);
+                router.replace('/(auth)/onboarding');
+              }
+            } catch (e) {
+              console.error(e);
+            }
           }
         }
       ]
     );
+  };
+
+  const handleOpenSwitchModal = async () => {
+    try {
+      const str = await AsyncStorage.getItem('savedSessions');
+      if (str) {
+        setSavedSessions(JSON.parse(str));
+      }
+      const bands = await getBands();
+      setAllBands(bands);
+      setShowSwitchBandModal(true);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleToggleFanBand = async (band: Band, isCurrentlyFollowed: boolean) => {
+    try {
+      const str = await AsyncStorage.getItem('savedSessions');
+      let sessions: Array<{ user: UserProfile, band: Band }> = str ? JSON.parse(str) : [];
+
+      if (isCurrentlyFollowed) {
+        // Odebrat ze sledovaných
+        const updated = sessions.filter(s => s.band.id !== band.id);
+        await AsyncStorage.setItem('savedSessions', JSON.stringify(updated));
+        setSavedSessions(updated);
+
+        if (updated.length === 0) {
+          setShowSwitchBandModal(false);
+          await AsyncStorage.removeItem('savedSessions');
+          await AsyncStorage.removeItem('savedUser');
+          await AsyncStorage.removeItem('savedBand');
+          setCurrentUser(null);
+          setActiveBand(null);
+          router.replace('/(auth)/onboarding');
+        } else {
+          setFanFeedRefreshKey(prev => prev + 1);
+          if (band.id === activeBand?.id) {
+            const nextSession = updated[0];
+            await AsyncStorage.setItem('lastActiveBandId', nextSession.band.id);
+            setCurrentUser(nextSession.user);
+            setActiveRoleView(nextSession.user.role);
+            setActiveBand(nextSession.band);
+          }
+        }
+      } else {
+        // Přidat do sledovaných
+        const fanName = currentUser?.displayName || (await AsyncStorage.getItem('savedFanName')) || 'Fanoušek';
+        const fanEmail = currentUser?.email || (await AsyncStorage.getItem('savedFanEmail')) || '';
+        const fanPhone = (await AsyncStorage.getItem('savedFanPhone')) || undefined;
+
+        const createdFan = await addFanToBand(band.id, {
+          name: fanName,
+          email: fanEmail,
+          phone: fanPhone,
+        });
+
+        const newFanUser: UserProfile = {
+          uid: createdFan.id,
+          email: fanEmail,
+          displayName: fanName,
+          role: 'fan',
+          bandId: band.id,
+        };
+
+        const updated = [...sessions.filter(s => s.band.id !== band.id), { user: newFanUser, band }];
+        await AsyncStorage.setItem('savedSessions', JSON.stringify(updated));
+        await AsyncStorage.setItem('lastActiveBandId', band.id);
+        setSavedSessions(updated);
+        setFanFeedRefreshKey(prev => prev + 1);
+
+        setCurrentUser(newFanUser);
+        setActiveRoleView('fan');
+        setActiveBand(band);
+      }
+    } catch (e) {
+      console.error("Chyba při změně sledovaných kapel fanouška:", e);
+      Alert.alert(t('home.attendance.errorTitle'), "Nepodařilo se upravit sledování kapely.");
+    }
+  };
+
+  const handleSwitchToSession = async (session: {user: UserProfile, band: Band}) => {
+    await AsyncStorage.setItem('lastActiveBandId', session.band.id);
+    setCurrentUser(session.user);
+    setActiveRoleView(session.user.role);
+    setActiveBand(session.band);
+    setShowSwitchBandModal(false);
+  };
+
+  const handleAddNewBand = () => {
+    setShowSwitchBandModal(false);
+    setCurrentUser(null);
+    setActiveBand(null);
+    router.replace('/(auth)/onboarding');
   };
 
   const handleSaveMember = async (memberData: Omit<BandMember, 'id'>) => {
@@ -618,16 +790,26 @@ export default function HomeScreen() {
 
       setShowEditBandModal(false);
     } catch (e: any) {
-      Alert.alert("Nelze upravit profil", e.message || "Nastala chyba při úpravě profilu kapely.");
+      Alert.alert(t('band.edit.errorTitle'), e.message || t('band.edit.errorMsg'));
       console.error("Nepodařilo se upravit profil kapely", e);
     }
   };
+
+    // Vypočítat kapelu s nejbližším nadcházejícím koncertem pro hlavičku fanouška
+  const upcomingConcert = concerts.find(c => !c.isCancelled && getEventStatus(c.date, c.startTime, c.endTime) !== 'past');
+  const earliestBandForFan = (activeRoleView === 'fan' && upcomingConcert) ? {
+    name: (upcomingConcert as any)._bandName || activeBand?.name,
+    logoUri: (upcomingConcert as any)._bandLogoUri,
+    web: (upcomingConcert as any)._bandWeb || activeBand?.web,
+    genre: (upcomingConcert as any)._bandGenre || activeBand?.genre,
+    country: (upcomingConcert as any)._bandCountry || activeBand?.country,
+  } : null;
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <BandHeader />
+          <BandHeader overrideBand={earliestBandForFan} />
 
           <View style={[styles.contentPadding, { marginTop: 3 }]}>
             {/* Rychlý řádek s informací o přihlášení a viditelné tlačítko odhlášení */}
@@ -635,6 +817,12 @@ export default function HomeScreen() {
               <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1, marginRight: 8 }} numberOfLines={1}>
                 {t('home.misc.loggedInAs')} <ThemedText type="smallBold">{currentUser?.displayName}</ThemedText>
               </ThemedText>
+
+              <Pressable onPress={handleOpenSwitchModal} style={[styles.logoutBtnInline, { marginRight: 8, backgroundColor: 'rgba(33, 150, 243, 0.1)', borderColor: 'rgba(33, 150, 243, 0.4)' }]}>
+                <ThemedText type="smallBold" style={{ color: '#2196f3' }}>
+                  {activeRoleView === 'fan' ? (t('home.misc.addBandFan') || 'Přidat / spravovat kapely') : (t('home.misc.switchBand') || 'Změnit kapelu')}
+                </ThemedText>
+              </Pressable>
 
               <Pressable onPress={handleLogout} style={styles.logoutBtnInline}>
                 <ThemedText type="smallBold" style={{ color: theme.text }}>
@@ -701,7 +889,7 @@ export default function HomeScreen() {
             )}
 
             {/* Karta Příští zkouška - Zobrazit pouze pro Kapelníka a Členy, NE pro fanoušky */}
-            {activeRoleView !== 'fan' && upcomingRehearsal && (
+            {activeRoleView !== ('fan' as any) && upcomingRehearsal && (
               <ThemedView type="backgroundElement" style={styles.nextRehearsalBox}>
                 <View style={styles.nextRehearsalHeader}>
                   <SymbolView name={{ ios: 'calendar', android: 'event', web: 'event' }} size={18} tintColor="#4caf50" />
@@ -717,7 +905,7 @@ export default function HomeScreen() {
                 </ThemedText>
                 {upcomingRehearsal.whatToPrepare ? (
                   <View style={{ marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.2)' }}>
-                    <ThemedText type="smallBold" themeColor="textSecondary">Co připravit:</ThemedText>
+                    <ThemedText type="smallBold" themeColor="textSecondary">{t('events.whatToPrepare')}</ThemedText>
                     <ThemedText type="small" style={{ marginTop: 2 }}>{upcomingRehearsal.whatToPrepare}</ThemedText>
                   </View>
                 ) : null}
@@ -742,8 +930,11 @@ export default function HomeScreen() {
 
                     const status = getEventStatus(concert.date, concert.startTime, concert.endTime);
 
-                    // PRO FANOUŠKY: Zobrazit Pouze Název akce, Datum a Místo
+                    // PRO FANOUŠKY: Zobrazit Pouze Název akce, Datum, Místo a Odlišení kapely
                     if (activeRoleView === 'fan') {
+                      const bName = (concert as any)._bandName || activeBand?.name || 'Kapela';
+                      const bLogo = (concert as any)._bandLogoUri; // Bez nesprávného fallbacku na activeBand logo!
+
                       return (
                         <ThemedView
                           key={concert.id}
@@ -753,6 +944,20 @@ export default function HomeScreen() {
                             status === 'ongoing' ? styles.ongoingCard : (status === 'past' ? styles.pastCard : styles.futureCard)
                           ]}
                         >
+                          {/* Odlišení kapely pro fanoušky */}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: 'rgba(150,150,150,0.18)', gap: 8 }}>
+                            {bLogo ? (
+                              <Image source={{ uri: bLogo }} style={{ width: 22, height: 22, borderRadius: 11 }} />
+                            ) : (
+                              <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(150,150,150,0.3)', justifyContent: 'center', alignItems: 'center' }}>
+                                <ThemedText style={{ fontSize: 11, fontWeight: 'bold' }}>{bName ? bName.charAt(0).toUpperCase() : '?'}</ThemedText>
+                              </View>
+                            )}
+                            <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 13 }}>
+                              {bName}
+                            </ThemedText>
+                          </View>
+
                           <ThemedText type="subtitle" style={{ fontSize: 18, fontWeight: 'bold' }}>
                             {concert.title}
                           </ThemedText>
@@ -847,7 +1052,7 @@ export default function HomeScreen() {
                                 <View style={{ marginTop: 6, paddingTop: 4, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.15)' }}>
                                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <ThemedText type="smallBold" themeColor="textSecondary">{t('home.concert.contacts')}</ThemedText>
-                                    {activeRoleView !== 'fan' && activeBand && (
+                                    {activeRoleView !== ('fan' as any) && activeBand && (
                                       <Pressable
                                         style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 6, backgroundColor: 'rgba(33, 150, 243, 0.15)' }}
                                         onPress={() => shareConcertStageplan({ band: activeBand, concert, members, currentUser })}
@@ -910,16 +1115,112 @@ export default function HomeScreen() {
                 </View>
               </View>
             )}
-          </View>
 
+        </View>
         </ScrollView>
+      
+      
+
       </SafeAreaView>
+
+      
+      {/* MODAL PRO PŘEPÍNÁNÍ KAPEL */}
+      <Modal visible={showSwitchBandModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <ThemedView type="backgroundElement" style={styles.modalBox}>
+            <ThemedText type="subtitle" style={{ marginBottom: 4, textAlign: 'center' }}>
+              {activeRoleView === 'fan' ? (t('home.misc.manageBands') || 'Spravovat sledované kapely') : (t('home.misc.myBands') || 'Moje kapely')}
+            </ThemedText>
+
+            {activeRoleView === 'fan' && (
+              <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: 12, textAlign: 'center' }}>
+                {t('home.misc.toggleBandHint') || 'Klepnutím na kapelu ji přidáte nebo odeberete ze sledovaných:'}
+              </ThemedText>
+            )}
+
+            <ScrollView style={{ maxHeight: 320 }}>
+              {activeRoleView === 'fan' ? (
+                allBands.map((band, index) => {
+                  const isFollowed = savedSessions.some(s => s.band.id === band.id);
+                  return (
+                    <Pressable
+                      key={band.id || index}
+                      style={[
+                        styles.modalMemberItem,
+                        isFollowed && { borderColor: '#4caf50', borderWidth: 2, backgroundColor: 'rgba(76, 175, 80, 0.15)' }
+                      ]}
+                      onPress={() => handleToggleFanBand(band, isFollowed)}
+                    >
+                      {band.logoUri ? (
+                        <Image source={{ uri: band.logoUri }} style={{ width: 32, height: 32, borderRadius: 16, marginRight: 10 }} />
+                      ) : (
+                        <View style={{ width: 32, height: 32, borderRadius: 16, marginRight: 10, backgroundColor: 'rgba(150,150,150,0.3)', justifyContent: 'center', alignItems: 'center' }}>
+                          <ThemedText style={{ fontSize: 14, fontWeight: 'bold' }}>{band.name ? band.name.charAt(0).toUpperCase() : '?'}</ThemedText>
+                        </View>
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <ThemedText type="default" style={{ fontWeight: isFollowed ? 'bold' : 'normal' }}>{band.name}</ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {isFollowed ? '✓ Sledováno' : 'Klepnutím sledovat'}
+                        </ThemedText>
+                      </View>
+                      {isFollowed && (
+                        <SymbolView name={{ ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' }} size={24} tintColor="#4caf50" />
+                      )}
+                    </Pressable>
+                  );
+                })
+              ) : (
+                savedSessions.map((session, index) => (
+                  <Pressable
+                    key={index}
+                    style={[
+                      styles.modalMemberItem,
+                      session.band.id === activeBand?.id && { borderColor: '#4caf50', borderWidth: 2 }
+                    ]}
+                    onPress={() => handleSwitchToSession(session)}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <ThemedText type="default" style={{ fontWeight: 'bold' }}>{session.band.name}</ThemedText>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {session.user.displayName} • {session.user.role === 'admin' ? t('roles.admin') : (session.user.role === 'member' ? t('roles.member') : t('roles.fan'))}
+                      </ThemedText>
+                    </View>
+                    {session.band.id === activeBand?.id && (
+                      <SymbolView name={{ ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' }} size={24} tintColor="#4caf50" />
+                    )}
+                  </Pressable>
+                ))
+              )}
+            </ScrollView>
+
+            {activeRoleView !== 'fan' && (
+              <Pressable
+                style={[styles.modalSaveBtn, { backgroundColor: '#2196f3', marginTop: 16 }]}
+                onPress={handleAddNewBand}
+              >
+                <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('home.misc.addBand') || '+ Přihlásit další kapelu'}</ThemedText>
+              </Pressable>
+            )}
+
+            <Pressable
+              style={[styles.modalCancelBtn, { marginTop: 12, alignSelf: 'center' }]}
+              onPress={() => setShowSwitchBandModal(false)}
+            >
+              <ThemedText type="smallBold">{t('home.misc.cancel')}</ThemedText>
+            </Pressable>
+          </ThemedView>
+        </View>
+      </Modal>
+
 
       {/* Modal pro přidání/úpravu člena (pouze pro kapelníka) */}
       <Modal visible={showAddMemberModal} animationType="slide" presentationStyle="pageSheet">
+         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
          <ThemedView style={{flex: 1}}>
             <AddMemberForm initialMember={editingMember || undefined} onSave={handleSaveMember} onCancel={() => setShowAddMemberModal(false)} />
          </ThemedView>
+         </KeyboardAvoidingView>
       </Modal>
 
       {/* Modal pro zobrazení a odeslání Stageplanu z karty koncertu */}
@@ -1014,6 +1315,18 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+
+  modalMemberItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(150,150,150,0.3)',
+    backgroundColor: 'rgba(150,150,150,0.1)',
+    marginBottom: 8
+  },
+
   container: { flex: 1 },
   safeArea: { flex: 1 },
   scrollContent: { paddingBottom: Spacing.six },

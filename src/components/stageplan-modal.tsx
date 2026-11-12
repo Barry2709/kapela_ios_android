@@ -510,7 +510,7 @@ export async function shareConcertStageplan({
     }
 
     // 3. Získáme adresy z databáze (nebo vygenerujeme nové PDF na cloud, pokud chybí)
-    let pdfLink = band?.stageplanPdfUrl || '';
+    let pdfLink = (band as any)?.stageplanPdfUrl || '';
     if (!pdfLink) {
       const html = generatePdfHtmlForBand(band, concert, members);
       const { pdfUri } = await generateNamedPdfFile(html, bandName, concert?.title);
@@ -527,7 +527,7 @@ export async function shareConcertStageplan({
 
     const whatsappText = `Zasílám Stageplan skupiny "${bandName}"\n\n${plainLinksText}`;
 
-    const emailBodyText = `Dobrý den,\nposílám Vám Stageplan skupiny "${bandName}".\n\n${plainLinksText}Přeji krásný den\nza skupinu "${bandName}"\n${senderName}`;
+    const emailBodyText = t('stageplan.pdf.emailGreeting', { bandName, links: plainLinksText, sender: senderName });
 
     // Zkopírujeme text do schránky
     try {
@@ -832,11 +832,11 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       // 1. Zkusíme použít StorageAccessFramework s jasným vysvětlením pro výběr složky Ke stažení
       if (Platform.OS === 'android' && fileSystemModule && fileSystemModule.StorageAccessFramework) {
         Alert.alert(
-          "Uložit do složky Ke stažení",
-          "Pro uložení souborů do složky Downloads prosím zvolte v následujícím okně složku Ke stažení a potvrďte tlačítkem Použít tuto složku.",
+          t('stageplan.dl.title'),
+          t('stageplan.dl.desc'),
           [
             {
-              text: "Rozumím a zvolit složku",
+              text: t('stageplan.dl.btn'),
               onPress: async () => {
                 try {
                   const permissions = await fileSystemModule.StorageAccessFramework.requestDirectoryPermissionsAsync();
@@ -854,7 +854,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
                       await fileSystemModule.writeAsStringAsync(newPngUri, pngBase64, { encoding: fileSystemModule.EncodingType.Base64 });
                       count++;
                     }
-                    Alert.alert("Staženo", `Úspěšně uloženo ${count} souborů (${pdfFileName}, ${pngFileName}) do vaší vybrané složky.`);
+                    Alert.alert(t('stageplan.dl.success'), `Úspěšně uloženo ${count} souborů (${pdfFileName}, ${pngFileName}) do vaší vybrané složky.`);
                   }
                 } catch (safErr) {
                   console.log("SAF stahování selhalo:", safErr);
@@ -890,7 +890,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       Alert.alert(t('stageplan.downloaded'), t('stageplan.savedToDevice'));
     } catch (e: any) {
       console.error("Chyba při stahování souborů Stageplanu:", e);
-      Alert.alert("Chyba", e?.message || "Nepodařilo se stáhnout soubory.");
+      Alert.alert(t('home.attendance.errorTitle'), e?.message || t('stageplan.dl.errorFiles'));
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -933,7 +933,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
       await shareConcertStageplan({ band, concert, members, currentUser });
     } catch (e: any) {
       console.error("Chyba při sdílení Stageplanu:", e);
-      Alert.alert("Chyba", e?.message || "Nepodařilo se vygenerovat Stageplan ke sdílení.");
+      Alert.alert(t('home.attendance.errorTitle'), e?.message || t('stageplan.dl.errorGen'));
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -977,7 +977,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
           >
             <SymbolView name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }} size={14} tintColor="#fff" />
             <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 12, marginLeft: 4 }}>
-              Sdílet
+              {t('home.concert.share')}
             </ThemedText>
           </Pressable>
 
@@ -1021,10 +1021,10 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
                     setStageplan(prev => prev.map(p => p.memberId === id ? { ...p, x, y } : p));
                   }}
                   onRemove={(id) => {
-                    Alert.alert('Odstranit člena', `Opravdu chcete odstranit člena ${member.firstName} ze stageplanu?`, [
-                      { text: 'Zrušit', style: 'cancel' },
+                    Alert.alert(t('stageplan.deleteMemberTitle'), t('stageplan.removeMember', { name: member.firstName }), [
+                      { text: t('form.common.cancel'), style: 'cancel' },
                       {
-                        text: 'Odstranit',
+                        text: t('form.common.delete'),
                         style: 'destructive',
                         onPress: () => setStageplan(prev => prev.filter(p => p.memberId !== id))
                       }
@@ -1049,7 +1049,7 @@ export function StageplanModal({ visible, onClose, band, members, onSave, concer
                   Všichni členové jsou již na stagi.
                 </ThemedText>
               ) : (
-                <ScrollView style={{ maxHeight: 300 }}>
+                <ScrollView style={{ maxHeight: 300 }} keyboardShouldPersistTaps="handled">
                   {availableMembers.map(m => (
                     <Pressable
                       key={m.id}

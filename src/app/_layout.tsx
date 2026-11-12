@@ -14,7 +14,7 @@ import { liveSyncService } from '@/services/liveSyncService';
 import { GlobalLiveLyricsModal } from '@/components/global-live-lyrics-modal';
 import { AttendanceQueueModal } from '@/components/attendance-queue-modal';
 import { registerForPushNotificationsAsync } from '@/services/notificationService';
-import { getBandMembers, updateBandMember } from '@/services/firebaseService';
+import { getBandMembers, updateBandMember, updateFanInBand, removeInvalidPushTokenFromBandMembers } from '@/services/firebaseService';
 import { arrayUnion } from 'firebase/firestore';
 
 SplashScreen.preventAutoHideAsync();
@@ -66,25 +66,28 @@ export default function RootLayout() {
         const token = await registerForPushNotificationsAsync();
         if (!token) return;
 
+        // Pokud je přihlášen fanoušek, OČISTIT jeho token ze všech členů kapely a uložit ho výhradně fanouškovi!
+        if (currentUser.role === 'fan') {
+          await removeInvalidPushTokenFromBandMembers(activeBand.id, token);
+          if (currentUser.uid) {
+            await updateFanInBand(activeBand.id, currentUser.uid, {
+              pushToken: token,
+              pushTokens: arrayUnion(token)
+            } as any);
+          }
+          return;
+        }
+
         const members = await getBandMembers(activeBand.id);
-        let targetMember = members.find(m =>
+        const targetMember = members.find(m =>
           (currentUser.memberId && m.id === currentUser.memberId) ||
-          (currentUser.id && m.id === currentUser.id) ||
-          ((m as any).uid && currentUser.id && (m as any).uid === currentUser.id) ||
+          (currentUser.uid && m.id === currentUser.uid) ||
+          ((m as any).uid && currentUser.uid && (m as any).uid === currentUser.uid) ||
           (m.email && currentUser.email && m.email.toLowerCase() === currentUser.email.toLowerCase()) ||
           (m.nickname && currentUser.displayName && m.nickname.toLowerCase() === currentUser.displayName.toLowerCase()) ||
           (m.firstName && currentUser.displayName && m.firstName.toLowerCase() === currentUser.displayName.toLowerCase()) ||
           (m.nickname && currentUser.email && m.nickname.toLowerCase() === currentUser.email.split('@')[0].toLowerCase())
         );
-
-        // Záložní přiřazení, aby ŽÁDNÝ uživatel nezůstal bez uloženého pushTokenu
-        if (!targetMember) {
-          if (currentUser.role === 'admin') {
-            targetMember = members.find(m => m.isAdmin) || members[0];
-          } else {
-            targetMember = members.find(m => !m.isGuest && !m.pushToken) || members.find(m => !m.isGuest) || members[0];
-          }
-        }
 
         if (targetMember) {
           const updates: Partial<any> = {
@@ -101,22 +104,31 @@ export default function RootLayout() {
     };
 
     setupPushNotifications();
-  }, [activeBand?.id, currentUser?.id, currentUser?.email]);
+  }, [activeBand?.id, currentUser?.uid, currentUser?.email]);
 
-  // Hydratace uloženého sezení
+  // Hydratace uloženého sezení a podpora více kapel
   useEffect(() => {
     const loadSession = async () => {
       try {
-        const savedUserStr = await AsyncStorage.getItem('savedUser');
-        const savedBandStr = await AsyncStorage.getItem('savedBand');
+        const sessionsStr = await AsyncStorage.getItem('savedSessions');
+        let sessions = sessionsStr ? JSON.parse(sessionsStr) : null;
 
-        if (savedUserStr) {
-          const user = JSON.parse(savedUserStr);
-          setCurrentUser(user);
-          setActiveRoleView(user.role);
-          if (savedBandStr) {
-            setActiveBand(JSON.parse(savedBandStr));
-          }
+        const legacyUserStr = await AsyncStorage.getItem('savedUser');
+        const legacyBandStr = await AsyncStorage.getItem('savedBand');
+
+        // Migrace starého způsobu ukládání
+        if (!sessions && legacyUserStr && legacyBandStr) {
+           sessions = [{ user: JSON.parse(legacyUserStr), band: JSON.parse(legacyBandStr) }];
+           await AsyncStorage.setItem('savedSessions', JSON.stringify(sessions));
+        }
+
+        if (sessions && sessions.length > 0) {
+          const lastActiveId = await AsyncStorage.getItem('lastActiveBandId');
+          let activeSession = sessions.find((s: any) => s.band.id === lastActiveId) || sessions[0];
+
+          setCurrentUser(activeSession.user);
+          setActiveRoleView(activeSession.user.role);
+          setActiveBand(activeSession.band);
         }
       } catch (e) {
         console.error("Chyba při načítání sezení:", e);

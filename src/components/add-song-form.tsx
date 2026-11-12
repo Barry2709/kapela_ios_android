@@ -235,7 +235,7 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <ThemedText type="subtitle" style={styles.title}>
         {initialSong ? t('form.song.editTitle') : t('form.song.titleNew')}
       </ThemedText>
@@ -526,7 +526,7 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
           {/* Rychlá lišta pro pokročilé vkládání a výběr akordů */}
           <View style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(200,200,200,0.15)' }}>
             {/* 1. Řádek: Výběr základního tónu akordu (C, C#, D, D#...) */}
-            <ScrollView horizontal keyboardShouldPersistTaps="always" showsHorizontalScrollIndicator={false} style={styles.quickChordsBar} contentContainerStyle={{ gap: 6, alignItems: 'center' }}>
+            <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} style={styles.quickChordsBar} contentContainerStyle={{ gap: 6, alignItems: 'center' }}>
               <ThemedText type="small" themeColor="textSecondary" style={{ marginRight: 2, fontSize: 11 }}>Tón:</ThemedText>
               {ROOT_NOTES.map(root => (
                 <Pressable
@@ -545,8 +545,8 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
             </ScrollView>
 
             {/* 2. Řádek: Varianty akordů pro vybraný tón (C, C7, Cmi, Cmaj, Cmaj7, C6, Csus...) */}
-            <ScrollView horizontal keyboardShouldPersistTaps="always" showsHorizontalScrollIndicator={false} style={[styles.quickChordsBar, { backgroundColor: 'rgba(255,193,7,0.12)' }]} contentContainerStyle={{ gap: 6, alignItems: 'center' }}>
-              <ThemedText type="small" themeColor="textSecondary" style={{ marginRight: 2, fontSize: 11 }}>Vložit:</ThemedText>
+            <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} style={[styles.quickChordsBar, { backgroundColor: 'rgba(255,193,7,0.12)' }]} contentContainerStyle={{ gap: 6, alignItems: 'center' }}>
+              <ThemedText type="small" themeColor="textSecondary" style={{ marginRight: 2, fontSize: 11 }}>{t('form.song.insert')}</ThemedText>
               {getChordVariants(selectedRootNote).map(chord => (
                 <Pressable
                   key={chord}
@@ -596,7 +596,7 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
             value={lyrics}
             onChangeText={setLyrics}
             onSelectionChange={handleSelectionChange}
-            placeholder="Zde napište nebo vložte text písně s akordy v hranatých závorkách [C]..."
+            placeholder={t('form.song.placeholder.lyrics')}
             placeholderTextColor={theme.textSecondary}
             multiline
             autoFocus

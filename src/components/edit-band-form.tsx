@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, TextInput, ScrollView, Pressable, Alert, Modal, Switch } from 'react-native';
+import { View, StyleSheet, TextInput, ScrollView, Pressable, Alert, Modal, Switch, KeyboardAvoidingView, Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -13,12 +13,25 @@ import { PageHeader } from './page-header';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/useAppStore';
-import { Band, BandMember } from '@/types';
-import { getBandMembers, addBandMember, updateBandMember } from '@/services/firebaseService';
+import * as Clipboard from 'expo-clipboard';
+import { Band, BandMember, Fan } from '@/types';
+import { updateBand, getBandMembers, addBandMember, updateBandMember, getBandFans, addFanToBand, updateFanInBand, deleteFanFromBand } from '@/services/firebaseService';
 import { AddMemberForm } from './add-member-form';
+import { AddFanForm } from './add-fan-form';
 import { DraggableChips } from './draggable-chips';
 import { StageplanModal } from './stageplan-modal';
+import { CountryPickerModal } from './country-picker-modal';
+import { getCountryDisplayName } from '@/constants/countries';
 import { useTranslation } from '@/utils/i18n';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import { ResponseType } from 'expo-auth-session';
+WebBrowser.maybeCompleteAuthSession();
+import { getAvailableCalendars, getSyncCalendarId, setSyncCalendarId } from '@/services/calendarSyncService';
+import * as Calendar from 'expo-calendar';
+import { WebView } from 'react-native-webview';
+import { getGoogleUserProfileAndCalendar, exchangeCodeForTokens, createGoogleCalendarEventOAuth, updateGoogleCalendarEventOAuth, deleteGoogleCalendarEventOAuth } from '@/services/googleCalendarService';
+
 
 interface Props {
   band: Band;
@@ -30,14 +43,97 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { manageBandTab, currentUser, activeRoleView, setActiveRoleView, language, setLanguage } = useAppStore();
-  const { t } = useTranslation();
+  const { t, currentLang } = useTranslation();
 
   const activeTab = manageBandTab;
+
+      const handleGoogleOAuthLogin = () => {
+    setShowGoogleAuthModal(true);
+  };
+
+      const handleWebViewUrl = async (url: string) => {
+    if (!url) return;
+
+    // A) VÝMĚNA AUTHORIZATION CODE ZA TRVALÝ REFRESH TOKEN (NEVYPRŠÍ)
+    if (url.includes('code=')) {
+      setShowGoogleAuthModal(false);
+      const match = url.match(/code=([^&]+)/);
+      if (match && match[1]) {
+        const code = decodeURIComponent(match[1]);
+        const redirectUri = 'https://auth.expo.io/@barry2709/kapela_ios_android';
+        try {
+          const tokens = await exchangeCodeForTokens(code, redirectUri);
+          if (tokens && tokens.accessToken) {
+            const profile = await getGoogleUserProfileAndCalendar(tokens.accessToken);
+            if (profile) {
+              const updates = {
+                googleCalendarAccessToken: tokens.accessToken,
+                googleCalendarRefreshToken: tokens.refreshToken || undefined,
+                googleCalendarId: profile.calendarId,
+                googleCalendarUserEmail: profile.email,
+              };
+              await updateBand(band.id, updates);
+              onSave(updates);
+              setGoogleCalendarId(profile.calendarId);
+              Alert.alert(t('events.alert.success'), `Google Kalendář TRVALE připojen k účtu: ${profile.email}`);
+            }
+          }
+        } catch (e) {
+          console.error("Chyba při výměně kódu:", e);
+        }
+      }
+    }
+    // B) PŘÍMÝ ACCESS TOKEN (IMPLICIT FALLBACK)
+    else if (url.includes('access_token=')) {
+      setShowGoogleAuthModal(false);
+      const match = url.match(/access_token=([^&]+)/);
+      if (match && match[1]) {
+        const token = match[1];
+        try {
+          const profile = await getGoogleUserProfileAndCalendar(token);
+          if (profile) {
+            const updates = {
+              googleCalendarAccessToken: token,
+              googleCalendarId: profile.calendarId,
+              googleCalendarUserEmail: profile.email,
+            };
+            await updateBand(band.id, updates);
+            onSave(updates);
+            setGoogleCalendarId(profile.calendarId);
+            Alert.alert(t('events.alert.success'), `Google Kalendář připojen k účtu: ${profile.email}`);
+          }
+        } catch (e) {
+          console.error("Chyba při zpracování tokenu:", e);
+        }
+      }
+    }
+  };
+
+  const handleWebViewNavigationStateChange = (navState: any) => {
+    if (navState.url) {
+      handleWebViewUrl(navState.url);
+    }
+  };
+
+
+  
+
+
+  useEffect(() => {
+    if (activeTab === 'settings' || activeTab === ('fans' as any)) {
+      getAvailableCalendars().then(setLocalCalendars).catch(console.error);
+      getSyncCalendarId(band.id).then(id => setSelectedLocalCalId(id || '')).catch(console.error);
+    }
+  }, [activeTab, band.id]);
   const [isScrollEnabled, setIsScrollEnabled] = useState(true);
 
   // Band form state
   const [name, setName] = useState(band.name);
   const [genre, setGenre] = useState(band.genre || '');
+  const [country, setCountry] = useState(band.country || 'CZ');
+  const [googleCalendarId, setGoogleCalendarId] = useState(band.googleCalendarId || '');
+  const [appleCalendarUrl, setAppleCalendarUrl] = useState(band.appleCalendarUrl || '');
+  const [showCountryModal, setShowCountryModal] = useState(false);
   const [web, setWeb] = useState(band.web || '');
   const [facebook, setFacebook] = useState(band.facebook || '');
   const [instagram, setInstagram] = useState(band.instagram || '');
@@ -56,13 +152,24 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
 
   const [newTechRiderInput, setNewTechRiderInput] = useState('');
   const [newWhatToTakeInput, setNewWhatToTakeInput] = useState('');
+  const [localCalendars, setLocalCalendars] = useState<any[]>([]);
+  const [selectedLocalCalId, setSelectedLocalCalId] = useState('');
+  const [showLocalCalDropdown, setShowLocalCalDropdown] = useState(false);
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+  const [showGoogleAuthModal, setShowGoogleAuthModal] = useState(false);
+  const [isBasicInfoOpen, setIsBasicInfoOpen] = useState(true);
+  const [isSocialsOpen, setIsSocialsOpen] = useState(false);
+  const [isCalendarsOpen, setIsCalendarsOpen] = useState(false);
 
   const languageOptions = [
     { key: 'system', label: t('settings.language.system'), flag: '⚙️' },
     { key: 'cs', label: t('settings.language.cs'), flag: '🇨🇿' },
     { key: 'sk', label: t('settings.language.sk'), flag: '🇸🇰' },
     { key: 'en', label: t('settings.language.en'), flag: '🇬🇧' },
+    { key: 'de', label: t('settings.language.de'), flag: '🇩🇪' },
+    { key: 'pl', label: t('settings.language.pl'), flag: '🇵🇱' },
+    { key: 'es', label: t('settings.language.es'), flag: '🇪🇸' },
+    { key: 'fr', label: t('settings.language.fr'), flag: '🇫🇷' },
   ] as const;
 
   const currentLangObj = languageOptions.find(o => o.key === language) || languageOptions[0];
@@ -153,6 +260,68 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
     }
   };
 
+  // Fans state
+  const [fans, setFans] = useState<Fan[]>([]);
+  const [fanSearch, setFanSearch] = useState('');
+  const [showAddFanModal, setShowAddFanModal] = useState(false);
+  const [editingFan, setEditingFan] = useState<Fan | null>(null);
+
+  useEffect(() => {
+    if (activeTab === ('fans' as any)) {
+      loadFans();
+    }
+  }, [activeTab]);
+
+  const loadFans = async () => {
+    try {
+      const data = await getBandFans(band.id);
+      setFans(data);
+    } catch (e) {
+      console.error("Nepodařilo se načíst fanoušky", e);
+    }
+  };
+
+  const handleSaveFan = async (fanData: Omit<Fan, 'id' | 'joinedAt'>) => {
+    try {
+      if (editingFan) {
+        await updateFanInBand(band.id, editingFan.id, fanData);
+      } else {
+        await addFanToBand(band.id, fanData);
+      }
+      setShowAddFanModal(false);
+      setEditingFan(null);
+      loadFans();
+    } catch (e) {
+      console.error("Chyba při ukládání fanouška:", e);
+      Alert.alert(t('home.attendance.errorTitle'), t('fans.errorSave'));
+    }
+  };
+
+  const handleDeleteFan = (fan: Fan) => {
+    Alert.alert(
+      t('fans.deleteTitle'),
+      t('fans.deleteConfirm', { name: fan.name }),
+      [
+        { text: t('home.misc.cancel'), style: 'cancel' },
+        {
+          text: t('form.common.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            await deleteFanFromBand(band.id, fan.id);
+            loadFans();
+          }
+        }
+      ]
+    );
+  };
+
+  const copyFanEmails = () => {
+    const emails = fans.map(f => f.email).filter(Boolean).join(', ');
+    if (!emails) return;
+    Clipboard.setStringAsync(emails);
+    Alert.alert(t('stageplan.dl.success'), t('fans.copyEmailsSuccess'));
+  };
+
   const handleSaveMember = async (memberData: Omit<BandMember, 'id'>) => {
     try {
       if (editingMember) {
@@ -209,11 +378,14 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
       await onSave({
         name,
         genre,
+        country,
         web,
         facebook,
         instagram,
         bandzone,
         logoUri: logoUri || undefined,
+        googleCalendarId: googleCalendarId.trim() || "",
+        appleCalendarUrl: appleCalendarUrl.trim() || "",
       });
     } finally {
       setIsSaving(false);
@@ -225,7 +397,7 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
       <View style={styles.container}>
         <PageHeader title="O kapele" />
 
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {/* Logo kapely */}
           {band.logoUri ? (
             <Image source={{ uri: band.logoUri }} style={styles.fanLogo} contentFit="contain" />
@@ -236,9 +408,9 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
             <ThemedText type="title" style={{ fontSize: 26, textAlign: 'center' }}>
               {band.name}
             </ThemedText>
-            {band.genre ? (
+            {band.genre || band.country ? (
               <ThemedText type="smallBold" themeColor="textSecondary" style={{ marginTop: 4 }}>
-                {band.genre}
+                {[band.genre, getCountryDisplayName(band.country, currentLang)].filter(Boolean).join(' • ')}
               </ThemedText>
             ) : null}
           </View>
@@ -389,10 +561,10 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
       <PageHeader title={
         activeTab === 'band' ? t('header.editBand') :
         activeTab === 'members' ? t('header.manageMembers') :
-        activeTab === 'tech' ? t('header.techRider') : t('header.appSettings')
+        activeTab === 'tech' ? t('header.techRider') : activeTab === ('fans' as any) ? t('nav.fans') : t('header.appSettings')
       } />
 
-      <ScrollView contentContainerStyle={styles.content} scrollEnabled={isScrollEnabled}>
+      <ScrollView contentContainerStyle={styles.content} scrollEnabled={isScrollEnabled} keyboardShouldPersistTaps="handled">
         {activeTab === 'settings' ? (
           <View style={{ gap: Spacing.four }}>
             <ThemedText type="subtitle">{t('settings.title')}</ThemedText>
@@ -520,6 +692,105 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
               />
             </ThemedView>
 
+            
+
+            {/* 3. Synchronizace kalendářů */}
+            <ThemedView type="backgroundElement" style={styles.techSummaryCard}>
+              <ThemedText type="default" style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 4 }}>
+                {t('settings.calendar.title')}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: 10 }}>
+                {t('settings.calendar.desc')}
+              </ThemedText>
+
+              <ThemedText type="smallBold" style={{ marginTop: Spacing.two }}>{t('settings.calendar.googleId')}</ThemedText>
+              <TextInput
+                style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)', marginBottom: Spacing.two }]}
+                value={googleCalendarId}
+                onChangeText={(val) => {
+                  setGoogleCalendarId(val);
+                  onSave({ googleCalendarId: val.trim() || undefined });
+                }}
+                placeholder="kapela@gmail.com"
+                placeholderTextColor={theme.textSecondary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+
+              <ThemedText type="smallBold">{t('settings.calendar.appleUrl')}</ThemedText>
+              <TextInput
+                style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
+                value={appleCalendarUrl}
+                onChangeText={(val) => {
+                  setAppleCalendarUrl(val);
+                  onSave({ appleCalendarUrl: val.trim() || undefined });
+                }}
+                placeholder="webcal://..."
+                placeholderTextColor={theme.textSecondary}
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+            </ThemedView>
+
+            
+            {/* 4. Lokální kalendář (zápis do zařízení) */}
+            <ThemedView type="backgroundElement" style={styles.techSummaryCard}>
+              <ThemedText type="default" style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 4 }}>
+                {t('settings.localCalendar.title')}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: 10 }}>
+                {t('settings.localCalendar.desc')}
+              </ThemedText>
+
+              <Pressable
+                style={[styles.dropdownSelectBtn, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
+                onPress={() => setShowLocalCalDropdown(true)}
+              >
+                <ThemedText type="smallBold" style={{ color: theme.text, fontSize: 14 }}>
+                  {selectedLocalCalId ? (localCalendars.find(c => c.id === selectedLocalCalId)?.title || selectedLocalCalId) : t('settings.localCalendar.none')}
+                </ThemedText>
+                <SymbolView name={{ ios: 'chevron.down', android: 'arrow_drop_down', web: 'arrow_drop_down' }} size={20} tintColor={theme.textSecondary} />
+              </Pressable>
+            </ThemedView>
+
+            <Modal visible={showLocalCalDropdown} transparent animationType="fade" onRequestClose={() => setShowLocalCalDropdown(false)}>
+              <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 16 }} onPress={() => setShowLocalCalDropdown(false)}>
+                <Pressable style={{ width: '100%', maxWidth: 350, backgroundColor: theme.backgroundElement, borderRadius: 12, padding: 16, maxHeight: 400 }} onPress={e => e.stopPropagation()}>
+                  <ThemedText type="subtitle" style={{ marginBottom: 16, textAlign: 'center' }}>{t('settings.localCalendar.title')}</ThemedText>
+                  <ScrollView style={{ gap: 8 }}>
+                    <Pressable
+                      style={[{ padding: 12, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }, !selectedLocalCalId ? { backgroundColor: 'rgba(33, 150, 243, 0.15)' } : { backgroundColor: 'rgba(150,150,150,0.05)' }]}
+                      onPress={async () => {
+                        setSelectedLocalCalId('');
+                        await setSyncCalendarId(band.id, '');
+                        setShowLocalCalDropdown(false);
+                      }}
+                    >
+                      <ThemedText style={{ fontSize: 16, fontWeight: !selectedLocalCalId ? 'bold' : 'normal', color: !selectedLocalCalId ? '#2196f3' : theme.text }}>
+                        {t('settings.localCalendar.none')}
+                      </ThemedText>
+                    </Pressable>
+                    {localCalendars.map(cal => (
+                      <Pressable
+                        key={cal.id}
+                        style={[{ padding: 12, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }, selectedLocalCalId === cal.id ? { backgroundColor: 'rgba(33, 150, 243, 0.15)' } : { backgroundColor: 'rgba(150,150,150,0.05)' }]}
+                        onPress={async () => {
+                          setSelectedLocalCalId(cal.id);
+                          await setSyncCalendarId(band.id, cal.id);
+                          setShowLocalCalDropdown(false);
+                        }}
+                      >
+                        <ThemedText style={{ fontSize: 16, fontWeight: selectedLocalCalId === cal.id ? 'bold' : 'normal', color: selectedLocalCalId === cal.id ? '#2196f3' : theme.text }}>
+                          {cal.title} {cal.source?.name ? `(${cal.source.name})` : ''}
+                        </ThemedText>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </Pressable>
+              </Pressable>
+            </Modal>
+
+
             {/* Testování pohledu role */}
             <ThemedView type="backgroundElement" style={styles.techSummaryCard}>
               <ThemedText type="default" style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 4 }}>
@@ -592,6 +863,204 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
                 <ThemedText type="smallBold" style={{ color: '#4caf50' }}>{t('band.edit.connected')}</ThemedText>
               </View>
             </ThemedView>
+          </View>
+        ) : activeTab === ('fans' as any) ? (
+          <View style={{ gap: Spacing.four }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flex: 1 }}>
+                <ThemedText type="subtitle" style={{ fontSize: 18, fontWeight: 'bold' }}>
+                  {t('fans.title', { count: fans.length })}
+                </ThemedText>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {fans.length > 0 && (
+                  <Pressable
+                    style={{ paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, backgroundColor: 'rgba(33,150,243,0.15)', flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                    onPress={copyFanEmails}
+                  >
+                    <SymbolView name={{ ios: 'doc.on.doc', android: 'content_copy', web: 'content_copy' }} size={16} tintColor="#2196f3" />
+                    <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 12 }}>
+                      {t('fans.copyEmails')}
+                    </ThemedText>
+                  </Pressable>
+                )}
+
+                <Pressable
+                  style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: '#4caf50', flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                  onPress={() => {
+                    setEditingFan(null);
+                    setShowAddFanModal(true);
+                  }}
+                >
+                  <SymbolView name={{ ios: 'plus', android: 'add', web: 'add' }} size={16} tintColor="#fff" />
+                  <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 12 }}>
+                    {t('fans.addBtn')}
+                  </ThemedText>
+                </Pressable>
+              </View>
+            </View>
+
+            {fans.length > 0 && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(200,200,200,0.18)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, gap: 8 }}>
+                <SymbolView name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }} size={16} tintColor={theme.textSecondary} />
+                <TextInput
+                  style={{ flex: 1, color: theme.text, fontSize: 14, padding: 0 }}
+                  placeholder={t('fans.searchPlaceholder')}
+                  placeholderTextColor={theme.textSecondary}
+                  value={fanSearch}
+                  onChangeText={setFanSearch}
+                />
+              </View>
+            )}
+
+            {fans.length === 0 ? (
+              <ThemedText type="default" themeColor="textSecondary" style={{ textAlign: 'center', marginTop: 20 }}>
+                {t('fans.empty')}
+              </ThemedText>
+            ) : (
+              <View style={{ gap: 10 }}>
+                {fans
+                  .filter(f => !fanSearch.trim() || f.name.toLowerCase().includes(fanSearch.toLowerCase()) || f.email.toLowerCase().includes(fanSearch.toLowerCase()))
+                  .map(fan => (
+                    <ThemedView key={fan.id} type="backgroundElement" style={{ padding: Spacing.three, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(150,150,150,0.2)', gap: 6 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                          <ThemedText type="smallBold" style={{ fontSize: 16 }}>{fan.name}</ThemedText>
+                          <ThemedText type="small" themeColor="textSecondary">{fan.email}</ThemedText>
+                          {fan.phone ? (
+                            <Pressable onPress={() => Linking.openURL(`tel:${fan.phone}`)}>
+                              <ThemedText type="small" style={{ color: '#2196f3', marginTop: 2 }}>📞 {fan.phone}</ThemedText>
+                            </Pressable>
+                          ) : null}
+                        </View>
+
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          <Pressable onPress={() => { setEditingFan(fan); setShowAddFanModal(true); }} style={{ padding: 4 }}>
+                            <SymbolView name={{ ios: 'pencil', android: 'edit', web: 'edit' }} size={18} tintColor="#2196f3" />
+                          </Pressable>
+                          <Pressable onPress={() => handleDeleteFan(fan)} style={{ padding: 4 }}>
+                            <SymbolView name={{ ios: 'trash', android: 'delete', web: 'delete' }} size={18} tintColor="#e91e63" />
+                          </Pressable>
+                        </View>
+                      </View>
+
+                      {fan.note ? (
+                        <View style={{ marginTop: 4, padding: 6, backgroundColor: 'rgba(150,150,150,0.1)', borderRadius: 6 }}>
+                          <ThemedText type="small" style={{ fontStyle: 'italic' }}>
+                            💬 {fan.note}
+                          </ThemedText>
+                        </View>
+                      ) : null}
+
+                      {fan.joinedAt ? (
+                        <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11, marginTop: 2 }}>
+                          🗓 {t('fans.joinedAt')}: {new Date(fan.joinedAt).toLocaleDateString()}
+                        </ThemedText>
+                      ) : null}
+                    </ThemedView>
+                  ))}
+              </View>
+            )}
+          </View>
+        ) : activeTab === ('fans' as any) ? (
+          <View style={{ gap: Spacing.four }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flex: 1 }}>
+                <ThemedText type="subtitle" style={{ fontSize: 18, fontWeight: 'bold' }}>
+                  {t('fans.title', { count: fans.length })}
+                </ThemedText>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {fans.length > 0 && (
+                  <Pressable
+                    style={{ paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, backgroundColor: 'rgba(33,150,243,0.15)', flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                    onPress={copyFanEmails}
+                  >
+                    <SymbolView name={{ ios: 'doc.on.doc', android: 'content_copy', web: 'content_copy' }} size={16} tintColor="#2196f3" />
+                    <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 12 }}>
+                      {t('fans.copyEmails')}
+                    </ThemedText>
+                  </Pressable>
+                )}
+
+                <Pressable
+                  style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: '#4caf50', flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                  onPress={() => {
+                    setEditingFan(null);
+                    setShowAddFanModal(true);
+                  }}
+                >
+                  <SymbolView name={{ ios: 'plus', android: 'add', web: 'add' }} size={16} tintColor="#fff" />
+                  <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 12 }}>
+                    {t('fans.addBtn')}
+                  </ThemedText>
+                </Pressable>
+              </View>
+            </View>
+
+            {fans.length > 0 && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(200,200,200,0.18)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, gap: 8 }}>
+                <SymbolView name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }} size={16} tintColor={theme.textSecondary} />
+                <TextInput
+                  style={{ flex: 1, color: theme.text, fontSize: 14, padding: 0 }}
+                  placeholder={t('fans.searchPlaceholder')}
+                  placeholderTextColor={theme.textSecondary}
+                  value={fanSearch}
+                  onChangeText={setFanSearch}
+                />
+              </View>
+            )}
+
+            {fans.length === 0 ? (
+              <ThemedText type="default" themeColor="textSecondary" style={{ textAlign: 'center', marginTop: 20 }}>
+                {t('fans.empty')}
+              </ThemedText>
+            ) : (
+              <View style={{ gap: 10 }}>
+                {fans
+                  .filter(f => !fanSearch.trim() || f.name.toLowerCase().includes(fanSearch.toLowerCase()) || f.email.toLowerCase().includes(fanSearch.toLowerCase()))
+                  .map(fan => (
+                    <ThemedView key={fan.id} type="backgroundElement" style={{ padding: Spacing.three, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(150,150,150,0.2)', gap: 6 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                          <ThemedText type="smallBold" style={{ fontSize: 16 }}>{fan.name}</ThemedText>
+                          <ThemedText type="small" themeColor="textSecondary">{fan.email}</ThemedText>
+                          {fan.phone ? (
+                            <Pressable onPress={() => Linking.openURL(`tel:${fan.phone}`)}>
+                              <ThemedText type="small" style={{ color: '#2196f3', marginTop: 2 }}>📞 {fan.phone}</ThemedText>
+                            </Pressable>
+                          ) : null}
+                        </View>
+
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          <Pressable onPress={() => { setEditingFan(fan); setShowAddFanModal(true); }} style={{ padding: 4 }}>
+                            <SymbolView name={{ ios: 'pencil', android: 'edit', web: 'edit' }} size={18} tintColor="#2196f3" />
+                          </Pressable>
+                          <Pressable onPress={() => handleDeleteFan(fan)} style={{ padding: 4 }}>
+                            <SymbolView name={{ ios: 'trash', android: 'delete', web: 'delete' }} size={18} tintColor="#e91e63" />
+                          </Pressable>
+                        </View>
+                      </View>
+
+                      {fan.note ? (
+                        <View style={{ marginTop: 4, padding: 6, backgroundColor: 'rgba(150,150,150,0.1)', borderRadius: 6 }}>
+                          <ThemedText type="small" style={{ fontStyle: 'italic' }}>
+                            💬 {fan.note}
+                          </ThemedText>
+                        </View>
+                      ) : null}
+
+                      {fan.joinedAt ? (
+                        <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11, marginTop: 2 }}>
+                          🗓 {t('fans.joinedAt')}: {new Date(fan.joinedAt).toLocaleDateString()}
+                        </ThemedText>
+                      ) : null}
+                    </ThemedView>
+                  ))}
+              </View>
+            )}
           </View>
         ) : activeTab === 'tech' ? (() => {
           const attendingMembers = members.filter(m => attendingMemberIds[m.id] !== false);
@@ -692,46 +1161,164 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
             </View>
           );
         })() : activeTab === 'band' ? (
-          <>
-            {/* Změna loga kapely */}
-            <ThemedText type="smallBold">{t('band.edit.logo')}</ThemedText>
+          <View style={{ gap: Spacing.three }}>
 
-            {logoUri && (
-               <Image source={{ uri: logoUri }} style={styles.logoPreview} contentFit="contain" />
-            )}
-
-            <View style={{flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.four, marginTop: -20}}>
-              <Pressable style={[styles.photoBtn, { backgroundColor: 'rgba(200,200,200,0.15)', borderColor: 'rgba(200,200,200,0.25)' }]} onPress={pickImageFromGallery}>
-                <SymbolView name={{ ios: 'photo', android: 'image', web: 'image' }} size={14} tintColor={theme.text} />
-                <ThemedText type="smallBold" style={{fontSize: 12}}>{t('band.edit.fromGallery')}</ThemedText>
+            {/* AKORDEON: Základní údaje */}
+            <ThemedView type="backgroundElement" style={styles.accordionCard}>
+              <Pressable
+                style={styles.accordionHeader}
+                onPress={() => setIsBasicInfoOpen(!isBasicInfoOpen)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <SymbolView name={{ ios: 'info.circle', android: 'info', web: 'info' }} size={18} tintColor={theme.textSecondary} />
+                  <ThemedText type="default" style={{ fontWeight: 'bold' }}>Základní údaje</ThemedText>
+                </View>
+                <SymbolView name={{ ios: isBasicInfoOpen ? 'chevron.up' : 'chevron.down', android: isBasicInfoOpen ? 'expand_less' : 'expand_more', web: isBasicInfoOpen ? 'expand_less' : 'expand_more' }} size={20} tintColor={theme.textSecondary} />
               </Pressable>
-              <Pressable style={[styles.photoBtn, { backgroundColor: 'rgba(200,200,200,0.15)', borderColor: 'rgba(200,200,200,0.25)' }]} onPress={pickImageFromFolder}>
-                <SymbolView name={{ ios: 'folder', android: 'folder', web: 'folder' }} size={14} tintColor={theme.text} />
-                <ThemedText type="smallBold" style={{fontSize: 12}}>{t('band.edit.fromFolder')}</ThemedText>
+
+              {isBasicInfoOpen && (
+                <View style={styles.accordionBody}>
+                  <ThemedText type="smallBold">{t('band.edit.logo')}</ThemedText>
+                  {logoUri && (
+                    <Image source={{ uri: logoUri }} style={styles.logoPreview} contentFit="contain" />
+                  )}
+                  <View style={{flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.four}}>
+                    <Pressable style={[styles.photoBtn, { backgroundColor: 'rgba(200,200,200,0.15)', borderColor: 'rgba(200,200,200,0.25)' }]} onPress={pickImageFromGallery}>
+                      <SymbolView name={{ ios: 'photo', android: 'image', web: 'image' }} size={14} tintColor={theme.text} />
+                      <ThemedText type="smallBold" style={{fontSize: 12}}>{t('band.edit.fromGallery')}</ThemedText>
+                    </Pressable>
+                    <Pressable style={[styles.photoBtn, { backgroundColor: 'rgba(200,200,200,0.15)', borderColor: 'rgba(200,200,200,0.25)' }]} onPress={pickImageFromFolder}>
+                      <SymbolView name={{ ios: 'folder', android: 'folder', web: 'folder' }} size={14} tintColor={theme.text} />
+                      <ThemedText type="smallBold" style={{fontSize: 12}}>{t('band.edit.fromFolder')}</ThemedText>
+                    </Pressable>
+                  </View>
+
+                  <ThemedText type="smallBold">{t('band.edit.nameReq')}</ThemedText>
+                  <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)', marginBottom: 12 }]} value={name} onChangeText={setName} placeholderTextColor={theme.textSecondary} />
+
+                  <ThemedText type="smallBold">{t('band.edit.musicGenre')}</ThemedText>
+                  <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)', marginBottom: 12 }]} value={genre} onChangeText={setGenre} placeholderTextColor={theme.textSecondary} />
+
+                  <ThemedText type="smallBold">{t('band.country.label')}</ThemedText>
+                  <Pressable
+                    style={[styles.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)', marginBottom: 12 }]}
+                    onPress={() => setShowCountryModal(true)}
+                  >
+                    <ThemedText type="default" style={{ color: theme.text }}>
+                      {getCountryDisplayName(country, currentLang)}
+                    </ThemedText>
+                    <SymbolView name={{ ios: 'chevron.down', android: 'arrow_drop_down', web: 'arrow_drop_down' }} size={20} tintColor={theme.textSecondary} />
+                  </Pressable>
+                </View>
+              )}
+            </ThemedView>
+
+            {/* AKORDEON: Sociální Sítě a Web */}
+            <ThemedView type="backgroundElement" style={styles.accordionCard}>
+              <Pressable
+                style={styles.accordionHeader}
+                onPress={() => setIsSocialsOpen(!isSocialsOpen)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <SymbolView name={{ ios: 'globe', android: 'public', web: 'public' }} size={18} tintColor={theme.textSecondary} />
+                  <ThemedText type="default" style={{ fontWeight: 'bold' }}>Web & Odkazy</ThemedText>
+                </View>
+                <SymbolView name={{ ios: isSocialsOpen ? 'chevron.up' : 'chevron.down', android: isSocialsOpen ? 'expand_less' : 'expand_more', web: isSocialsOpen ? 'expand_less' : 'expand_more' }} size={20} tintColor={theme.textSecondary} />
               </Pressable>
-            </View>
 
-            <View style={{marginTop: -20}}>
-              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16}}>{t('band.edit.nameReq')}</ThemedText>
-              <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={name} onChangeText={setName} placeholderTextColor={theme.textSecondary} />
+              {isSocialsOpen && (
+                <View style={styles.accordionBody}>
+                  <ThemedText type="smallBold">{t('band.edit.webUrl')}</ThemedText>
+                  <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)', marginBottom: 12 }]} value={web} onChangeText={setWeb} placeholder="www.mojekapela.cz" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
 
-              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16}}>{t('band.edit.musicGenre')}</ThemedText>
-              <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={genre} onChangeText={setGenre} placeholderTextColor={theme.textSecondary} />
+                  <ThemedText type="smallBold">{t('band.edit.fbUrl')}</ThemedText>
+                  <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)', marginBottom: 12 }]} value={facebook} onChangeText={setFacebook} placeholder="facebook.com/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
 
-              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16}}>{t('band.edit.webUrl')}</ThemedText>
-              <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={web} onChangeText={setWeb} placeholder="www.mojekapela.cz" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
+                  <ThemedText type="smallBold">{t('band.edit.igUrl')}</ThemedText>
+                  <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)', marginBottom: 12 }]} value={instagram} onChangeText={setInstagram} placeholder="instagram.com/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
 
-              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16, marginTop: 8}}>{t('band.edit.fbUrl')}</ThemedText>
-              <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={facebook} onChangeText={setFacebook} placeholder="facebook.com/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
+                  <ThemedText type="smallBold">{t('band.edit.bzUrl')}</ThemedText>
+                  <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)', marginBottom: 0 }]} value={bandzone} onChangeText={setBandzone} placeholder="bandzone.cz/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
+                </View>
+              )}
+            </ThemedView>
 
-              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16, marginTop: 8}}>{t('band.edit.igUrl')}</ThemedText>
-              <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={instagram} onChangeText={setInstagram} placeholder="instagram.com/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
+            {/* AKORDEON: Sdílené kalendáře */}
+            <ThemedView type="backgroundElement" style={styles.accordionCard}>
+              <Pressable
+                style={styles.accordionHeader}
+                onPress={() => setIsCalendarsOpen(!isCalendarsOpen)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <SymbolView name={{ ios: 'calendar', android: 'calendar_today', web: 'calendar_today' }} size={18} tintColor={theme.textSecondary} />
+                  <ThemedText type="default" style={{ fontWeight: 'bold' }}>{t('settings.calendar.title')}</ThemedText>
+                </View>
+                <SymbolView name={{ ios: isCalendarsOpen ? 'chevron.up' : 'chevron.down', android: isCalendarsOpen ? 'expand_less' : 'expand_more', web: isCalendarsOpen ? 'expand_less' : 'expand_more' }} size={20} tintColor={theme.textSecondary} />
+              </Pressable>
 
-              <ThemedText type="default" style={{fontWeight: 'bold', fontSize: 16, marginTop: 8}}>{t('band.edit.bzUrl')}</ThemedText>
-              <TextInput style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]} value={bandzone} onChangeText={setBandzone} placeholder="bandzone.cz/mojekapela" placeholderTextColor={theme.textSecondary} keyboardType="url" autoCapitalize="none" />
-            </View>
+              {isCalendarsOpen && (
+                <View style={styles.accordionBody}>
+                  <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: 10 }}>
+                    {t('settings.calendar.desc') || 'Zadejte e-mail/ID vaší kapely na Google Kalendáři nebo veřejný iCloud odkaz:'}
+                  </ThemedText>
 
-            <View style={styles.buttons}>
+                  
+                                    <ThemedText type="smallBold" style={{ marginBottom: 6 }}>Google Kalendář</ThemedText>
+                  {band.googleCalendarAccessToken && band.googleCalendarUserEmail ? (
+                    <View style={{ padding: 12, backgroundColor: 'rgba(76, 175, 80, 0.12)', borderRadius: 8, borderWidth: 1, borderColor: '#4caf50', gap: 6, marginBottom: 16 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <ThemedText type="smallBold" style={{ color: '#4caf50', fontSize: 14 }}>
+                          ✓ Google Kalendář připojen
+                        </ThemedText>
+                        <Pressable
+                          onPress={() => {
+                            onSave({
+                              googleCalendarAccessToken: '', googleCalendarRefreshToken: '', googleCalendarId: '', googleCalendarUserEmail: '',
+                            });
+                          }}
+                          style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, backgroundColor: 'rgba(233, 30, 99, 0.15)' }}
+                        >
+                          <ThemedText type="smallBold" style={{ color: '#e91e63', fontSize: 12 }}>Odpojit</ThemedText>
+                        </Pressable>
+                      </View>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        Účet: {band.googleCalendarUserEmail}
+                      </ThemedText>
+                    </View>
+                  ) : (
+                    <Pressable
+                      style={{ padding: 12, backgroundColor: '#4285f4', borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16 }}
+                      onPress={handleGoogleOAuthLogin}
+                    >
+                      <SymbolView name={{ ios: 'calendar.badge.plus', android: 'event_available', web: 'event_available' }} size={18} tintColor="#fff" />
+                      <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 14 }}>
+                        🔗 Připojit Google Kalendář 1-klikem
+                      </ThemedText>
+                    </Pressable>
+                  )}
+
+                                    
+
+
+
+
+                  
+
+                  <ThemedText type="smallBold">{t('settings.calendar.appleUrl') || 'Apple/iCloud veřejný odkaz'}</ThemedText>
+                  <TextInput
+                    style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)', marginBottom: 0 }]}
+                    value={appleCalendarUrl}
+                    onChangeText={setAppleCalendarUrl}
+                    placeholder="webcal://..."
+                    placeholderTextColor={theme.textSecondary}
+                    autoCapitalize="none"
+                    keyboardType="url"
+                  />
+                </View>
+              )}
+            </ThemedView>
+
+            <View style={[styles.buttons, { marginTop: Spacing.four }]}>
               <Pressable style={[styles.button, { backgroundColor: '#e91e63' }]} onPress={onCancel} disabled={isSaving}>
                 <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('home.misc.cancel')}</ThemedText>
               </Pressable>
@@ -741,7 +1328,7 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
                 </ThemedText>
               </Pressable>
             </View>
-          </>
+          </View>
         ) : (
           <>
             <View style={styles.membersHeader}>
@@ -835,9 +1422,26 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
       </ScrollView>
 
       <Modal visible={showAddMemberModal} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
          <ThemedView style={{flex: 1}}>
             <AddMemberForm initialMember={editingMember || undefined} onSave={handleSaveMember} onCancel={() => setShowAddMemberModal(false)} />
          </ThemedView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal visible={showAddFanModal} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ThemedView style={{flex: 1}}>
+          <AddFanForm
+            initialFan={editingFan || undefined}
+            onSave={handleSaveFan}
+            onCancel={() => {
+              setShowAddFanModal(false);
+              setEditingFan(null);
+            }}
+          />
+        </ThemedView>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Modál pro Stageplan */}
@@ -848,6 +1452,19 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
         members={members}
         onSave={(stageplanData) => onSave({ stageplan: stageplanData })}
       />
+
+      {/* Modál pro výběr země původu */}
+      {showCountryModal && (
+        <CountryPickerModal
+          visible={showCountryModal}
+          selectedCountryCode={country}
+          onSelect={(cCode) => {
+            setCountry(cCode);
+            onSave({ country: cCode });
+          }}
+          onClose={() => setShowCountryModal(false)}
+        />
+      )}
 
       {/* Modal pro rolovací menu výběru jazyka */}
       <Modal visible={showLanguageDropdown} transparent animationType="fade" onRequestClose={() => setShowLanguageDropdown(false)}>
@@ -897,6 +1514,39 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
             </Pressable>
           </ThemedView>
         </Pressable>
+      </Modal>
+
+      {/* MODAL PRO IN-APP GOOGLE OAUTH PŘIHLÁŠENÍ - UMÍSTĚNO GLOBÁLNĚ */}
+      <Modal visible={showGoogleAuthModal} animationType="slide" onRequestClose={() => setShowGoogleAuthModal(false)}>
+        <View style={{ flex: 1, backgroundColor: theme.background, paddingTop: insets.top }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(150,150,150,0.2)' }}>
+            <ThemedText type="subtitle" style={{ fontSize: 18 }}>Přihlášení ke Google Kalendáři</ThemedText>
+            <Pressable onPress={() => setShowGoogleAuthModal(false)} style={{ padding: 6 }}>
+              <SymbolView name={{ ios: 'xmark', android: 'close', web: 'close' }} size={22} tintColor={theme.text} />
+            </Pressable>
+          </View>
+          <WebView
+            source={{
+              uri: `https://accounts.google.com/o/oauth2/v2/auth?client_id=69381036546-rbmf4cvdqomducmv11a3hoqk2o6frta2.apps.googleusercontent.com&response_type=code&access_type=offline&prompt=consent&redirect_uri=${encodeURIComponent('https://auth.expo.io/@barry2709/kapela_ios_android')}&scope=${encodeURIComponent('https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email')}`
+            }}
+            onNavigationStateChange={handleWebViewNavigationStateChange}
+            onShouldStartLoadWithRequest={(req) => {
+              if (req.url && (req.url.includes('code=') || req.url.includes('access_token='))) {
+                handleWebViewUrl(req.url);
+                return false;
+              }
+              return true;
+            }}
+            injectedJavaScript="setInterval(function() { if (window.location.href.indexOf('code=') !== -1 || window.location.href.indexOf('access_token=') !== -1) { window.ReactNativeWebView.postMessage(window.location.href); } }, 300); true;"
+            onMessage={(event) => {
+              if (event.nativeEvent && event.nativeEvent.data) {
+                handleWebViewUrl(event.nativeEvent.data);
+              }
+            }}
+            style={{ flex: 1 }}
+            userAgent="Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+          />
+        </View>
       </Modal>
     </View>
   );
@@ -1097,5 +1747,25 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  }
+  },
+  accordionCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(150,150,150,0.2)',
+    overflow: 'hidden',
+    marginBottom: Spacing.three,
+  },
+  accordionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: 'rgba(150,150,150,0.05)'
+  },
+  accordionBody: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(150,150,150,0.1)'
+  },
+
 });

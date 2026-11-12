@@ -443,7 +443,7 @@ export function SetlistEditorModal({ visible, onClose, concert, initialSetlist, 
                 {t('setlist.pickerTitle')}
               </ThemedText>
 
-              <ScrollView style={{ maxHeight: 350 }}>
+              <ScrollView style={{ maxHeight: 350 }} keyboardShouldPersistTaps="handled">
                 {/* Tlačítko pro ruční vložení pauzy */}
                 <Pressable
                   style={[styles.pickerRow, { backgroundColor: 'rgba(255,152,0,0.15)', borderRadius: Spacing.two, marginBottom: Spacing.two, paddingHorizontal: 10 }]}

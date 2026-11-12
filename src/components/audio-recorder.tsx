@@ -62,7 +62,7 @@ export function AudioRecorder() {
   useEffect(() => {
     if (player && playingId) {
       const hasStarted = (player.currentTime || 0) > 0.3;
-      const isFinished = (player.status === 'ended') || (hasStarted && player.status === 'idle') || (player.duration > 0 && hasStarted && player.currentTime >= player.duration - 0.3);
+      const isFinished = (!player.playing) || (hasStarted && !player.playing) || (player.duration > 0 && hasStarted && player.currentTime >= player.duration - 0.3);
 
       if (isFinished) {
         try {
@@ -74,11 +74,11 @@ export function AudioRecorder() {
         setPlaybackTimeSec(0);
       } else if (player.playing) {
         setIsPlayingState(true);
-      } else if (player.status === 'paused') {
+      } else if (!player.playing) {
         setIsPlayingState(false);
       }
     }
-  }, [player?.status, player?.playing, player?.currentTime, playingId]);
+  }, [player?.playing, player?.playing, player?.currentTime, playingId]);
 
   // Sledování aktuálního času přehrávání pro průběhovou lištu
   useEffect(() => {
@@ -167,7 +167,7 @@ export function AudioRecorder() {
         setPendingRecordUri(fileAsset.uri);
         setPendingRecordDuration(0);
         const cleanName = fileAsset.name.replace(/\.[^/.]+$/, "");
-        setRecordTitle(cleanName || 'Importovaný záznam');
+        setRecordTitle(cleanName || t('audio.importedRecord'));
       }
     } catch (err) {
       console.error('Chyba při výběru souboru z disku', err);
@@ -180,7 +180,7 @@ export function AudioRecorder() {
     if (!activeBand || !pendingRecordUri) return;
     setIsUploading(true);
     try {
-      const finalTitle = recordTitle.trim() || 'Nová nahrávka';
+      const finalTitle = recordTitle.trim() || t('audio.newRecord');
 
       // Uložení do Storage složky ve stejném adresáři kapely kde jsou i písničky: kapela_ios_android/<bandId>/records/
       const uploadResult = await uploadAudioToStorage(
@@ -332,7 +332,7 @@ export function AudioRecorder() {
                 style={[styles.input, { color: theme.text, borderColor: theme.textSecondary }]}
                 value={recordTitle}
                 onChangeText={setRecordTitle}
-                placeholder="Název nahrávky..."
+                placeholder={t('audio.placeholder.name')}
                 placeholderTextColor={theme.textSecondary}
                 autoFocus
               />

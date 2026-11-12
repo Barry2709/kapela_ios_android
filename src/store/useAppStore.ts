@@ -3,8 +3,8 @@ import { Band, UserProfile, Role } from '../types';
 
 interface AppState {
   // Jazyk aplikace
-  language: 'system' | 'cs' | 'sk' | 'en';
-  setLanguage: (lang: 'system' | 'cs' | 'sk' | 'en') => void;
+  language: 'system' | 'cs' | 'sk' | 'en' | 'de' | 'pl' | 'es' | 'fr';
+  setLanguage: (lang: 'system' | 'cs' | 'sk' | 'en' | 'de' | 'pl' | 'es' | 'fr') => void;
 
   // Aktuální uživatel
   currentUser: UserProfile | null;
@@ -18,9 +18,9 @@ interface AppState {
   activeRoleView: Role;
   setActiveRoleView: (role: Role) => void;
 
-  // Aktivní podzáložka na stránce Správa kapely ('band' | 'members' | 'tech' | 'settings')
-  manageBandTab: 'band' | 'members' | 'tech' | 'settings';
-  setManageBandTab: (tab: 'band' | 'members' | 'tech' | 'settings') => void;
+  // Aktivní podzáložka na stránce Správa kapely ('band' | 'members' | 'tech' | 'settings' | 'fans')
+  manageBandTab: 'band' | 'members' | 'tech' | 'settings' | 'fans';
+  setManageBandTab: (tab: 'band' | 'members' | 'tech' | 'settings' | 'fans') => void;
 
   // Aktivní podzáložka na stránce Akce ('akce' | 'poptavky' | 'rezervace' | 'absence')
   eventsTab: 'akce' | 'poptavky' | 'rezervace' | 'absence';

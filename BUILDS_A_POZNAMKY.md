@@ -79,3 +79,20 @@ Tento soubor slouží jako přehledný manuál všech klíčových příkazů pr
 
 - **Účet Expo (EAS):** Aktivní plán Starter.
 - **Aktivní kanál pro aktualizace v aplikaci:** `production`.
+
+## 7. Novinky
+
+
+### Zápis Akcí do nativních Kalendářů pomocí expo-calendar
+Tento koncept řeší zápis (ukládání) událostí z aplikace přímo do systémového sdíleného kalendáře v telefonu.
+
+**Jak to bude fungovat na straně uživatele:**
+1. Každý člen kapely (který chce funkci používat) musí mít ve svém iPhonu/Androidu již běžně nasdílen a povolen kalendář kapely (např. přes svůj Google/Apple účet na úrovni systému iOS/Android).
+2. Při prvním uložení nebo úpravě koncertu/zkoušky se aplikace přes `expo-calendar` podívá na všechny dostupné kalendáře, které daný telefon zná.
+3. Kapelník/člen si v aplikaci (např. v nastavení kapely nebo při prvním startu) jednou "vybere" ten svůj lokální kapelní kalendář ze seznamu, do kterého má aplikace sahat. Její systémové ID se uloží lokálně (do `AsyncStorage` jako `localSyncCalendarId`).
+4. **Zápis:** Kdykoli uživatel (kapelník nebo člen pro absence) klikne na tlačítko "Uložit" v `events.tsx`, aplikace:
+   - A) Pošle data do Firebase.
+   - B) Paralelně si přes `Calendar.createEventAsync(localSyncCalendarId, ...)` zapíše tu samou událost nativně do telefonu.
+5. Zbytek zařídí operační systém. Protože uživatel zapsal událost do systémového kalendáře, který je synchronizovaný na iCloud nebo Google, mobil ji sám od sebe propíše na server, odkud se hned sesynchronizuje ostatním do jejich telefonů.
+
+**Výhoda:** Naprosto "blbuvzdorné". Nemusíme do aplikace vkládat Google API klíče, dělat složitý backend ani se trápit s OAuth právy k cizím účtům. Pokud člen smaže nebo edituje událost, aplikace zavolá `Calendar.updateEventAsync` nebo `Calendar.deleteEventAsync` (pomocí lokálního ID události, které si navážeme do záznamu koncertu ve Firebase).

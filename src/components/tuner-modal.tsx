@@ -275,7 +275,7 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
   const theme = useTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const webViewRef = useRef<WebView>(null);
+  const webViewRef = useRef<any>(null);
 
   const [selectedPreset, setSelectedPreset] = useState<InstrumentPreset>(INSTRUMENT_PRESETS[3]); // Default Kytara (6 strun Standard E)
   const [selectedStringIndex, setSelectedStringIndex] = useState<number | null>(null);
@@ -554,7 +554,7 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
         {/* Výběr Nástroje (Kategorie a Presety přehledně) */}
         <View style={{ marginBottom: 12 }}>
           {/* Kategorie (Vše, Kytara, Baskytara, Banjo, Smyčce...) */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 6, marginBottom: 8 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 6, marginBottom: 8 }} keyboardShouldPersistTaps="handled">
             {categories.map((cat) => {
               const isCatSelected = selectedCategory === cat;
               const catLabel = cat === 'Vše' ? t('tuner.catAll') :
@@ -582,7 +582,7 @@ export function TunerModal({ visible, onClose }: { visible: boolean; onClose: ()
           </ScrollView>
 
           {/* Konkrétní nástroje */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }} keyboardShouldPersistTaps="handled">
             {filteredPresets.map((preset) => {
               const isSelected = selectedPreset.id === preset.id;
               return (

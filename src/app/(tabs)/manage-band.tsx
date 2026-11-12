@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Alert } from 'react-native';
+import { StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -36,21 +36,23 @@ export default function ManageBandScreen() {
   };
 
   const handleCancel = () => {
-    router.replace('/(tabs)/');
+    router.replace('/(tabs)');
   };
 
   if (!activeBand) return null;
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-        <EditBandForm
-          band={activeBand}
-          onSave={handleSaveBandUpdates}
-          onCancel={handleCancel}
-        />
-      </SafeAreaView>
-    </ThemedView>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ThemedView style={styles.container}>
+        <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
+          <EditBandForm
+            band={activeBand}
+            onSave={handleSaveBandUpdates}
+            onCancel={handleCancel}
+          />
+        </SafeAreaView>
+      </ThemedView>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -14,6 +14,7 @@ export interface Band {
   name: string;
   logoUri?: string;
   genre?: string;
+  country?: string; // ISO kód země původu (např. 'CZ')
   description?: string;
   web?: string; // Odkaz na web kapely
   facebook?: string; // Odkaz na Facebook
@@ -22,6 +23,11 @@ export interface Band {
   techRiderPresets?: string[]; // Předvolby pro technický rider
   whatToTakePresets?: string[]; // Předvolby pro co vzít s sebou
   stageplan?: StageplanMember[]; // Rozmístění členů na stage
+  googleCalendarId?: string; // ID existujícího sdíleného Google Kalendáře
+  googleCalendarAccessToken?: string;
+  googleCalendarRefreshToken?: string; // OAuth Access Token pro Google Calendar
+  googleCalendarUserEmail?: string; // Připojený e-mail k účtu Google
+  appleCalendarUrl?: string; // Odkaz na sdílený Apple (iCloud) kalendář
 }
 
 export interface UserProfile {
@@ -65,6 +71,17 @@ export interface BandMember {
   tech: TechSpecs;
 }
 
+export interface Fan {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  joinedAt: number;
+  note?: string;
+  pushToken?: string;
+  pushTokens?: string[];
+}
+
 export type AttendanceStatus = 'yes' | 'no' | 'maybe';
 
 export interface AttendanceRecord {
@@ -82,6 +99,7 @@ export interface OrganizerContact {
 }
 
 export interface Concert {
+  googleEventId?: string;
   id: string;
   bandId: string;
   title: string;
@@ -106,6 +124,7 @@ export interface Concert {
 }
 
 export interface Rehearsal {
+  googleEventId?: string;
   id: string;
   bandId: string;
   date: string; // Formát YYYY-MM-DD nebo DD.MM.YYYY
@@ -118,6 +137,8 @@ export interface Rehearsal {
 }
 
 export interface Inquiry {
+  isFanInquiry?: boolean;
+  fanName?: string;
   id: string;
   bandId: string;
   title: string; // Název akce (povinné)
@@ -138,6 +159,7 @@ export interface Inquiry {
 }
 
 export interface Absence {
+  googleEventId?: string;
   id: string;
   bandId: string;
   memberId: string;
@@ -223,6 +245,7 @@ export interface LiveSessionPayload {
 }
 
 export interface AudioRecord {
+  songId?: string;
   id: string;
   bandId: string;
   title: string;
@@ -231,4 +254,25 @@ export interface AudioRecord {
   storagePath: string; // Cesta k souboru ve Storage
   createdAt: number;
   isPublic?: boolean; // Zda je nahrávka přístupná fanouškům
+}
+
+export interface PhotoAlbum {
+  id: string;
+  bandId: string;
+  albumName: string;
+  date: string;
+  uploadedBy: string;
+  uploadedByUid: string;
+  coverPhotoUrl: string;
+  photoCount?: number;
+  createdAt: number;
+}
+
+export interface AlbumPhoto {
+  id: string;
+  albumId: string;
+  downloadUrl: string;
+  storagePath: string;
+  uploadedBy: string;
+  createdAt: number;
 }

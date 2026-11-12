@@ -9,10 +9,10 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/utils/i18n';
 import { useAppStore } from '@/store/useAppStore';
-import { Song } from '@/types';
+import { Song, AudioRecord } from '@/types';
 import { fixCzechDiacritics, capitalizeFirstLetter } from '@/utils/diacritics';
-import { useAudioRecorder, useAudioRecorderState, AudioModule, RecordingPresets } from 'expo-audio';
-import { updateSong, fetchSongTextFromStorage, subscribeToSong, addAudioRecord, uploadAudioToStorage } from '@/services/firebaseService';
+import { useAudioRecorder, useAudioRecorderState, useAudioPlayer, AudioModule, RecordingPresets } from 'expo-audio';
+import { updateSong, fetchSongTextFromStorage, subscribeToSong, addAudioRecord, uploadAudioToStorage, subscribeToAudioRecords } from '@/services/firebaseService';
 import { getPersonalSongSetting, savePersonalSongSetting, PersonalNote } from '@/utils/personalSongSettings';
 import { liveSyncService } from '@/services/liveSyncService';
 import { FloatingNoteItem } from './floating-note-item';
@@ -161,6 +161,25 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
   const [fontSize, setFontSize] = useState(18);
   const [isInverted, setIsInverted] = useState(false);
 
+  // Stav a funkce pro roztažení na celou obrazovku / otočení
+  const [isFullScreenMode, setIsFullScreenMode] = useState(false);
+
+  const toggleFullScreenMode = async () => {
+    const nextState = !isFullScreenMode;
+    setIsFullScreenMode(nextState);
+    try {
+      const ScreenOrientation = require('expo-screen-orientation');
+      if (nextState) {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+      } else {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+      }
+    } catch (e) {
+      console.error("ScreenOrientation toggle error:", e);
+    }
+  };
+
+
   // Stav pro osobní poznámky k písni
   const [personalNotes, setPersonalNotes] = useState<PersonalNote[]>([]);
   const [showAddNoteModal, setShowAddNoteModal] = useState(false);
@@ -172,7 +191,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
   const [isNoteAdminShared, setIsNoteAdminShared] = useState(false);
 
   // Zjistíme, zda je výchozí téma aplikace tmavé
-  const isThemeDark = theme.text === '#ffffff' || theme.background === '#000000' || theme.background === '#121212';
+  const isThemeDark = theme.text === ('#ffffff' as string) || theme.background === ('#000000' as string) || theme.background === ('#121212' as string);
 
   // Pokud je aktivní inverze barev, obrátíme pozadí a text
   const effectiveBgColor = isInverted
@@ -224,7 +243,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
       liveSyncService.broadcastSongChange(
         activeBand.id,
         currentUser?.uid || 'admin',
-        currentUser?.displayName || 'Kapelník',
+        currentUser?.displayName || t('onboarding.defaultAdminName'),
         targetSong.id,
         transpose
       );
@@ -277,6 +296,86 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
   }, [initialSongs]);
 
   const currentSong = songsList[currentIndex] || songsList[0];
+
+  // Stav a vyhledávání audio nahrávek propojených se skladbou
+  const [allAudioRecords, setAllAudioRecords] = useState<AudioRecord[]>([]);
+  const [selectedRecord, setSelectedRecord] = useState<AudioRecord | null>(null);
+  const [showVersionPickerModal, setShowVersionPickerModal] = useState(false);
+  const [audioPlayerUri, setAudioPlayerUri] = useState<string | null>(null);
+  const audioPlayer = useAudioPlayer(audioPlayerUri);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+
+  useEffect(() => {
+    if (!activeBand?.id) return;
+    const unsubscribe = subscribeToAudioRecords(activeBand.id, (freshRecords) => {
+      setAllAudioRecords(freshRecords);
+    });
+    return () => unsubscribe();
+  }, [activeBand?.id]);
+
+  const matchingRecords = useMemo(() => {
+    if (!currentSong) return [];
+    const cleanTitle = (currentSong.title || '').toLowerCase().trim();
+    return allAudioRecords.filter((rec) => {
+      if (!rec) return false;
+      if (rec.songId && rec.songId === currentSong.id) return true;
+      if (rec.title && cleanTitle && rec.title.toLowerCase().trim().includes(cleanTitle)) return true;
+      if (rec.title && cleanTitle && cleanTitle.includes(rec.title.toLowerCase().trim())) return true;
+      return false;
+    });
+  }, [allAudioRecords, currentSong]);
+
+  useEffect(() => {
+    if (matchingRecords.length > 0) {
+      // Pokud se píseň změní, připravíme 1. nahrávku
+      if (!selectedRecord || !matchingRecords.some(r => r.id === selectedRecord.id)) {
+        setSelectedRecord(matchingRecords[0]);
+        setAudioPlayerUri(matchingRecords[0].downloadUrl);
+        setIsPlayingAudio(false);
+      }
+    } else {
+      setSelectedRecord(null);
+      setAudioPlayerUri(null);
+      setIsPlayingAudio(false);
+    }
+  }, [matchingRecords, currentIndex]);
+
+  // Bezpečný autostart přehrávače po změně audioPlayerUri (bez volání na uvolněný objekt)
+  useEffect(() => {
+    if (audioPlayerUri && isPlayingAudio && audioPlayer) {
+      try {
+        if (!audioPlayer.playing) {
+          audioPlayer.play();
+        }
+      } catch (e) {
+        console.error("Chyba přehrávače audia:", e);
+      }
+    }
+  }, [audioPlayerUri, audioPlayer, isPlayingAudio]);
+
+  // Detekce konce přehrávání -> po dohrání vrátit ikonu na Play
+  useEffect(() => {
+    let interval: any;
+    if (isPlayingAudio && audioPlayer) {
+      interval = setInterval(() => {
+        try {
+          const isPlaying = audioPlayer.playing;
+          const duration = audioPlayer.duration || 0;
+          const currentTime = audioPlayer.currentTime || 0;
+
+          if (!isPlaying && duration > 0 && currentTime >= duration - 0.3) {
+            setIsPlayingAudio(false);
+            audioPlayer.seekTo(0);
+          }
+        } catch (e) {}
+      }, 300);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isPlayingAudio, audioPlayer]);
+
+
 
   // Reálná synchronizace písně (při úpravě textu nebo Admin poznámek na Firebase se ihned překreslí)
   useEffect(() => {
@@ -1007,11 +1106,11 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
         await audioRecorder.prepareToRecordAsync();
         audioRecorder.record();
       } else {
-        Alert.alert('Chyba', 'Aplikace nemá přístup k mikrofonu.');
+        Alert.alert(t('home.attendance.errorTitle'), t('audio.errorMicDenied'));
       }
     } catch (err) {
       console.error('Nepodařilo se spustit nahrávání písně', err);
-      Alert.alert('Chyba', 'Nepodařilo se spustit nahrávání.');
+      Alert.alert(t('home.attendance.errorTitle'), t('audio.errorStartRec'));
     }
   };
 
@@ -1028,15 +1127,11 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
       const recordTitle = `${targetSong.title} - ${formatDateTime(Date.now())}`;
 
       // Uložení do Storage složky: kapela_ios_android/<bandId>/records/
-      const uploadResult = await uploadAudioToStorage(
-        activeBand.id,
-        uri,
-        recordTitle,
-        activeBand.name
-      );
+      const uploadResult = await uploadAudioToStorage(activeBand.id, uri, recordTitle);
 
       // Uložení záznamu do Firestore
       await addAudioRecord(activeBand.id, {
+        songId: targetSong.id,
         bandId: activeBand.id,
         title: recordTitle,
         durationMillis,
@@ -1046,7 +1141,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
         isPublic: false,
       });
 
-      Alert.alert('Nahrávka uložena', `Nahrávka "${recordTitle}" byla uložena do Audio zápisníku.`);
+      Alert.alert(t('audio.savedRecord'), t('audio.savedRecordMsg', { title: recordTitle }));
     } catch (err) {
       console.error('Chyba při ukládání nahrávky písně', err);
     }
@@ -1188,6 +1283,10 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
     if (activeRoleView === 'admin' && activeBand?.id && isLiveActive) {
       await liveSyncService.endLiveSession(activeBand.id);
     }
+    try {
+      const ScreenOrientation = require('expo-screen-orientation');
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+    } catch (e) {}
     onClose();
   };
 
@@ -1210,7 +1309,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
                     await liveSyncService.broadcastSongChange(
                       activeBand.id,
                       currentUser?.uid || 'admin',
-                      currentUser?.displayName || 'Kapelník',
+                      currentUser?.displayName || t('onboarding.defaultAdminName'),
                       currentSong.id,
                       transpose
                     );
@@ -1242,14 +1341,15 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
           </View>
         </View>
 
-        {/* Ovládací lišta - Horizontálně posuvná (Metronom Ikona/Číslo, Tónina, Capo, Písmo, Posun, Tempo, Takt, REC, Upravit...) */}
+
+      {/* Ovládací lišta - Horizontálně posuvná (Metronom, Tempo, Takt, Transpozice, Capo, Písmo, Posun, REC, Upravit) */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={{ backgroundColor: 'rgba(200,200,200,0.12)', maxHeight: 46, minHeight: 46 }}
           contentContainerStyle={styles.controlsBarContent}
         >
-          {/* 1. Vizuální Metronom (Bílá ikona s bílým rámečkem a průhledným pozadím, po spuštění 1, 2, 3, 4 zarovnáno na střed) */}
+          {/* 1. Vizuální Metronom */}
           <Pressable
             style={[
               styles.smallCtrlBtn,
@@ -1279,54 +1379,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
             )}
           </Pressable>
 
-          {/* Transpozice tóniny */}
-          <View style={styles.controlGroup}>
-            <Pressable style={styles.smallCtrlBtn} onPress={() => handleTransposeChange(transpose - 1)}>
-              <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>-</ThemedText>
-            </Pressable>
-            <ThemedText type="smallBold" style={{ color: transpose !== 0 ? '#ffc107' : effectiveTextColor, fontSize: 15, paddingHorizontal: 2 }}>
-              {getFirstKey(currentSong, transpose)}
-            </ThemedText>
-            <Pressable style={styles.smallCtrlBtn} onPress={() => handleTransposeChange(transpose + 1)}>
-              <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>+</ThemedText>
-            </Pressable>
-          </View>
-
-          {/* Ovládání Osobního Capo (C 0, C 1, C 2... max 12) */}
-          <View style={styles.controlGroup}>
-            <Pressable style={styles.smallCtrlBtn} onPress={() => handleCapoChange(Math.max(0, capo - 1))}>
-              <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>-</ThemedText>
-            </Pressable>
-            <ThemedText type="smallBold" style={{ color: capo > 0 ? '#ffc107' : effectiveTextColor, fontSize: 13, paddingHorizontal: 2 }}>
-              C {capo}
-            </ThemedText>
-            <Pressable style={styles.smallCtrlBtn} onPress={() => handleCapoChange(Math.min(12, capo + 1))}>
-              <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>+</ThemedText>
-            </Pressable>
-          </View>
-
-          {/* Velikost písma bez spodního omezení u A- */}
-          <View style={styles.controlGroup}>
-            <Pressable style={styles.smallCtrlBtn} onPress={() => handleFontSizeChange(Math.max(3, fontSize - 1))}>
-              <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>A-</ThemedText>
-            </Pressable>
-            <Pressable style={styles.smallCtrlBtn} onPress={() => handleFontSizeChange(Math.min(48, fontSize + 1))}>
-              <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>A+</ThemedText>
-            </Pressable>
-          </View>
-
-          {/* Auto-scroll (Posun) */}
-          <Pressable
-            style={[styles.scrollToggleBtn, { backgroundColor: isAutoScrolling ? '#4caf50' : 'rgba(150,150,150,0.2)' }]}
-            onPress={() => setIsAutoScrolling(!isAutoScrolling)}
-          >
-            <SymbolView name={{ ios: isAutoScrolling ? 'pause.fill' : 'play.fill', android: isAutoScrolling ? 'pause' : 'play_arrow', web: isAutoScrolling ? 'pause' : 'play_arrow' }} size={16} tintColor={isAutoScrolling ? '#fff' : effectiveTextColor} />
-            <ThemedText type="smallBold" style={{ color: isAutoScrolling ? '#fff' : effectiveTextColor, fontSize: 11, marginLeft: 4 }}>
-              {isAutoScrolling ? 'Stop' : 'Posun'}
-            </ThemedText>
-          </Pressable>
-
-          {/* Zadání Tempa písně (BPM) ZA TLAČÍTKEM POSUN */}
+          {/* 2. Zadání Tempa písně (BPM) */}
           <View style={styles.controlGroup}>
             <Pressable style={styles.smallCtrlBtn} onPress={() => handleTempoChange(tempoBpm - 5)}>
               <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>-</ThemedText>
@@ -1339,7 +1392,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
             </Pressable>
           </View>
 
-          {/* Přepínač taktu písně (4/4 nebo 3/4) ZA TEMPEM */}
+          {/* 3. Přepínač taktu písně (4/4 nebo 3/4) */}
           <Pressable
             style={[styles.smallCtrlBtn, { backgroundColor: 'rgba(255, 152, 0, 0.2)', paddingHorizontal: 8 }]}
             onPress={handleTimeSigToggle}
@@ -1348,7 +1401,8 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
               {timeSig}
             </ThemedText>
           </Pressable>
-          {/* Transpozice tóniny */}
+
+          {/* 4. Transpozice tóniny */}
           <View style={styles.controlGroup}>
             <Pressable style={styles.smallCtrlBtn} onPress={() => handleTransposeChange(transpose - 1)}>
               <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>-</ThemedText>
@@ -1361,7 +1415,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
             </Pressable>
           </View>
 
-          {/* Ovládání Osobního Capo (C 0, C 1, C 2... max 12) */}
+          {/* 5. Ovládání Osobního Capo */}
           <View style={styles.controlGroup}>
             <Pressable style={styles.smallCtrlBtn} onPress={() => handleCapoChange(Math.max(0, capo - 1))}>
               <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>-</ThemedText>
@@ -1374,7 +1428,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
             </Pressable>
           </View>
 
-          {/* Velikost písma bez spodního omezení u A- */}
+          {/* 6. Velikost písma */}
           <View style={styles.controlGroup}>
             <Pressable style={styles.smallCtrlBtn} onPress={() => handleFontSizeChange(Math.max(3, fontSize - 1))}>
               <ThemedText type="smallBold" style={{ color: effectiveTextColor }}>A-</ThemedText>
@@ -1384,7 +1438,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
             </Pressable>
           </View>
 
-          {/* Auto-scroll */}
+          {/* 7. Auto-scroll (Posun) */}
           <Pressable
             style={[styles.scrollToggleBtn, { backgroundColor: isAutoScrolling ? '#4caf50' : 'rgba(150,150,150,0.2)' }]}
             onPress={() => setIsAutoScrolling(!isAutoScrolling)}
@@ -1395,7 +1449,7 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
             </ThemedText>
           </Pressable>
 
-          {/* Tlačítko REC / STOP pro rychlé nahrávání zvuku přímo z náhledu písničky */}
+          {/* 8. Tlačítko REC / STOP */}
           {activeRoleView !== 'fan' && (
             <Pressable
               style={[
@@ -1419,52 +1473,95 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
             </Pressable>
           )}
 
-          {/* Tlačítko Upravit text (Tužka) za tlačítkem Posun */}
+          {/* 9. Přehrávač nahrávek ke skladbě (Hned za tlačítkem REC) */}
+          {matchingRecords.length > 0 && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              {/* Tlačítko PLAY / PAUSE */}
+              <Pressable
+                style={[
+                  styles.scrollToggleBtn,
+                  {
+                    backgroundColor: isPlayingAudio ? '#2196f3' : 'rgba(33,150,243,0.18)',
+                    borderColor: '#2196f3',
+                    borderWidth: 1,
+                  }
+                ]}
+                onPress={() => {
+                  if (isPlayingAudio) {
+                    if (audioPlayer && audioPlayer.playing) {
+                      audioPlayer.pause();
+                    }
+                    setIsPlayingAudio(false);
+                  } else {
+                    if (matchingRecords.length === 1) {
+                      const rec = matchingRecords[0];
+                      setSelectedRecord(rec);
+                      setAudioPlayerUri(rec.downloadUrl);
+                      setIsPlayingAudio(true);
+                    } else {
+                      setShowVersionPickerModal(true);
+                    }
+                  }
+                }}
+              >
+                <SymbolView
+                  name={isPlayingAudio ? { ios: 'pause.fill', android: 'pause', web: 'pause' } : { ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }}
+                  size={16}
+                  tintColor={isPlayingAudio ? '#fff' : '#2196f3'}
+                />
+                <ThemedText type="smallBold" style={{ color: isPlayingAudio ? '#fff' : '#2196f3', fontSize: 11, marginLeft: 4 }}>
+                  {isPlayingAudio ? 'Pauza' : (matchingRecords.length > 1 ? `Audio (${matchingRecords.length}) ▾` : 'Audio')}
+                </ThemedText>
+              </Pressable>
+
+              {/* Tlačítko STOP (zobrazí se při přehrávání) */}
+              {isPlayingAudio && (
+                <Pressable
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: 'rgba(244,67,54,0.18)',
+                    borderColor: '#f44336',
+                    borderWidth: 1,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    padding: 0,
+                  }}
+                  onPress={() => {
+                    try {
+                      if (audioPlayer) {
+                        if (audioPlayer.playing) audioPlayer.pause();
+                        audioPlayer.seekTo(0);
+                      }
+                    } catch (e) {}
+                    setIsPlayingAudio(false);
+                  }}
+                >
+                  <SymbolView name={{ ios: 'stop.fill', android: 'stop', web: 'stop' }} size={14} tintColor="#f44336" />
+                </Pressable>
+              )}
+            </View>
+          )}
+
+          {/* 9. Tlačítko Upravit text (Tužka) */}
           {activeRoleView !== 'fan' && (
             <Pressable style={styles.smallCtrlBtn} onPress={openDirectLyricsEditor}>
               <SymbolView name={{ ios: 'pencil', android: 'edit', web: 'edit' }} size={18} tintColor={effectiveTextColor} />
             </Pressable>
           )}
 
-          {/* Tlačítko Jednorázově přizpůsobit velikost textu obrazovce (Auto-Fit na celou plochu) */}
+          {/* 10. Tlačítko Roztažení na celou obrazovku */}
           <Pressable
-            style={styles.smallCtrlBtn}
-            onPress={handleApplyAutoFit}
+            style={[styles.smallCtrlBtn, { backgroundColor: isFullScreenMode ? 'rgba(33,150,243,0.25)' : 'transparent' }]}
+            onPress={toggleFullScreenMode}
           >
             <SymbolView
-              name={{
-                ios: 'arrow.up.left.and.arrow.down.right',
-                android: 'fullscreen',
-                web: 'fullscreen'
-              }}
+              name={isFullScreenMode ? { ios: 'arrow.down.right.and.arrow.up.left', android: 'fullscreen_exit', web: 'fullscreen_exit' } : { ios: 'arrow.up.left.and.arrow.down.right', android: 'fullscreen', web: 'fullscreen' }}
               size={18}
-              tintColor={effectiveTextColor}
+              tintColor={isFullScreenMode ? '#2196f3' : effectiveTextColor}
             />
-          </Pressable>
-
-          {/* Tlačítko pro Inverzní zobrazení (Černé pozadí / Bílý text) */}
-          <Pressable
-            style={[
-              styles.smallCtrlBtn,
-              { backgroundColor: isInverted ? '#ffc107' : 'rgba(150,150,150,0.2)' }
-            ]}
-            onPress={() => {
-              const nextVal = !isInverted;
-              setIsInverted(nextVal);
-              updatePersonalSetting(transpose, capo, fontSize, nextVal);
-            }}
-          >
-            <SymbolView
-              name={{
-                ios: isInverted ? 'circle.half.filled' : 'sun.max.fill',
-                android: isInverted ? 'invert_colors' : 'light_mode',
-                web: isInverted ? 'invert_colors' : 'light_mode'
-              }}
-              size={18}
-              tintColor={isInverted ? '#000' : effectiveTextColor}
-            />
-          </Pressable>
-        </ScrollView>
+          </Pressable></ScrollView>
 
         {/* Hlavní zobrazení textu a akordů */}
         <ScrollView
@@ -1775,6 +1872,51 @@ export function SongLyricsViewer({ songs: initialSongs, initialIndex, onClose, o
           />
         </SafeAreaView>
       </Modal>
+
+      {/* MODAL PRO VÝBĚR VERZE NAHRÁVKY */}
+      {showVersionPickerModal && (
+        <Modal visible={showVersionPickerModal} transparent animationType="fade" onRequestClose={() => setShowVersionPickerModal(false)}>
+          <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 16 }} onPress={() => setShowVersionPickerModal(false)}>
+            <ThemedView type="backgroundElement" style={{ width: '100%', maxWidth: 360, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(150,150,150,0.2)' }}>
+              <ThemedText type="subtitle" style={{ fontSize: 16, marginBottom: 12, textAlign: 'center' }}>
+                🎵 Nahrávky ke skladbě "{currentSong?.title}"
+              </ThemedText>
+              <ScrollView style={{ maxHeight: 250 }}>
+                {matchingRecords.map((rec) => {
+                  const isSelected = selectedRecord?.id === rec.id;
+                  return (
+                    <Pressable
+                      key={rec.id}
+                      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, marginBottom: 4, backgroundColor: isSelected ? 'rgba(33,150,243,0.15)' : 'transparent' }}
+                      onPress={() => {
+                        if (selectedRecord?.id !== rec.id) {
+                          setSelectedRecord(rec);
+                          setAudioPlayerUri(rec.downloadUrl);
+                        }
+                        setShowVersionPickerModal(false);
+                        setIsPlayingAudio(true);
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <ThemedText type="smallBold" style={{ color: isSelected ? '#2196f3' : theme.text }}>
+                          {rec.title}
+                        </ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11 }}>
+                          {new Date(rec.createdAt).toLocaleDateString('cs-CZ')}
+                        </ThemedText>
+                      </View>
+                      {isSelected && (
+                        <SymbolView name={{ ios: 'checkmark', android: 'check', web: 'check' }} size={18} tintColor="#2196f3" />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </ThemedView>
+          </Pressable>
+        </Modal>
+      )}
+
     </ThemedView>
   );
 }

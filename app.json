@@ -20,7 +20,8 @@
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
           "remote-notification"
-        ]
+        ],
+        "NSCalendarsUsageDescription": "Aplikace potřebuje přístup ke kalendáři pro synchronizaci kapelních zkoušek a koncertů s vaším zařízením."
       }
     },
     "android": {
@@ -73,6 +74,12 @@
         {
           "icon": "./assets/images/icon.png",
           "color": "#e91e63"
+        }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Aplikace potřebuje přístup ke kalendáři pro přidávání a zobrazení zkoušek a koncertů."
         }
       ],
       "@react-native-community/datetimepicker",

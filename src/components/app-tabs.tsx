@@ -47,7 +47,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: currentRoute === 'index' ? theme.text : theme.textSecondary, fontSize: 11, marginTop: 3 }}
+              style={{ color: currentRoute === 'index' ? theme.text : theme.textSecondary, fontSize: 11, marginTop: 3 , textAlign: 'center', lineHeight: 12}}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.home')}
             </ThemedText>
@@ -68,7 +70,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: currentRoute === 'events' ? theme.text : theme.textSecondary, fontSize: 11, marginTop: 3 }}
+              style={{ color: currentRoute === 'events' ? theme.text : theme.textSecondary, fontSize: 11, marginTop: 3 , textAlign: 'center', lineHeight: 12}}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.inquiries')}
             </ThemedText>
@@ -86,7 +90,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: currentRoute === 'manage-band' ? theme.text : theme.textSecondary, fontSize: 11, marginTop: 3 }}
+              style={{ color: currentRoute === 'manage-band' ? theme.text : theme.textSecondary, fontSize: 11, marginTop: 3 , textAlign: 'center', lineHeight: 12}}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.band')}
             </ThemedText>
@@ -122,8 +128,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.home')}
             </ThemedText>
@@ -141,8 +148,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: eventsTab === 'akce' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: eventsTab === 'akce' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.eventsRehearsals')}
             </ThemedText>
@@ -160,8 +168,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: eventsTab === 'poptavky' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: eventsTab === 'poptavky' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.inquiries')}
             </ThemedText>
@@ -179,8 +188,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: eventsTab === 'rezervace' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: eventsTab === 'rezervace' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.reservations')}
             </ThemedText>
@@ -198,8 +208,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: eventsTab === 'absence' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: eventsTab === 'absence' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.absences')}
             </ThemedText>
@@ -235,8 +246,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.home')}
             </ThemedText>
@@ -254,8 +266,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: repertoireTab === 'nase_pisne' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: repertoireTab === 'nase_pisne' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.ourSongs')}
             </ThemedText>
@@ -273,8 +286,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: repertoireTab === 'zpevnik_plus' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: repertoireTab === 'zpevnik_plus' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.songbookPlus')}
             </ThemedText>
@@ -292,8 +306,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: repertoireTab === 'audio_zapisnik' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: repertoireTab === 'audio_zapisnik' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.audioNotepad')}
             </ThemedText>
@@ -329,8 +344,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.home')}
             </ThemedText>
@@ -348,8 +364,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: treasuryTab === 'prijem' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: treasuryTab === 'prijem' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.income')}
             </ThemedText>
@@ -367,8 +384,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: treasuryTab === 'vydej' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: treasuryTab === 'vydej' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.expense')}
             </ThemedText>
@@ -386,8 +404,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: treasuryTab === 'doklady' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: treasuryTab === 'doklady' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.receipts')}
             </ThemedText>
@@ -405,8 +424,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: treasuryTab === 'kniha_jizd' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: treasuryTab === 'kniha_jizd' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.logbook')}
             </ThemedText>
@@ -441,8 +461,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.home')}
             </ThemedText>
@@ -460,8 +481,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: manageBandTab === 'band' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: manageBandTab === 'band' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.profile')}
             </ThemedText>
@@ -479,10 +501,31 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: manageBandTab === 'members' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: manageBandTab === 'members' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.members')}
+            </ThemedText>
+          </Pressable>
+
+          {/* Tlačítko Fanoušci */}
+          <Pressable
+            style={styles.tabItem}
+            onPress={() => setManageBandTab('fans')}
+          >
+            <SymbolView
+              name={{ ios: 'heart.fill', android: 'favorite', web: 'favorite' }}
+              tintColor={manageBandTab === 'fans' ? theme.text : theme.textSecondary}
+              size={22}
+            />
+            <ThemedText
+              type="smallBold"
+              style={{ color: manageBandTab === 'fans' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {t('nav.fans')}
             </ThemedText>
           </Pressable>
 
@@ -498,8 +541,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: manageBandTab === 'tech' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: manageBandTab === 'tech' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.tech')}
             </ThemedText>
@@ -517,8 +561,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: showTunerModal ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: showTunerModal ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.tuner')}
             </ThemedText>
@@ -536,8 +581,9 @@ export default function AppTabs() {
             />
             <ThemedText
               type="smallBold"
-              style={{ color: manageBandTab === 'settings' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 }}
+              style={{ color: manageBandTab === 'settings' ? theme.text : theme.textSecondary, fontSize: 10, marginTop: 2 , textAlign: 'center', lineHeight: 12}}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {t('nav.settings')}
             </ThemedText>
@@ -589,9 +635,11 @@ export default function AppTabs() {
                 options.tabBarIcon({ color })
               ) : null}
               <ThemedText
-                type="smallBold"
-                style={{ color, fontSize: 11, marginTop: 3 }}
-              >
+              type="smallBold"
+              style={{ color, fontSize: 11, marginTop: 3 , textAlign: 'center', lineHeight: 12}}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
                 {options.title || route.name}
               </ThemedText>
             </Pressable>
@@ -647,6 +695,17 @@ export default function AppTabs() {
           href: activeRoleView === 'fan' ? null : '/treasury',
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'banknote.fill', android: 'account_balance_wallet', web: 'account_balance_wallet' }} tintColor={color} size={24} />
+          ),
+        }}
+      />
+
+            <Tabs.Screen
+        name="gallery"
+        options={{
+          title: t('nav.gallery') || 'Fotogalerie',
+          href: '/gallery' as any,
+          tabBarIcon: ({ color }) => (
+            <SymbolView name={{ ios: 'photo.on.rectangle.angled', android: 'photo_library', web: 'photo_library' }} tintColor={color} size={24} />
           ),
         }}
       />

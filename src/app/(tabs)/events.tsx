@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, ScrollView, Pressable, Modal, Alert, Text, TextInput, Linking } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { StyleSheet, View, ScrollView, Pressable, Modal, Alert, Text, TextInput, Linking, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 
@@ -26,21 +26,28 @@ import {
   updateConcert,
   addRehearsal,
   addAbsence,
+  addInquiry,
   updateBand,
   notifyAdminsAboutAttendance
 } from '@/services/firebaseService';
 import { AddConcertForm } from '@/components/add-concert-form';
 import { AddRehearsalForm } from '@/components/add-rehearsal-form';
 import { AddAbsenceForm } from '@/components/add-absence-form';
+import { AddInquiryForm } from '@/components/add-inquiry-form';
 import { SetlistEditorModal } from '@/components/setlist-editor-modal';
 import { StageplanModal, shareConcertStageplan } from '@/components/stageplan-modal';
 import { EventsCalendar } from '@/components/calendar/EventsCalendar';
+import { cs, sk, enUS } from 'date-fns/locale';
+import { format as formatFns } from 'date-fns';
 import { useTranslation } from '@/utils/i18n';
+import { createGoogleCalendarEventOAuth, updateGoogleCalendarEventOAuth, deleteGoogleCalendarEventOAuth } from '@/services/googleCalendarService';
+import { syncEventToLocalCalendar, deleteEventFromLocalCalendar, parseEventDate, openInGoogleCalendarPrefilled, openGoogleCalendarAtDate } from '@/services/calendarSyncService';
 
 export default function EventsScreen() {
   const theme = useTheme();
   const { activeBand, currentUser, activeRoleView, eventsTab, setActiveBand } = useAppStore();
-  const { t } = useTranslation();
+  const currentBand = useAppStore.getState().activeBand || activeBand;
+      const { t } = useTranslation();
 
   const [rehearsals, setRehearsals] = useState<Rehearsal[]>([]);
   const [concerts, setConcerts] = useState<Concert[]>([]);
@@ -52,8 +59,19 @@ export default function EventsScreen() {
   const [actionFilterMode, setActionFilterMode] = useState<'all' | 'koncerty' | 'zkousky'>('all');
 
   const [showAddConcertModal, setShowAddConcertModal] = useState(false);
+  const visibleInquiries = useMemo(() => {
+    if (activeRoleView === 'fan') {
+      return inquiries.filter(inquiry =>
+        (inquiry.createdByUid && currentUser?.uid && inquiry.createdByUid === currentUser.uid) ||
+        (inquiry.email && currentUser?.email && inquiry.email.toLowerCase() === currentUser.email.toLowerCase())
+      );
+    }
+    return inquiries;
+  }, [inquiries, activeRoleView, currentUser?.uid, currentUser?.email]);
+  const [selectedInquiryForReply, setSelectedInquiryForReply] = useState<Inquiry | null>(null);
   const [showAddRehearsalModal, setShowAddRehearsalModal] = useState(false);
   const [showAddAbsenceModal, setShowAddAbsenceModal] = useState(false);
+  const [showAddInquiryModal, setShowAddInquiryModal] = useState(false);
 
   const [editingRehearsal, setEditingRehearsal] = useState<Rehearsal | null>(null);
   const [editingConcert, setEditingConcert] = useState<Concert | null>(null);
@@ -97,7 +115,7 @@ export default function EventsScreen() {
   const loadRehearsals = async () => {
     if (!activeBand) return;
     try {
-      const data = await getRehearsals(activeBand.id);
+      const data = await getRehearsals(currentBand?.id || "");
 
       const toIsoDate = (dateStr?: string) => {
         if (!dateStr || typeof dateStr !== 'string') return '9999-99-99';
@@ -135,7 +153,7 @@ export default function EventsScreen() {
   const loadConcerts = async () => {
     if (!activeBand) return;
     try {
-      const data = await getConcerts(activeBand.id);
+      const data = await getConcerts(currentBand?.id || "");
 
       const toIsoDate = (dateStr?: string) => {
         if (!dateStr || typeof dateStr !== 'string') return '9999-99-99';
@@ -173,7 +191,7 @@ export default function EventsScreen() {
   const loadInquiries = async () => {
     if (!activeBand) return;
     try {
-      const data = await getInquiries(activeBand.id);
+      const data = await getInquiries(currentBand?.id || "");
       setInquiries(data);
     } catch (e) {
       console.error("Nepodařilo se načíst poptávky:", e);
@@ -183,7 +201,7 @@ export default function EventsScreen() {
   const loadAbsences = async () => {
     if (!activeBand) return;
     try {
-      const data = await getAbsences(activeBand.id);
+      const data = await getAbsences(currentBand?.id || "");
       setAbsences(data);
     } catch (e) {
       console.error("Nepodařilo se načíst absence:", e);
@@ -193,7 +211,7 @@ export default function EventsScreen() {
   const loadBandMembers = async () => {
     if (!activeBand) return;
     try {
-      const data = await getBandMembers(activeBand.id);
+      const data = await getBandMembers(currentBand?.id || "");
       setBandMembers(data);
     } catch (e) {
       console.error("Nepodařilo se načíst členy kapely:", e);
@@ -213,8 +231,8 @@ export default function EventsScreen() {
   const getMyMemberId = (): string | undefined => {
     let member = bandMembers.find(m =>
       (currentUser?.memberId && m.id === currentUser.memberId) ||
-      (currentUser?.id && m.id === currentUser.id) ||
-      ((m as any).uid && currentUser?.id && (m as any).uid === currentUser.id) ||
+      (currentUser?.uid && m.id === currentUser.uid) ||
+      ((m as any).uid && currentUser?.uid && (m as any).uid === currentUser.uid) ||
       (currentUser?.email && m.email && m.email.toLowerCase() === currentUser.email.toLowerCase()) ||
       (currentUser?.displayName && m.nickname && m.nickname.toLowerCase() === currentUser.displayName.toLowerCase()) ||
       (currentUser?.displayName && m.firstName && m.firstName.toLowerCase() === currentUser.displayName.toLowerCase())
@@ -224,27 +242,68 @@ export default function EventsScreen() {
       member = bandMembers.find(m => m.isAdmin) || bandMembers[0];
     }
 
-    return member?.id || currentUser?.memberId || currentUser?.id;
+    return member?.id || currentUser?.memberId || currentUser?.uid;
   };
 
   const handleSaveConcert = async (concertData: Omit<Concert, 'id'>) => {
-    if (!activeBand) return;
+        if (!currentBand) return;
     try {
       const myMemberId = getMyMemberId();
+      let concertId = editingConcert?.id;
 
       if (editingConcert) {
-        await updateConcert(activeBand.id, editingConcert.id, concertData, editingConcert, myMemberId);
+        await updateConcert(currentBand?.id || "", editingConcert.id, concertData, editingConcert, myMemberId);
         show2sToast(t('events.msg.successUpdateConcert'));
       } else {
-        await addConcert(activeBand.id, {
+        concertId = await addConcert(currentBand?.id || "", {
           ...concertData,
-          bandId: activeBand.id,
+          bandId: currentBand?.id || "",
         }, myMemberId);
         show2sToast(t('events.msg.successSaveConcert'));
       }
+
+      // TICHÝ ZÁPIS DO GOOGLE KALENDÁŘE (REST API OAUTH)
+      if (activeBand?.googleCalendarId && (activeBand?.googleCalendarAccessToken || activeBand?.googleCalendarRefreshToken)) {
+        if (editingConcert?.googleEventId) {
+          await updateGoogleCalendarEventOAuth(
+            activeBand.googleCalendarAccessToken || '',
+            activeBand.googleCalendarId!,
+            editingConcert.googleEventId,
+            {
+              summary: concertData.title,
+              location: concertData.location,
+              description: concertData.notes,
+              startDateStr: concertData.date,
+              startTimeStr: concertData.startTime,
+              endTimeStr: concertData.endTime,
+            },
+            activeBand.googleCalendarRefreshToken
+          );
+        } else if (concertId) {
+          const gId = await createGoogleCalendarEventOAuth(
+            activeBand.googleCalendarAccessToken || '',
+            activeBand.googleCalendarId!,
+            {
+              summary: concertData.title,
+              location: concertData.location,
+              description: concertData.notes,
+              startDateStr: concertData.date,
+              startTimeStr: concertData.startTime,
+              endTimeStr: concertData.endTime,
+            },
+            activeBand.googleCalendarRefreshToken
+          );
+          if (gId) {
+            const { doc, updateDoc } = require('firebase/firestore');
+            const { db } = require('@/config/firebase');
+            await updateDoc(doc(db, 'kapela_ios_android', currentBand?.id || "", 'concerts', concertId), { googleEventId: gId });
+          }
+        }
+      }
+
       setShowAddConcertModal(false);
       setEditingConcert(null);
-      loadConcerts();
+      await loadConcerts();
     } catch (e) {
       console.error("Chyba při ukládání koncertu:", e);
       Alert.alert(t('home.attendance.errorTitle'), t('events.msg.errorSave'));
@@ -262,7 +321,11 @@ export default function EventsScreen() {
           style: "destructive",
           onPress: async () => {
             if (!activeBand) return;
-            await deleteConcert(activeBand.id, concert.id);
+            await deleteConcert(currentBand?.id || "", concert.id);
+            await deleteEventFromLocalCalendar(currentBand?.id || "", concert.id, parseEventDate(concert.date));
+            if (activeBand?.googleCalendarId && (activeBand?.googleCalendarAccessToken || activeBand?.googleCalendarRefreshToken) && concert.googleEventId) {
+              await deleteGoogleCalendarEventOAuth(activeBand.googleCalendarAccessToken || '', activeBand.googleCalendarId!, concert.googleEventId, activeBand.googleCalendarRefreshToken);
+            }
             loadConcerts();
           }
         }
@@ -273,7 +336,7 @@ export default function EventsScreen() {
   const handleSaveSetlistFromCard = async (setlistIds: string[]) => {
     if (!activeBand || !selectedConcertForSetlist) return;
     try {
-      await updateConcert(activeBand.id, selectedConcertForSetlist.id, {
+      await updateConcert(currentBand?.id || "", selectedConcertForSetlist.id, {
         setlist: setlistIds
       });
       setSelectedConcertForSetlist(null);
@@ -296,36 +359,76 @@ export default function EventsScreen() {
   };
 
   const handleSaveRehearsal = async (rehearsalData: Omit<Rehearsal, 'id'>) => {
-    if (!activeBand) return;
+        if (!currentBand) return;
     try {
       const myMemberId = getMyMemberId();
+      let rehearsalId = editingRehearsal?.id;
 
       if (editingRehearsal) {
         await updateRehearsal(
-          activeBand.id,
+          currentBand?.id || "",
           editingRehearsal.id,
           {
             ...rehearsalData,
-            bandId: activeBand.id,
+            bandId: currentBand?.id || "",
           },
           editingRehearsal,
           myMemberId
         );
         show2sToast(t('events.msg.successUpdateRehearsal'));
       } else {
-        await addRehearsal(
-          activeBand.id,
+        rehearsalId = await addRehearsal(
+          currentBand?.id || "",
           {
             ...rehearsalData,
-            bandId: activeBand.id,
+            bandId: currentBand?.id || "",
           },
           myMemberId
         );
         show2sToast(t('events.msg.successSaveRehearsal'));
       }
+
+      // TICHÝ ZÁPIS DO GOOGLE KALENDÁŘE (REST API OAUTH)
+      if (activeBand?.googleCalendarId && (activeBand?.googleCalendarAccessToken || activeBand?.googleCalendarRefreshToken)) {
+        const rehTitle = t('events.list.rehearsal') + (rehearsalData.location ? ` - ${rehearsalData.location}` : '');
+        if (editingRehearsal?.googleEventId) {
+          await updateGoogleCalendarEventOAuth(
+            activeBand.googleCalendarAccessToken || '',
+            activeBand.googleCalendarId!,
+            editingRehearsal.googleEventId,
+            {
+              summary: rehTitle,
+              location: rehearsalData.location,
+              description: rehearsalData.whatToPrepare,
+              startDateStr: rehearsalData.date,
+              startTimeStr: rehearsalData.time,
+            },
+            activeBand.googleCalendarRefreshToken
+          );
+        } else if (rehearsalId) {
+          const gId = await createGoogleCalendarEventOAuth(
+            activeBand.googleCalendarAccessToken || '',
+            activeBand.googleCalendarId!,
+            {
+              summary: rehTitle,
+              location: rehearsalData.location,
+              description: rehearsalData.whatToPrepare,
+              startDateStr: rehearsalData.date,
+              startTimeStr: rehearsalData.time,
+            },
+            activeBand.googleCalendarRefreshToken
+          );
+          if (gId) {
+            const { doc, updateDoc } = require('firebase/firestore');
+            const { db } = require('@/config/firebase');
+            await updateDoc(doc(db, 'kapela_ios_android', currentBand?.id || "", 'rehearsals', rehearsalId), { googleEventId: gId });
+          }
+        }
+      }
+
       setShowAddRehearsalModal(false);
       setEditingRehearsal(null);
-      loadRehearsals();
+      await loadRehearsals();
     } catch (e) {
       console.error("Chyba při ukládání zkoušky:", e);
       Alert.alert(t('home.attendance.errorTitle'), t('events.msg.errorSave'));
@@ -336,7 +439,7 @@ export default function EventsScreen() {
     if (!activeBand) return;
     const newCancelled = !rehearsal.isCancelled;
     try {
-      await updateRehearsal(activeBand.id, rehearsal.id, { isCancelled: newCancelled });
+      await updateRehearsal(currentBand?.id || "", rehearsal.id, { isCancelled: newCancelled });
       loadRehearsals();
     } catch (e) {
       console.error("Chyba při změně stavu zkoušky:", e);
@@ -355,7 +458,16 @@ export default function EventsScreen() {
           style: "destructive",
           onPress: async () => {
             if (!activeBand) return;
-            await deleteRehearsal(activeBand.id, rehearsal.id);
+            await deleteRehearsal(currentBand?.id || "", rehearsal.id);
+            await deleteEventFromLocalCalendar(currentBand?.id || "", rehearsal.id, parseEventDate(rehearsal.date));
+            if (activeBand?.googleCalendarId && (activeBand?.googleCalendarAccessToken || activeBand?.googleCalendarRefreshToken) && rehearsal.googleEventId) {
+              await deleteGoogleCalendarEventOAuth(
+                activeBand.googleCalendarAccessToken || '',
+                activeBand.googleCalendarId!,
+                rehearsal.googleEventId,
+                activeBand.googleCalendarRefreshToken
+              );
+            }
             loadRehearsals();
           }
         }
@@ -366,7 +478,7 @@ export default function EventsScreen() {
   const handleInquiryStatusChange = async (inquiry: Inquiry, status: 'accepted' | 'declined') => {
     if (!activeBand) return;
     try {
-      await updateInquiryStatus(activeBand.id, inquiry.id, status);
+      await updateInquiryStatus(currentBand?.id || "", inquiry.id, status);
       loadInquiries();
     } catch (e) {
       console.error("Chyba při změně stavu poptávky:", e);
@@ -384,7 +496,7 @@ export default function EventsScreen() {
           style: "destructive",
           onPress: async () => {
             if (!activeBand) return;
-            await deleteInquiry(activeBand.id, inquiry.id);
+            await deleteInquiry(currentBand?.id || "", inquiry.id);
             loadInquiries();
           }
         }
@@ -392,12 +504,48 @@ export default function EventsScreen() {
     );
   };
 
-  const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
+    const handleSaveInquiry = async (inquiryData: Omit<Inquiry, 'id'>) => {
     if (!activeBand) return;
     try {
-      await addAbsence(activeBand.id, absenceData);
+      const myMemberId = getMyMemberId();
+      await addInquiry(currentBand?.id || "", inquiryData, myMemberId);
+      setShowAddInquiryModal(false);
+      Alert.alert(t('events.alert.success'), 'Poptávka byla úspěšně zaznamenána.');
+    } catch (e) {
+      console.error("Chyba při ukládání poptávky:", e);
+      Alert.alert(t('home.attendance.errorTitle'), t('events.msg.errorSave'));
+    }
+  };
+
+const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
+        if (!currentBand) return;
+    try {
+      const firebaseId = await addAbsence(currentBand?.id || "", absenceData);
+
+      // TICHÝ ZÁPIS DO GOOGLE KALENDÁŘE (REST API OAUTH)
+      if (activeBand?.googleCalendarId && (activeBand?.googleCalendarAccessToken || activeBand?.googleCalendarRefreshToken) && firebaseId) {
+        const absTitle = `❌ Absence: ${absenceData.memberName}`;
+        const gId = await createGoogleCalendarEventOAuth(
+          activeBand.googleCalendarAccessToken || '',
+          activeBand.googleCalendarId!,
+          {
+            summary: absTitle,
+            description: absenceData.reason,
+            startDateStr: absenceData.dateFrom,
+            endDateStr: absenceData.dateTo,
+            isAllDay: true,
+          },
+          activeBand.googleCalendarRefreshToken
+        );
+        if (gId) {
+          const { doc, updateDoc } = require('firebase/firestore');
+          const { db } = require('@/config/firebase');
+          await updateDoc(doc(db, 'kapela_ios_android', currentBand?.id || "", 'absences', firebaseId), { googleEventId: gId });
+        }
+      }
+
       setShowAddAbsenceModal(false);
-      loadAbsences();
+      await loadAbsences();
       Alert.alert(t('events.alert.success'), t('events.msg.successSaveAbsenceAlert'));
     } catch (e) {
       console.error("Chyba při ukládání absence:", e);
@@ -416,7 +564,16 @@ export default function EventsScreen() {
           style: "destructive",
           onPress: async () => {
             if (!activeBand) return;
-            await deleteAbsence(activeBand.id, absence.id);
+            await deleteAbsence(currentBand?.id || "", absence.id);
+            await deleteEventFromLocalCalendar(currentBand?.id || "", absence.id, parseEventDate(absence.dateFrom));
+            if (activeBand?.googleCalendarId && (activeBand?.googleCalendarAccessToken || activeBand?.googleCalendarRefreshToken) && absence.googleEventId) {
+              await deleteGoogleCalendarEventOAuth(
+                activeBand.googleCalendarAccessToken || '',
+                activeBand.googleCalendarId!,
+                absence.googleEventId,
+                activeBand.googleCalendarRefreshToken
+              );
+            }
             loadAbsences();
           }
         }
@@ -494,14 +651,19 @@ export default function EventsScreen() {
     const today = new Date();
     const months: { monthName: string; dates: { dateStr: string; dayName: string; isFree: boolean; eventTitle?: string }[] }[] = [];
 
-    const monthNames = [
-      'Leden', 'Únor', 'Březen', 'Duben', 'Květen', 'Červení',
-      'Červenec', 'Srpen', 'Září', 'Říjen', 'Listopad', 'Prosinec'
-    ];
-
     for (let m = 0; m < 12; m++) {
       const d = new Date(today.getFullYear(), today.getMonth() + m, 1);
-      const mName = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+
+      const localeObj = t('nav.home') === 'Home' ? enUS : (t('nav.home') === 'Domov' ? sk : cs);
+      let mName = '';
+      try {
+        const localizedMonth = formatFns(d, 'LLLL', { locale: localeObj });
+        mName = `${localizedMonth.charAt(0).toUpperCase() + localizedMonth.slice(1)} ${d.getFullYear()}`;
+      } catch (e) {
+        const fallbackMonths = ['Leden', 'Únor', 'Březen', 'Duben', 'Květen', 'Červen', 'Červenec', 'Srpen', 'Září', 'Říjen', 'Listopad', 'Prosinec'];
+        mName = `${fallbackMonths[d.getMonth()]} ${d.getFullYear()}`;
+      }
+
       const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
       const monthDates: { dateStr: string; dayName: string; isFree: boolean; eventTitle?: string }[] = [];
 
@@ -590,7 +752,7 @@ export default function EventsScreen() {
     attendeesRecord?: Record<string, any>
   ) => {
     const isAdmin = activeRoleView === 'admin' || currentUser?.role === 'admin';
-    const isSelf = member.id === currentUser?.id;
+    const isSelf = member.id === currentUser?.uid;
 
     if (!isAdmin && !isSelf) {
       Alert.alert(t('home.attendance.errorTitle'), t('home.attendance.onlyAdmin'));
@@ -637,11 +799,11 @@ export default function EventsScreen() {
           currentAtt[member.id] = {
             status,
             note: note.trim() || undefined,
-            updatedAt: new Date().toISOString(),
+            updatedAt: Date.now(),
           };
         }
 
-        await updateRehearsal(activeBand.id, eventId, { attendees: currentAtt });
+        await updateRehearsal(currentBand?.id || "", eventId, { attendees: currentAtt });
         loadRehearsals();
       } else if (eventType === 'concert') {
         const concert = concerts.find(c => c.id === eventId);
@@ -655,11 +817,11 @@ export default function EventsScreen() {
           currentAtt[member.id] = {
             status,
             note: note.trim() || undefined,
-            updatedAt: new Date().toISOString(),
+            updatedAt: Date.now(),
           };
         }
 
-        await updateConcert(activeBand.id, eventId, { attendees: currentAtt });
+        await updateConcert(currentBand?.id || "", eventId, { attendees: currentAtt });
         loadConcerts();
       } else if (eventType === 'inquiry') {
         const inquiry = inquiries.find(i => i.id === eventId);
@@ -673,21 +835,21 @@ export default function EventsScreen() {
           currentAtt[member.id] = {
             status,
             note: note.trim() || undefined,
-            updatedAt: new Date().toISOString(),
+            updatedAt: Date.now(),
           };
         }
 
-        await updateInquiryStatus(activeBand.id, eventId, inquiry.status || 'pending', currentAtt);
+        await updateInquiryStatus(currentBand?.id || "", eventId, inquiry.status || 'pending', currentAtt);
         loadInquiries();
       }
 
       const memberName = member.nickname || member.firstName;
-      notifyAdminsAboutAttendance(activeBand.id, memberName, eventTitle, status, eventType, note);
+      notifyAdminsAboutAttendance(currentBand?.id || "", memberName, eventTitle, status, eventType, note);
 
       setEditAttendanceState(null);
     } catch (e) {
       console.error("Chyba při ukládání docházky člena:", e);
-      Alert.alert("Chyba", "Nepodařilo se uložit docházku.");
+      Alert.alert(t('home.attendance.errorTitle'), t('home.attendance.errorMsg'));
     }
   };
 
@@ -763,7 +925,7 @@ export default function EventsScreen() {
                       onPress={() => handleMemberClick(m, eventId, eventType, attendeesRecord)}
                     >
                       <ThemedText type="small" style={{ color: '#4caf50', fontSize: 11, fontWeight: 'bold' }}>
-                        {m.nickname || m.firstName}{m.id === currentUser?.id ? t('home.attendance.you') : ''}
+                        {m.nickname || m.firstName}{m.id === currentUser?.uid ? t('home.attendance.you') : ''}
                       </ThemedText>
                     </Pressable>
                   ))}
@@ -784,7 +946,7 @@ export default function EventsScreen() {
                       onPress={() => handleMemberClick(m, eventId, eventType, attendeesRecord)}
                     >
                       <ThemedText type="small" style={{ color: '#e91e63', fontSize: 11, fontWeight: 'bold' }}>
-                        {m.nickname || m.firstName}{note ? ` (${note})` : ''}{m.id === currentUser?.id ? t('home.attendance.you') : ''}
+                        {m.nickname || m.firstName}{note ? ` (${note})` : ''}{m.id === currentUser?.uid ? t('home.attendance.you') : ''}
                       </ThemedText>
                     </Pressable>
                   ))}
@@ -805,7 +967,7 @@ export default function EventsScreen() {
                       onPress={() => handleMemberClick(m, eventId, eventType, attendeesRecord)}
                     >
                       <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11 }}>
-                        {m.nickname || m.firstName}{m.id === currentUser?.id ? t('home.attendance.you') : ''}
+                        {m.nickname || m.firstName}{m.id === currentUser?.uid ? t('home.attendance.you') : ''}
                       </ThemedText>
                     </Pressable>
                   ))}
@@ -919,8 +1081,8 @@ export default function EventsScreen() {
               <View style={{ gap: 6, marginTop: 4 }}>
                 {concert.organizers.map(org => (
                   <View key={org.id} style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                    <View style={[styles.orgBadgeSmall, { backgroundColor: org.role === 'Zvukař' ? 'rgba(255,152,0,0.2)' : (org.role === 'Pořadatel' ? 'rgba(76,175,80,0.2)' : 'rgba(33,150,243,0.2)') }]}>
-                      <ThemedText type="smallBold" style={{ color: org.role === 'Zvukař' ? '#ff9800' : (org.role === 'Pořadatel' ? '#4caf50' : '#2196f3'), fontSize: 10 }}>
+                    <View style={[styles.orgBadgeSmall, { backgroundColor: org.role === 'Zvukár' || org.role === 'Zvukař' || org.role === 'Sound Engineer' ? 'rgba(255,152,0,0.2)' : (org.role === 'Pořadatel' || org.role === 'Usporiadateľ' || org.role === 'Organizer' ? 'rgba(76,175,80,0.2)' : 'rgba(33,150,243,0.2)') }]}>
+                      <ThemedText type="smallBold" style={{ color: org.role === 'Zvukár' || org.role === 'Zvukař' || org.role === 'Sound Engineer' ? '#ff9800' : (org.role === 'Pořadatel' || org.role === 'Usporiadateľ' || org.role === 'Organizer' ? '#4caf50' : '#2196f3'), fontSize: 10 }}>
                         {org.role || t('home.concert.contactRole')}
                       </ThemedText>
                     </View>
@@ -1002,7 +1164,7 @@ export default function EventsScreen() {
           <View style={styles.badgeColumn}>
             {rehearsal.isCancelled && (
               <View style={[styles.statusBadge, { backgroundColor: '#e91e63' }]}>
-                <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>Zrušeno</ThemedText>
+                <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>{t('form.rehearsal.cancelledLabel')}</ThemedText>
               </View>
             )}
           </View>
@@ -1133,10 +1295,7 @@ export default function EventsScreen() {
                       ]}
                       onPress={() => setActionFilterMode(item.key as any)}
                     >
-                      <ThemedText
-                        type="smallBold"
-                        style={{ color: isSelected ? '#fff' : theme.text, fontSize: 12 }}
-                      >
+                      <ThemedText type="smallBold" style={{ color: isSelected ? '#fff' : theme.text, fontSize: 11, textAlign: 'center', lineHeight: 13 }} numberOfLines={1} ellipsizeMode="tail">
                         {item.label}
                       </ThemedText>
                     </Pressable>
@@ -1212,10 +1371,19 @@ export default function EventsScreen() {
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
                 <ThemedText type="subtitle" style={{ fontSize: 18 }}>{t('events.title.inquiries')}</ThemedText>
+                <Pressable
+                  style={[styles.addBtn, { backgroundColor: '#2196f3' }]}
+                  onPress={() => setShowAddInquiryModal(true)}
+                >
+                  <SymbolView name={{ ios: 'plus', android: 'add', web: 'add' }} size={16} tintColor="#fff" />
+                  <ThemedText type="smallBold" style={{ color: '#fff', marginLeft: 4 }}>
+                    {t('form.inquiry.sendBtn') || '+ Přidat poptávku'}
+                  </ThemedText>
+                </Pressable>
               </View>
 
               <View style={styles.list}>
-                {inquiries.map(inquiry => (
+                {visibleInquiries.map((inquiry: Inquiry) => (
                   <ThemedView key={inquiry.id} type="backgroundElement" style={styles.card}>
                     <ThemedText type="subtitle" style={{ fontSize: 16, fontWeight: 'bold' }}>
                       👤 {inquiry.title}
@@ -1254,12 +1422,23 @@ export default function EventsScreen() {
                           <SymbolView name={{ ios: 'trash', android: 'delete', web: 'delete' }} size={16} tintColor="#e91e63" />
                           <ThemedText type="small" style={{ color: '#e91e63' }}>{t('events.inquiry.delete')}</ThemedText>
                         </Pressable>
+
+                        {/* Tlačítko Odpovědět fanouškovi */}
+                        {(inquiry.isFanInquiry || inquiry.email || inquiry.phone) && (
+                          <Pressable
+                            style={[styles.actionBtnInline, { backgroundColor: '#2196f3' }]}
+                            onPress={() => setSelectedInquiryForReply(inquiry)}
+                          >
+                            <SymbolView name={{ ios: 'arrowshape.turn.up.left.fill', android: 'reply', web: 'reply' }} size={16} tintColor="#fff" />
+                            <ThemedText type="smallBold" style={{ color: '#fff' }}>Odpovědět</ThemedText>
+                          </Pressable>
+                        )}
                       </View>
                     )}
                   </ThemedView>
                 ))}
 
-                {inquiries.length === 0 && (
+                {visibleInquiries.length === 0 && (
                   <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', marginTop: 20 }}>
                     Zatím nemáte žádné poptávky hraní.
                   </ThemedText>
@@ -1289,11 +1468,11 @@ export default function EventsScreen() {
                       👤 {absence.memberName}
                     </ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: 2 }}>
-                      📅 Od: {absence.dateFrom} • Do: {absence.dateTo}
+                      📅 {t('events.absence.from')} {absence.dateFrom} • {t('events.absence.to')} {absence.dateTo}
                     </ThemedText>
                     {absence.reason ? (
                       <ThemedText type="small" style={{ marginTop: 4 }}>
-                        📝 Důvod: {absence.reason}
+                        📝 {t('events.absence.reason')} {absence.reason}
                       </ThemedText>
                     ) : null}
 
@@ -1317,10 +1496,68 @@ export default function EventsScreen() {
             </View>
           )}
         </ScrollView>
+      
+      {/* MODAL PRO ODPOVĚĎ FANOUŠKOVI / POŘADATELI */}
+      {selectedInquiryForReply && (
+        <Modal visible={!!selectedInquiryForReply} transparent animationType="fade" onRequestClose={() => setSelectedInquiryForReply(null)}>
+          <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 16 }} onPress={() => setSelectedInquiryForReply(null)}>
+            <ThemedView type="backgroundElement" style={{ width: '100%', maxWidth: 360, padding: 20, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(150,150,150,0.2)', gap: 14 }}>
+              <ThemedText type="subtitle" style={{ fontSize: 18, textAlign: 'center' }}>
+                💬 Odpovědět na poptávku
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
+                {selectedInquiryForReply.title} ({selectedInquiryForReply.fanName || selectedInquiryForReply.email || 'Pořadatel'})
+              </ThemedText>
+
+              <View style={{ gap: 10, marginTop: 6 }}>
+                {selectedInquiryForReply.email && (
+                  <Pressable
+                    style={{ padding: 12, backgroundColor: '#2196f3', borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                    onPress={() => {
+                      const subject = encodeURIComponent(`Odpověď na poptávku: ${selectedInquiryForReply.title}`);
+                      const body = encodeURIComponent(`Dobrý den,
+
+děkujeme za vaši poptávku vystoupení kapely ${activeBand?.name || ''} pro akci "${selectedInquiryForReply.title}" dne ${selectedInquiryForReply.date}.
+
+`);
+                      const Linking = require('react-native').Linking;
+                      Linking.openURL(`mailto:${selectedInquiryForReply.email}?subject=${subject}&body=${body}`);
+                      setSelectedInquiryForReply(null);
+                    }}
+                  >
+                    <SymbolView name={{ ios: 'envelope.fill', android: 'email', web: 'email' }} size={18} tintColor="#fff" />
+                    <ThemedText type="smallBold" style={{ color: '#fff' }}>Odeslat E-mail ({selectedInquiryForReply.email})</ThemedText>
+                  </Pressable>
+                )}
+
+                {selectedInquiryForReply.phone && (
+                  <Pressable
+                    style={{ padding: 12, backgroundColor: '#4caf50', borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                    onPress={() => {
+                      const Linking = require('react-native').Linking;
+                      Linking.openURL(`tel:${selectedInquiryForReply.phone}`);
+                      setSelectedInquiryForReply(null);
+                    }}
+                  >
+                    <SymbolView name={{ ios: 'phone.fill', android: 'phone', web: 'phone' }} size={18} tintColor="#fff" />
+                    <ThemedText type="smallBold" style={{ color: '#fff' }}>Zavolat (${selectedInquiryForReply.phone})</ThemedText>
+                  </Pressable>
+                )}
+              </View>
+
+              <Pressable style={{ alignSelf: 'center', marginTop: 10 }} onPress={() => setSelectedInquiryForReply(null)}>
+                <ThemedText type="smallBold" style={{ color: '#e91e63' }}>{t('home.misc.cancel')}</ThemedText>
+              </Pressable>
+            </ThemedView>
+          </Pressable>
+        </Modal>
+      )}
+
       </SafeAreaView>
 
       {/* MODAL PRO PŘIDÁNÍ/ÚPRAVU KONCERTU */}
       <Modal visible={showAddConcertModal} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ThemedView style={{ flex: 1 }}>
           <AddConcertForm
             initialConcert={editingConcert || undefined}
@@ -1331,10 +1568,12 @@ export default function EventsScreen() {
             }}
           />
         </ThemedView>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* MODAL PRO PŘIDÁNÍ/ÚPRAVU ZKOUŠKY */}
       <Modal visible={showAddRehearsalModal} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ThemedView style={{ flex: 1 }}>
           <AddRehearsalForm
             initialRehearsal={editingRehearsal || undefined}
@@ -1345,6 +1584,20 @@ export default function EventsScreen() {
             }}
           />
         </ThemedView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* MODAL PRO PŘIDÁNÍ POPTÁVKY */}
+      <Modal visible={showAddInquiryModal} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ThemedView style={{ flex: 1 }}>
+          <AddInquiryForm
+            existingEvents={concerts.map(c => ({ date: c.date, title: c.title }))}
+            onSave={handleSaveInquiry}
+            onCancel={() => setShowAddInquiryModal(false)}
+          />
+        </ThemedView>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* MODAL PRO NAHLÁŠENÍ ABSENCE */}
@@ -1378,7 +1631,7 @@ export default function EventsScreen() {
           members={bandMembers}
           concert={selectedConcertForStageplan}
           onSave={async (updatedStageplan) => {
-            const updated = await updateBand(activeBand.id, { stageplan: updatedStageplan });
+            const updated = await updateBand(currentBand?.id || "", { stageplan: updatedStageplan });
             setActiveBand(updated);
           }}
         />

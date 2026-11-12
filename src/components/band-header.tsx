@@ -8,17 +8,30 @@ import { ThemedText } from './themed-text';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/useAppStore';
 import { useTranslation } from '@/utils/i18n';
+import { getCountryDisplayName } from '@/constants/countries';
 
-export function BandHeader() {
+interface BandHeaderProps {
+  overrideBand?: {
+    name?: string;
+    logoUri?: string | null;
+    web?: string;
+    genre?: string;
+    country?: string;
+  } | null;
+}
+
+export function BandHeader({ overrideBand }: BandHeaderProps = {}) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { activeBand } = useAppStore();
-  const { t } = useTranslation();
+  const { t, currentLang } = useTranslation();
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
 
+  const displayBand = overrideBand || activeBand;
+
   const handleLogoPress = () => {
-    if (activeBand?.web) {
-      let url = activeBand.web;
+    if (displayBand?.web) {
+      let url = displayBand.web;
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         url = 'https://' + url;
       }
@@ -28,10 +41,10 @@ export function BandHeader() {
 
   return (
     <View style={[styles.header, { paddingTop: insets.top + 3 }]}>
-      {activeBand?.logoUri ? (
+      {displayBand?.logoUri ? (
          <Pressable onPress={handleLogoPress} style={{ width: '100%', alignItems: 'center' }}>
            <Image
-             source={{ uri: activeBand.logoUri }}
+             source={{ uri: displayBand.logoUri }}
              style={[
                styles.logo,
                aspectRatio ? { aspectRatio, height: undefined, width: '100%' } : { height: 120, width: '100%' }
@@ -51,11 +64,11 @@ export function BandHeader() {
           onPress={handleLogoPress}
         >
           <ThemedText type="title" style={styles.titlePlaceholder}>
-            {activeBand?.name || t('common.loading')}
+            {displayBand?.name || t('common.loading')}
           </ThemedText>
-          {activeBand?.genre ? (
+          {displayBand?.genre || displayBand?.country ? (
             <ThemedText type="subtitle" themeColor="textSecondary" style={styles.genrePlaceholder}>
-              {activeBand.genre}
+              {[displayBand.genre, getCountryDisplayName(displayBand.country, currentLang)].filter(Boolean).join(' • ')}
             </ThemedText>
           ) : null}
         </Pressable>

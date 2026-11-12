@@ -43,7 +43,7 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
 
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(initialRide?.vehicleId || vehicles[0]?.id || '');
   const [destination, setDestination] = useState(initialRide?.destination || '');
-  const [driverName, setDriverName] = useState(initialRide?.driverName || vehicles[0]?.owner || 'Řidič');
+  const [driverName, setDriverName] = useState(initialRide?.driverName || vehicles[0]?.owner || t('form.ride.defaultDriver'));
   const [distanceKmStr, setDistanceKmStr] = useState(initialRide?.distanceKm ? initialRide.distanceKm.toString() : '100');
   const [selectedPreset, setSelectedPreset] = useState<'ccs' | 'discount' | 'highway'>('ccs');
   const [fuelPriceStr, setFuelPriceStr] = useState(initialRide?.fuelPrice ? initialRide.fuelPrice.toString() : '50.20');
@@ -138,13 +138,13 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <ThemedText type="subtitle" style={styles.title}>{initialRide ? t('form.ride.editTitle') : t('form.ride.title')}</ThemedText>
 
       {/* Vybrané vozidlo */}
       <ThemedText type="smallBold">{t('form.ride.vehicle')}</ThemedText>
       {vehicles.length > 0 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6, marginBottom: 12 }} contentContainerStyle={{ gap: 8 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6, marginBottom: 12 }} contentContainerStyle={{ gap: 8 }} keyboardShouldPersistTaps="handled">
           {vehicles.map(v => {
             const isSelected = v.id === selectedVehicleId;
             return (
@@ -188,7 +188,7 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
           <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: 4 }}>
             {t('form.ride.quickConcertSelect')}
           </ThemedText>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} keyboardShouldPersistTaps="handled">
             {concerts.slice(0, 5).map(c => (
               <Pressable
                 key={c.id}
@@ -234,7 +234,7 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
         </View>
 
         {/* Ceníkové chipy */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }} contentContainerStyle={{ gap: 6 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }} contentContainerStyle={{ gap: 6 }} keyboardShouldPersistTaps="handled">
           {[
             { key: 'ccs', label: t('form.ride.presetCcs') },
             { key: 'discount', label: t('form.ride.presetDiscount') },
@@ -278,7 +278,7 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
         </View>
 
         <View style={{ flex: 1 }}>
-          <ThemedText type="smallBold">Cena paliva za l/kWh *</ThemedText>
+          <ThemedText type="smallBold">{t('form.ride.fuelPriceLabel')}</ThemedText>
           <TextInput
             style={[styles.input, { color: theme.text, backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
             value={fuelPriceStr}
@@ -293,12 +293,12 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
       {/* VÝPOČET SPOTŘEBY & NÁKLADŮ */}
       <ThemedView type="backgroundElement" style={styles.calcBox}>
         <ThemedText type="small" themeColor="textSecondary">
-          Spotřeba vozidla: {consumptionNum} {selectedVehicle?.fuel === 'elektro' ? 'kWh/100km' : 'l/100km'} • Odhadem {consumedUnits.toFixed(2)} {selectedVehicle?.fuel === 'elektro' ? 'kWh' : 'litrů'}
+          {t('form.ride.consumptionLabel')} {consumptionNum} {selectedVehicle?.fuel === 'elektro' ? 'kWh/100km' : 'l/100km'} • {t('form.ride.estimatedLabel')} {consumedUnits.toFixed(2)} {selectedVehicle?.fuel === 'elektro' ? 'kWh' : t('form.ride.litersLabel')}
         </ThemedText>
 
         <View style={styles.calcTotalRow}>
           <ThemedText type="subtitle" style={{ fontWeight: 'bold', fontSize: 18 }}>
-            Vyplatit:
+            {t('form.ride.payoutLabel')}
           </ThemedText>
           <ThemedText type="subtitle" style={{ fontWeight: 'bold', color: '#4caf50', fontSize: 24 }}>
             {totalCostNum} Kč
@@ -309,9 +309,9 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
       {/* Automaticky strhnout jako výdej z pokladny */}
       <View style={styles.switchRow}>
         <View style={{ flex: 1, marginRight: 8 }}>
-          <ThemedText type="smallBold">Zaevidovat jako výdej z pokladny</ThemedText>
+          <ThemedText type="smallBold">{t('form.ride.autoDeduct')}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            Automaticky strhne {totalCostNum} Kč z pokladny kapely jako cestovné.
+            {t('form.ride.autoDeductMsg', { amount: totalCostNum })}
           </ThemedText>
         </View>
         <Switch
@@ -324,10 +324,10 @@ export function AddRideForm({ initialRide, vehicles, concerts, onSave, onCancel 
       {/* Tlačítka */}
       <View style={styles.buttons}>
         <Pressable style={[styles.button, { backgroundColor: '#e91e63' }]} onPress={onCancel}>
-          <ThemedText type="smallBold" style={{ color: '#fff' }}>Zrušit</ThemedText>
+          <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('home.misc.cancel')}</ThemedText>
         </Pressable>
         <Pressable style={[styles.button, { backgroundColor: '#4caf50' }]} onPress={handleSave}>
-          <ThemedText type="smallBold" style={{ color: '#fff' }}>Uložit jízdu</ThemedText>
+          <ThemedText type="smallBold" style={{ color: '#fff' }}>{t('form.ride.saveBtn')}</ThemedText>
         </Pressable>
       </View>
     </ScrollView>

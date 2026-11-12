@@ -2,9 +2,10 @@ import 'expo-blob';
 import { collection, doc, setDoc, getDoc, getDocs, addDoc, deleteDoc, updateDoc, onSnapshot, getDocFromCache, getDocsFromCache, query, orderBy, arrayUnion } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, listAll, deleteObject } from 'firebase/storage';
 import { db, storage } from '@/config/firebase';
-import { Band, BandMember, Rehearsal, Concert, Inquiry, Song, Absence, LiveSessionPayload, Transaction, Vehicle, Ride } from '@/types';
+import { Band, BandMember, Rehearsal, Concert, Inquiry, Song, Absence, LiveSessionPayload, Transaction, Vehicle, Ride, Fan, PhotoAlbum, AlbumPhoto } from '@/types';
 import { fixCzechDiacritics, capitalizeFirstLetter } from '@/utils/diacritics';
 import { sendExpoPushNotifications } from './notificationService';
+import { getTranslation } from '@/utils/i18n';
 
 const BANDS_COLLECTION = 'kapela_ios_android';
 
@@ -84,7 +85,10 @@ export const createBand = async (
   logoUri: string | null,
   facebook?: string,
   instagram?: string,
-  bandzone?: string
+  bandzone?: string,
+  country?: string,
+  googleCalendarId?: string,
+  appleCalendarUrl?: string
 ): Promise<Band> => {
   const bandId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
 
@@ -98,6 +102,7 @@ export const createBand = async (
     id: bandId,
     name,
     genre,
+    country: country || 'CZ',
     web,
     facebook,
     instagram,
@@ -153,7 +158,10 @@ export const updateBand = async (bandId: string, updates: Partial<Band>): Promis
       if (oldBandData.logoUri) oldLogoUrlToDelete = oldBandData.logoUri;
     }
 
-    const newBandData = { ...oldBandData, ...updates, id: newBandId, logoUri: finalLogoUrl || '' };
+    const newBandData: Record<string, any> = { ...oldBandData, ...updates, id: newBandId, logoUri: finalLogoUrl || '' };
+    Object.keys(newBandData).forEach(key => {
+      if (newBandData[key] === undefined) delete newBandData[key];
+    });
 
     // B) Přepis na firebase - Vytvoříme novou kapelu v databázi
     await setDoc(doc(db, BANDS_COLLECTION, newBandId), newBandData);
@@ -216,8 +224,15 @@ export const updateBand = async (bandId: string, updates: Partial<Band>): Promis
     finalLogoUrl = await uploadImageToStorage(updates.logoUri, `${BANDS_COLLECTION}/${bandId}/${filename}`);
   }
 
-  const finalUpdates = { ...updates };
+  const finalUpdates: Record<string, any> = { ...updates };
   if (finalLogoUrl !== undefined) finalUpdates.logoUri = finalLogoUrl;
+
+  // Odstraníme všechny 'undefined' hodnoty, které Firestore netoleruje a hlásí chybu 'Unsupported field value: undefined'
+  Object.keys(finalUpdates).forEach(key => {
+    if (finalUpdates[key] === undefined) {
+      delete finalUpdates[key];
+    }
+  });
 
   const bandRef = doc(db, BANDS_COLLECTION, bandId);
   await setDoc(bandRef, finalUpdates, { merge: true });
@@ -424,30 +439,101 @@ const getAllTokensForMember = (m: BandMember, senderMemberId?: string): string[]
 };
 
 // Pomocná funkce pro odesílání Push notifikací aktivním členům kapely na všechna jejich zařízení
-const notifyActiveMembersAboutNewEvent = async (
+
+// Pomocná funkce pro získání všech tokenů fanouška
+const getAllTokensForFan = (f: Fan): string[] => {
+  const tokensSet = new Set<string>();
+  if (f.pushToken && f.pushToken.trim().length > 0) {
+    tokensSet.add(f.pushToken.trim());
+  }
+  const multiTokens = (f as any).pushTokens;
+  if (Array.isArray(multiTokens)) {
+    multiTokens.forEach(t => {
+      if (typeof t === 'string' && t.trim().length > 0) {
+        tokensSet.add(t.trim());
+      }
+    });
+  }
+  return Array.from(tokensSet);
+};
+
+// Pomocná funkce pro odesílání Push notifikací VŠEM (Členům kapely I Fanouškům) - např. pro veřejné koncerty
+const notifyEveryoneAboutNewEvent = async (
   bandId: string,
-  title: string,
-  body: string,
+  titleKey: string,
+  bodyKey: string,
+  params: Record<string, string | number>,
   eventId: string,
   eventType: string,
   senderMemberId?: string
 ) => {
   try {
     const members = await getBandMembers(bandId);
-    const targetTokens: string[] = [];
+    const fans = await getBandFans(bandId);
 
+    const langTokensMap: Record<string, string[]> = {};
+
+    // Tokeny členů kapely
     members.forEach(m => {
-      const memberTokens = getAllTokensForMember(m, senderMemberId);
-      targetTokens.push(...memberTokens);
+      const memberLang = (m as any).language || 'cs';
+      const tokens = getAllTokensForMember(m, senderMemberId);
+      if (tokens.length > 0) {
+        if (!langTokensMap[memberLang]) langTokensMap[memberLang] = [];
+        langTokensMap[memberLang].push(...tokens);
+      }
     });
 
-    console.log(`Nalezeno celkem ${targetTokens.length} zařízení (tokenů) ostatních členů pro odeslání notifikace (tvůrce ${senderMemberId || 'none'} vynechán).`);
+    // Tokeny fanoušků kapely
+    fans.forEach(f => {
+      const fanLang = (f as any).language || 'cs';
+      const tokens = getAllTokensForFan(f);
+      if (tokens.length > 0) {
+        if (!langTokensMap[fanLang]) langTokensMap[fanLang] = [];
+        langTokensMap[fanLang].push(...tokens);
+      }
+    });
 
-    if (targetTokens.length > 0) {
-      sendExpoPushNotifications(targetTokens, title, body, { eventId, eventType });
-    } else {
-      console.log("Žádné platné tokeny zařízení u ostatních členů v databázi nebyly nalezeny.");
-    }
+    Object.entries(langTokensMap).forEach(([lang, tokens]) => {
+      if (tokens.length > 0) {
+        const title = getTranslation(titleKey, params, lang);
+        const body = getTranslation(bodyKey, params, lang);
+        sendExpoPushNotifications(tokens, title, body, { eventId, eventType });
+      }
+    });
+  } catch (err) {
+    console.error("Chyba při odesílání push notifikace všem:", err);
+  }
+};
+
+const notifyActiveMembersAboutNewEvent = async (
+  bandId: string,
+  titleKey: string,
+  bodyKey: string,
+  params: Record<string, string | number>,
+  eventId: string,
+  eventType: string,
+  senderMemberId?: string
+) => {
+  try {
+    const members = await getBandMembers(bandId);
+    const langTokensMap: Record<string, string[]> = {};
+
+    members.forEach(m => {
+      const memberLang = (m as any).language || 'cs';
+      const tokens = getAllTokensForMember(m, senderMemberId);
+      if (tokens.length > 0) {
+        if (!langTokensMap[memberLang]) langTokensMap[memberLang] = [];
+        langTokensMap[memberLang].push(...tokens);
+      }
+    });
+
+    Object.entries(langTokensMap).forEach(([lang, tokens]) => {
+      if (tokens.length > 0) {
+        const title = getTranslation(titleKey, params, lang);
+        const body = getTranslation(bodyKey, params, lang);
+        sendExpoPushNotifications(tokens, title, body, { eventId, eventType });
+      }
+    });
   } catch (err) {
     console.error("Chyba při odesílání push notifikace členům:", err);
   }
@@ -485,24 +571,32 @@ export const notifyAdminsAboutAttendance = async (
 ) => {
   try {
     const members = await getBandMembers(bandId);
-    const adminTokens: string[] = [];
+    const langTokensMap: Record<string, string[]> = {};
 
     members.forEach(m => {
       if (m.isAdmin || (m as any).role === 'admin') {
+        const memberLang = (m as any).language || 'cs';
         const tokens = getAllTokensForMember(m, senderToken);
-        adminTokens.push(...tokens);
+        if (tokens.length > 0) {
+          if (!langTokensMap[memberLang]) langTokensMap[memberLang] = [];
+          langTokensMap[memberLang].push(...tokens);
+        }
       }
     });
 
-    if (adminTokens.length > 0) {
-      const typeLabel = eventType === 'rehearsal' ? 'zkoušku' : (eventType === 'concert' ? 'koncert' : 'poptávku');
-      const statusLabel = status === 'yes' ? '✅ potvrdil/a' : (status === 'no' ? '❌ odmítl/a' : '⚪ změnil/a');
-      const noteText = note ? ` (Poznámka: ${note})` : '';
-      const title = `Docházka: ${memberName}`;
-      const body = `${memberName} ${statusLabel} účast na ${typeLabel}: ${eventTitle}${noteText}`;
+    Object.entries(langTokensMap).forEach(([lang, tokens]) => {
+      if (tokens.length > 0) {
+        const typeLabelKey = eventType === 'rehearsal' ? 'events.list.rehearsal' : (eventType === 'concert' ? 'events.list.concert' : 'nav.inquiries');
+        const typeLabel = getTranslation(typeLabelKey, {}, lang).toLowerCase();
+        const statusLabel = status === 'yes' ? getTranslation('attendanceModal.confirmed', {}, lang) : (status === 'no' ? getTranslation('attendanceModal.declined', {}, lang) : '⚪');
+        const noteText = note ? ` (${note})` : '';
 
-      sendExpoPushNotifications(adminTokens, title, body, { type: 'attendance_update' });
-    }
+        const title = getTranslation('notification.attendance.title', { memberName }, lang);
+        const body = getTranslation('notification.attendance.body', { memberName, statusLabel, typeLabel, eventTitle, noteText }, lang);
+
+        sendExpoPushNotifications(tokens, title, body, { type: 'attendance_update' });
+      }
+    });
   } catch (err) {
     console.error("Chyba při odesílání push notifikace adminům:", err);
   }
@@ -530,8 +624,9 @@ export const addRehearsal = async (
 
   notifyActiveMembersAboutNewEvent(
     bandId,
-    'Nová Zkouška',
-    `Byla naplánována zkouška: ${rehearsal.date} v ${rehearsal.time || ''}`,
+    'notification.newRehearsal.title',
+    'notification.newRehearsal.body',
+    { date: rehearsal.date, time: rehearsal.time || '' },
     docRef.id,
     'rehearsal',
     creatorMemberId
@@ -573,8 +668,9 @@ export const updateRehearsal = async (
     if (dateChanged || timeChanged || locationChanged) {
       notifyActiveMembersAboutNewEvent(
         bandId,
-        'Změna u zkoušky',
-        `Byla upravena zkouška (${newDate} v ${newTime || ''})`,
+        'notification.updateRehearsal.title',
+        'notification.updateRehearsal.body',
+        { date: newDate, time: newTime || '' },
         rehearsalId,
         'rehearsal',
         editorMemberId
@@ -624,14 +720,27 @@ export const addConcert = async (
   }));
   await setDoc(docRef, { id: docRef.id }, { merge: true });
 
-  notifyActiveMembersAboutNewEvent(
-    bandId,
-    'Nový Koncert',
-    `Byl přidán nový koncert: ${concert.title} (${concert.date})`,
-    docRef.id,
-    'concert',
-    creatorMemberId
-  );
+  if (concert.isPrivate) {
+    notifyActiveMembersAboutNewEvent(
+      bandId,
+      'notification.newConcert.title',
+      'notification.newConcert.body',
+      { title: concert.title, date: concert.date },
+      docRef.id,
+      'concert',
+      creatorMemberId
+    );
+  } else {
+    notifyEveryoneAboutNewEvent(
+      bandId,
+      'notification.newConcert.title',
+      'notification.newConcert.body',
+      { title: concert.title, date: concert.date },
+      docRef.id,
+      'concert',
+      creatorMemberId
+    );
+  }
 
   return docRef.id;
 };
@@ -669,8 +778,9 @@ export const updateConcert = async (
     if (dateChanged || timeChanged || locationChanged) {
       notifyActiveMembersAboutNewEvent(
         bandId,
-        'Změna u koncertu',
-        `Byl upraven koncert "${updates.title || oldConcert.title}" (${newDate} v ${newStartTime || ''})`,
+        'notification.updateConcert.title',
+        'notification.updateConcert.body',
+        { title: updates.title || oldConcert.title, date: newDate },
         concertId,
         'concert',
         editorMemberId
@@ -722,8 +832,9 @@ export const addInquiry = async (
 
   notifyActiveMembersAboutNewEvent(
     bandId,
-    'Nová Poptávka',
-    `Byla vytvořena nová poptávka: ${inquiry.title} (${inquiry.date})`,
+    'notification.newInquiry.title',
+    'notification.newInquiry.body',
+    { title: inquiry.title, date: inquiry.date },
     docRef.id,
     'inquiry',
     creatorMemberId
@@ -1483,4 +1594,234 @@ export const stopLiveSession = async (bandId: string): Promise<void> => {
   if (!bandId) return;
   const docRef = doc(db, BANDS_COLLECTION, bandId, 'live_session', 'current');
   await deleteDoc(docRef);
+};
+
+// --- FANOUŠCI (FANKLUB) ---
+
+const FANS_SUBCOLLECTION = 'fans';
+
+export const getBandFans = async (bandId: string): Promise<Fan[]> => {
+  if (!bandId) return [];
+  try {
+    const colRef = collection(db, BANDS_COLLECTION, bandId, FANS_SUBCOLLECTION);
+    const snap = await getDocs(colRef);
+    const fans: Fan[] = [];
+    snap.forEach(d => {
+      fans.push({ id: d.id, ...d.data() } as Fan);
+    });
+    return fans.sort((a, b) => (b.joinedAt || 0) - (a.joinedAt || 0));
+  } catch (error) {
+    console.error("Chyba při načítání fanoušků:", error);
+    return [];
+  }
+};
+
+
+export const notifyAdminsAboutNewFan = async (
+  bandId: string,
+  fanName: string,
+  fanEmail?: string
+) => {
+  try {
+    const members = await getBandMembers(bandId);
+    const langTokensMap: Record<string, string[]> = {};
+
+    members.forEach(m => {
+      if (m.isAdmin || (m as any).role === 'admin') {
+        const memberLang = (m as any).language || 'cs';
+        const tokens = getAllTokensForMember(m);
+        if (tokens.length > 0) {
+          if (!langTokensMap[memberLang]) langTokensMap[memberLang] = [];
+          langTokensMap[memberLang].push(...tokens);
+        }
+      }
+    });
+
+    Object.entries(langTokensMap).forEach(([lang, tokens]) => {
+      if (tokens.length > 0) {
+        const emailText = fanEmail ? ` (${fanEmail})` : '';
+        const title = getTranslation('notification.newFan.title', {}, lang);
+        const body = getTranslation('notification.newFan.body', { name: fanName, email: emailText }, lang);
+        sendExpoPushNotifications(tokens, title, body, { type: 'new_fan' });
+      }
+    });
+  } catch (err) {
+    console.error("Chyba při odesílání push notifikace adminům o novém fanouškovi:", err);
+  }
+};
+
+export const addFanToBand = async (bandId: string, fanData: Omit<Fan, 'id' | 'joinedAt'>): Promise<Fan> => {
+  if (!bandId) throw new Error("Chybí bandId");
+  const colRef = collection(db, BANDS_COLLECTION, bandId, FANS_SUBCOLLECTION);
+  const newFanData = sanitizeFirestoreData({
+    ...fanData,
+    joinedAt: Date.now()
+  });
+  const docRef = await addDoc(colRef, newFanData);
+  notifyAdminsAboutNewFan(bandId, fanData.name, fanData.email);
+  return {
+    id: docRef.id,
+    ...newFanData
+  } as Fan;
+};
+
+export const updateFanInBand = async (bandId: string, fanId: string, updates: Partial<Fan>): Promise<void> => {
+  if (!bandId || !fanId) return;
+  const docRef = doc(db, BANDS_COLLECTION, bandId, FANS_SUBCOLLECTION, fanId);
+  const cleanData = sanitizeFirestoreData(updates);
+  await updateDoc(docRef, cleanData);
+};
+
+export const deleteFanFromBand = async (bandId: string, fanId: string): Promise<void> => {
+  if (!bandId || !fanId) return;
+  const docRef = doc(db, BANDS_COLLECTION, bandId, FANS_SUBCOLLECTION, fanId);
+  await deleteDoc(docRef);
+};
+
+// --- FOTOGALERIE A ALBA ---
+export const getPhotoAlbums = async (bandId: string): Promise<PhotoAlbum[]> => {
+  try {
+    const q = query(collection(db, 'kapela_ios_android', bandId, 'photoAlbums'), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    } as PhotoAlbum));
+  } catch (e) {
+    console.error("Chyba při načítání alb fotogalerie:", e);
+    return [];
+  }
+};
+
+export const subscribeToPhotoAlbums = (bandId: string, callback: (albums: PhotoAlbum[]) => void) => {
+  const q = query(collection(db, 'kapela_ios_android', bandId, 'photoAlbums'), orderBy('createdAt', 'desc'));
+  return onSnapshot(q, (snap) => {
+    const fresh = snap.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    } as PhotoAlbum));
+    callback(fresh);
+  });
+};
+
+export const getAlbumPhotos = async (bandId: string, albumId: string): Promise<AlbumPhoto[]> => {
+  try {
+    const q = query(collection(db, 'kapela_ios_android', bandId, 'photoAlbums', albumId, 'photos'), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    } as AlbumPhoto));
+  } catch (e) {
+    console.error("Chyba při načítání fotek z alba:", e);
+    return [];
+  }
+};
+
+export const subscribeToAlbumPhotos = (bandId: string, albumId: string, callback: (photos: AlbumPhoto[]) => void) => {
+  const q = query(collection(db, 'kapela_ios_android', bandId, 'photoAlbums', albumId, 'photos'), orderBy('createdAt', 'desc'));
+  return onSnapshot(q, (snap) => {
+    const fresh = snap.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    } as AlbumPhoto));
+    callback(fresh);
+  });
+};
+
+export const createPhotoAlbum = async (bandId: string, albumData: Omit<PhotoAlbum, 'id' | 'createdAt' | 'photoCount'>): Promise<string> => {
+  const ref = doc(collection(db, 'kapela_ios_android', bandId, 'photoAlbums'));
+  const newAlbum: PhotoAlbum = {
+    ...albumData,
+    id: ref.id,
+    photoCount: 0,
+    createdAt: Date.now(),
+  };
+  await setDoc(ref, newAlbum);
+  return ref.id;
+};
+
+export const uploadPhotoToGallery = async (
+  bandId: string,
+  albumId: string,
+  uri: string,
+  uploadedBy: string
+): Promise<AlbumPhoto> => {
+  const photoRef = doc(collection(db, 'kapela_ios_android', bandId, 'photoAlbums', albumId, 'photos'));
+  const storagePath = `kapela_ios_android/${bandId}/Photos/${albumId}/${photoRef.id}.jpg`;
+  const downloadUrl = await uploadImageToStorage(uri, storagePath);
+
+  const photoData: AlbumPhoto = {
+    id: photoRef.id,
+    albumId,
+    downloadUrl,
+    storagePath,
+    uploadedBy,
+    createdAt: Date.now(),
+  };
+
+  await setDoc(photoRef, photoData);
+
+  // Spočítáme fotky v albu a náhodně vybereme obálku
+  const photosSnap = await getDocs(collection(db, 'kapela_ios_android', bandId, 'photoAlbums', albumId, 'photos'));
+  const allPhotos = photosSnap.docs.map(d => d.data() as AlbumPhoto);
+  const randomCover = allPhotos[Math.floor(Math.random() * allPhotos.length)]?.downloadUrl || downloadUrl;
+
+  await updateDoc(doc(db, 'kapela_ios_android', bandId, 'photoAlbums', albumId), {
+    photoCount: allPhotos.length,
+    coverPhotoUrl: randomCover,
+  });
+
+  return photoData;
+};
+
+export const deletePhotoFromGallery = async (
+  bandId: string,
+  albumId: string,
+  photoId: string,
+  storagePath?: string
+): Promise<void> => {
+  try {
+    if (storagePath) {
+      try {
+        const fileRef = ref(storage, storagePath);
+        await deleteObject(fileRef);
+      } catch (err) {
+        console.warn("Storage delete failed, proceeding with doc delete:", err);
+      }
+    }
+
+    await deleteDoc(doc(db, 'kapela_ios_android', bandId, 'photoAlbums', albumId, 'photos', photoId));
+
+    // Přepočítáme zbývající fotky
+    const photosSnap = await getDocs(collection(db, 'kapela_ios_android', bandId, 'photoAlbums', albumId, 'photos'));
+    const photos = photosSnap.docs.map(d => d.data() as AlbumPhoto);
+    const newCount = photos.length;
+    const newCover = newCount > 0 ? photos[Math.floor(Math.random() * photos.length)].downloadUrl : '';
+
+    await updateDoc(doc(db, 'kapela_ios_android', bandId, 'photoAlbums', albumId), {
+      photoCount: newCount,
+      coverPhotoUrl: newCover,
+    });
+  } catch (e) {
+    console.error("Chyba při mazání fotky:", e);
+  }
+};
+
+export const deletePhotoAlbum = async (bandId: string, albumId: string): Promise<void> => {
+  try {
+    const photosSnap = await getDocs(collection(db, 'kapela_ios_android', bandId, 'photoAlbums', albumId, 'photos'));
+    for (const pDoc of photosSnap.docs) {
+      const pData = pDoc.data() as AlbumPhoto;
+      if (pData.storagePath) {
+        try {
+          await deleteObject(ref(storage, pData.storagePath));
+        } catch (e) {}
+      }
+      await deleteDoc(pDoc.ref);
+    }
+    await deleteDoc(doc(db, 'kapela_ios_android', bandId, 'photoAlbums', albumId));
+  } catch (e) {
+    console.error("Chyba při mazání alba:", e);
+  }
 };

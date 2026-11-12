@@ -41,11 +41,19 @@ export function AddAbsenceForm({ members, onCheckConflicts, onSave, onCancel }: 
   };
 
   // Default selection to current user if found in members
-  const matchedMember = members.find(m => m.email === currentUser?.email || m.id === currentUser?.uid || m.firstName === currentUser?.displayName);
-  const [selectedMemberId, setSelectedMemberId] = useState<string>(matchedMember ? matchedMember.id : '');
+  const matchedMember = members.find(m =>
+    (currentUser?.memberId && m.id === currentUser.memberId) ||
+    (currentUser?.email && m.email === currentUser.email) ||
+    (currentUser?.uid && m.id === currentUser.uid) ||
+    (currentUser?.displayName && (m.nickname === currentUser.displayName || m.firstName === currentUser.displayName))
+  );
 
-  const isAdmin = activeRoleView === 'admin';
+  const isAdmin = activeRoleView === 'admin' || currentUser?.role === 'admin';
+  const [selectedMemberId, setSelectedMemberId] = useState<string>(
+    matchedMember ? matchedMember.id : (members[0]?.id || '')
+  );
 
+  
   // Make the current user first in the list for admin picker
   const sortedMembers = [...members];
   if (isAdmin && matchedMember) {
@@ -58,16 +66,16 @@ export function AddAbsenceForm({ members, onCheckConflicts, onSave, onCancel }: 
 
   const handleSave = () => {
     if (!reason) {
-      Alert.alert(t('home.attendance.errorTitle'), 'Vyplňte prosím důvod absence.'); // TODO i18n
+      Alert.alert(t('home.attendance.errorTitle'), t('form.absence.errorReason')); // TODO i18n
       return;
     }
 
     let mId = selectedMemberId;
-    let mName = currentUser?.displayName || 'Neznámý člen';
+    let mName = currentUser?.displayName || t('form.absence.unknownMember');
 
     if (isAdmin) {
       if (!mId) {
-        Alert.alert(t('home.attendance.errorTitle'), 'Vyberte člena, kterého se absence týká.');
+        Alert.alert(t('home.attendance.errorTitle'), t('form.absence.errorMember'));
         return;
       }
       const m = members.find(x => x.id === mId);
@@ -115,8 +123,8 @@ export function AddAbsenceForm({ members, onCheckConflicts, onSave, onCancel }: 
         const conflicts = onCheckConflicts(fStr, tStr);
         if (conflicts.length > 0) {
           Alert.alert(
-            'Upozornění na událost během absence',
-            `V tomto termínu (${fStr} - ${tStr}) se již koná:\n\n${conflicts.map(c => `• ${c}`).join('\n')}`
+            t('form.absence.warning'),
+            `${t('form.absence.conflictMsg', { from: fStr, to: tStr })}\n\n${conflicts.map(c => `• ${c}`).join('\n')}`
           );
         }
       }
@@ -124,13 +132,13 @@ export function AddAbsenceForm({ members, onCheckConflicts, onSave, onCancel }: 
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <ThemedText type="subtitle" style={styles.title}>{t('form.absence.title')}</ThemedText>
 
       {isAdmin && (
         <>
           <ThemedText type="smallBold">{t('form.absence.member')}</ThemedText>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={{ gap: 8, paddingRight: 20 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={{ gap: 8, paddingRight: 20 }} keyboardShouldPersistTaps="handled">
             {sortedMembers.map((m) => {
               const isSelected = selectedMemberId === m.id;
               const mName = `${m.firstName} ${m.lastName}`.trim() || m.nickname;
@@ -157,9 +165,14 @@ export function AddAbsenceForm({ members, onCheckConflicts, onSave, onCancel }: 
       )}
 
       {!isAdmin && (
-        <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: Spacing.four, textAlign: 'center' }}>
-          Zadáváte absenci pro: {currentUser?.displayName}
-        </ThemedText>
+        <View style={{ padding: 12, backgroundColor: 'rgba(200,200,200,0.12)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(200,200,200,0.25)', marginBottom: Spacing.four }}>
+          <ThemedText type="smallBold" themeColor="textSecondary" style={{ fontSize: 12 }}>
+            Člen / Absence pro:
+          </ThemedText>
+          <ThemedText type="default" style={{ fontWeight: 'bold', fontSize: 16, marginTop: 2 }}>
+            {matchedMember ? (`${matchedMember.firstName} ${matchedMember.lastName || ''}`.trim() || matchedMember.nickname) : (currentUser?.displayName || 'Člen kapely')}
+          </ThemedText>
+        </View>
       )}
 
       <View style={styles.row}>

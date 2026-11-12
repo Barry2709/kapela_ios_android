@@ -144,7 +144,7 @@ export function AddMemberForm({ initialMember, onSave, onCancel }: Props) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <ThemedText type="subtitle" style={styles.title}>
         {initialMember ? t('form.member.editTitle') : t('form.member.title')}
       </ThemedText>
