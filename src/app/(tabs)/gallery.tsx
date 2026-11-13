@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   StyleSheet,
@@ -82,30 +83,69 @@ export default function GalleryScreen() {
     return idx !== -1 ? idx : 0;
   }, [selectedPhotoForView?.id, albumPhotos]);
 
-  // 1. Živé načítání alb z Firebase
+    // 1. Živé načítání alb z Firebase (S podporou pro VŠECHNY kapely, které fanoušek sleduje)
   useEffect(() => {
-    if (!activeBand?.id) return;
-    const unsubscribe = subscribeToPhotoAlbums(activeBand.id, (freshAlbums) => {
-      setAlbums(freshAlbums);
-      if (selectedAlbum) {
-        const freshSel = freshAlbums.find(a => a.id === selectedAlbum.id);
-        if (freshSel) setSelectedAlbum(freshSel);
+    let unsubs: (() => void)[] = [];
+
+    const loadAlbums = async () => {
+      let targetBandIds: string[] = activeBand?.id ? [activeBand.id] : [];
+
+      if (activeRoleView === 'fan') {
+        try {
+          const sessionsStr = await AsyncStorage.getItem('savedSessions');
+          if (sessionsStr) {
+            const sessions = JSON.parse(sessionsStr);
+            const fanBandIds = sessions.map((s: any) => s.band?.id).filter(Boolean);
+            fanBandIds.forEach((id: string) => {
+              if (!targetBandIds.includes(id)) targetBandIds.push(id);
+            });
+          }
+        } catch (e) {
+          console.error("Chyba při načítání sezení pro galerii fanouška:", e);
+        }
       }
-    });
-    return () => unsubscribe();
-  }, [activeBand?.id, selectedAlbum?.id]);
+
+      // Pokud pořád nemáme žádné ID kapely, zkusíme fallback
+      if (targetBandIds.length === 0) {
+        targetBandIds = ['naplech-demo', 'naplech', 'kapela'];
+      }
+
+      const allAlbumsMap = new Map<string, PhotoAlbum[]>();
+
+      targetBandIds.forEach(bId => {
+        const unsub = subscribeToPhotoAlbums(bId, (freshAlbums: PhotoAlbum[]) => {
+          allAlbumsMap.set(bId, freshAlbums);
+          const combined = Array.from(allAlbumsMap.values()).flat().sort((a, b) => b.createdAt - a.createdAt);
+          setAlbums(combined);
+
+          if (selectedAlbum) {
+            const freshSel = combined.find(a => a.id === selectedAlbum.id);
+            if (freshSel) setSelectedAlbum(freshSel);
+          }
+        });
+        unsubs.push(unsub);
+      });
+    };
+
+    loadAlbums();
+
+    return () => {
+      unsubs.forEach(unsub => unsub());
+    };
+  }, [activeBand?.id, activeRoleView, selectedAlbum?.id]);
 
   // 2. Živé načítání fotek ve vybraném albu
   useEffect(() => {
-    if (!activeBand?.id || !selectedAlbum?.id) {
+    const targetBandId = selectedAlbum?.bandId || activeBand?.id;
+    if (!targetBandId || !selectedAlbum?.id) {
       setAlbumPhotos([]);
       return;
     }
-    const unsubscribe = subscribeToAlbumPhotos(activeBand.id, selectedAlbum.id, (freshPhotos) => {
+    const unsubscribe = subscribeToAlbumPhotos(targetBandId, selectedAlbum.id, (freshPhotos: AlbumPhoto[]) => {
       setAlbumPhotos(freshPhotos);
     });
     return () => unsubscribe();
-  }, [activeBand?.id, selectedAlbum?.id]);
+  }, [activeBand?.id, selectedAlbum?.id, selectedAlbum?.bandId]);
 
   // Správa orientace při otevření a zavření fotky
   useEffect(() => {
