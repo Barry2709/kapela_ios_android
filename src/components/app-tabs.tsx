@@ -22,6 +22,7 @@ export default function AppTabs() {
     const currentRoute = props.state.routes[props.state.index].name;
 
     // VZHLED PRO FANOUŠKY: Spodní lišta -> Domů, Poptávky, Kapela
+        // SCÉNÁŘ 0: Pohled Fanouška (Fan View) -> Domů, Fotogalerie, Poptávky, Kapela
     if (activeRoleView === 'fan') {
       return (
         <View
@@ -52,6 +53,26 @@ export default function AppTabs() {
               ellipsizeMode="tail"
             >
               {t('nav.home')}
+            </ThemedText>
+          </Pressable>
+
+          {/* Fotogalerie */}
+          <Pressable
+            style={styles.tabItem}
+            onPress={() => props.navigation.navigate('gallery')}
+          >
+            <SymbolView
+              name={{ ios: 'photo.on.rectangle.angled', android: 'photo_library', web: 'photo_library' }}
+              tintColor={currentRoute === 'gallery' ? theme.text : theme.textSecondary}
+              size={24}
+            />
+            <ThemedText
+              type="smallBold"
+              style={{ color: currentRoute === 'gallery' ? theme.text : theme.textSecondary, fontSize: 11, marginTop: 3 , textAlign: 'center', lineHeight: 12}}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {t('nav.gallery') || 'Fotogalerie'}
             </ThemedText>
           </Pressable>
 
