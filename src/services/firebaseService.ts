@@ -1800,18 +1800,20 @@ export const uploadPhotoToGallery = async (
   bandId: string,
   albumId: string,
   uri: string,
-  uploadedBy: string
+  uploadedBy: string,
+  uploadedByUid?: string
 ): Promise<AlbumPhoto> => {
   const photoRef = doc(collection(db, 'kapela_ios_android', bandId, 'photoAlbums', albumId, 'photos'));
   const storagePath = `kapela_ios_android/${bandId}/Photos/${albumId}/${photoRef.id}.jpg`;
   const downloadUrl = await uploadImageToStorage(uri, storagePath);
 
-  const photoData: AlbumPhoto = {
+  const photoData: any = {
     id: photoRef.id,
     albumId,
     downloadUrl,
     storagePath,
     uploadedBy,
+    uploadedByUid: uploadedByUid || '',
     createdAt: Date.now(),
   };
 

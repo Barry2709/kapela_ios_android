@@ -177,7 +177,7 @@ export default function GalleryScreen() {
 
       for (let i = 0; i < selectedImageUris.length; i++) {
         setUploadProgressText(`Nahrávám fotku ${i + 1} z ${selectedImageUris.length}...`);
-        await uploadPhotoToGallery(activeBand.id, targetAlbumId, selectedImageUris[i], uploaderName);
+        await uploadPhotoToGallery(activeBand.id, targetAlbumId, selectedImageUris[i], uploaderName, currentUser?.uid || (currentUser as any)?.id);
       }
 
       setIsUploading(false);
@@ -347,7 +347,7 @@ export default function GalleryScreen() {
                         {album.albumName}
                       </ThemedText>
 
-                      {(isAdmin || album.uploadedByUid === currentUser?.uid) && (
+                      {(isAdmin || (album.uploadedByUid && (album.uploadedByUid === currentUser?.uid || album.uploadedByUid === (currentUser as any)?.id)) || (album.uploadedBy && album.uploadedBy === uploaderName)) && (
                         <Pressable style={{ padding: 4 }} onPress={() => handleDeleteAlbum(album)}>
                           <SymbolView name={{ ios: 'trash', android: 'delete', web: 'delete' }} size={16} tintColor="#f44336" />
                         </Pressable>
@@ -502,7 +502,7 @@ export default function GalleryScreen() {
                     >
                       <SymbolView name={{ ios: 'arrow.triangle.2.circlepath', android: 'screen_rotation', web: 'screen_rotation' }} size={22} tintColor="#ffffff" />
                     </Pressable>
-                    {currentPhoto && (isAdmin || currentPhoto.uploadedBy === uploaderName) && (
+                    {currentPhoto && (isAdmin || (currentPhoto.uploadedBy && currentPhoto.uploadedBy === uploaderName) || ((currentPhoto as any).uploadedByUid && ((currentPhoto as any).uploadedByUid === currentUser?.uid || (currentPhoto as any).uploadedByUid === (currentUser as any)?.id))) && (
                       <Pressable onPress={() => handleDeletePhoto(currentPhoto)} style={{ padding: 6, backgroundColor: 'rgba(244,67,54,0.4)', borderRadius: 20 }}>
                         <SymbolView name={{ ios: 'trash', android: 'delete', web: 'delete' }} size={22} tintColor="#ffffff" />
                       </Pressable>
