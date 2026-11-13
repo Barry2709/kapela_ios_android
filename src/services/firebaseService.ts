@@ -1064,7 +1064,20 @@ export const getFans = async (bandId: string): Promise<any[]> => {
   try {
     const fansCol = collection(db, BANDS_COLLECTION, bandId, 'fans');
     const snapshot = await getDocs(fansCol);
-    return snapshot.docs.map(docSnap => docSnap.data());
+    const rawFans = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+
+    // Automatická deduplikace fanoušků podle e-mailu, telefonu nebo jména
+    const uniqueMap = new Map<string, any>();
+    for (const fan of rawFans) {
+      const f = fan as any;
+      const key = (f.email ? f.email.toLowerCase().trim() : '') ||
+                  (f.phone ? f.phone.trim() : '') ||
+                  (f.name ? f.name.toLowerCase().trim() : f.id);
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, fan);
+      }
+    }
+    return Array.from(uniqueMap.values());
   } catch (e) {
     console.error("Nepodařilo se načíst fanoušky:", e);
     return [];
@@ -1653,14 +1666,56 @@ export const notifyAdminsAboutNewFan = async (
 export const addFanToBand = async (bandId: string, fanData: Omit<Fan, 'id' | 'joinedAt'>): Promise<Fan> => {
   if (!bandId) throw new Error("Chybí bandId");
   const colRef = collection(db, BANDS_COLLECTION, bandId, FANS_SUBCOLLECTION);
+
+  // 1. Zkontrolujeme, zda fanoušek se stejným e-mailem, telefonem nebo jménem již v kapele neexistuje
+  try {
+    const existingSnap = await getDocs(colRef);
+    const normalizedEmail = fanData.email ? fanData.email.toLowerCase().trim() : '';
+    const normalizedPhone = fanData.phone ? fanData.phone.trim() : '';
+    const normalizedName = fanData.name ? fanData.name.toLowerCase().trim() : '';
+
+    const existingDoc = existingSnap.docs.find(d => {
+      const data = d.data();
+      if (normalizedEmail && data.email && data.email.toLowerCase().trim() === normalizedEmail) return true;
+      if (normalizedPhone && data.phone && data.phone.trim() === normalizedPhone) return true;
+      if (normalizedName && data.name && data.name.toLowerCase().trim() === normalizedName) return true;
+      return false;
+    });
+
+    if (existingDoc) {
+      // Fanoušek již v kapele existuje -> Pouze aktualizujeme jeho údaje a NEVYTVÁŘÍME DUPLICITU
+      const existingFan = { id: existingDoc.id, ...existingDoc.data() } as Fan;
+      const cleanUpdates = sanitizeFirestoreData({
+        name: fanData.name || existingFan.name,
+        email: fanData.email || existingFan.email,
+        phone: fanData.phone || existingFan.phone,
+        lastSeenAt: Date.now()
+      });
+      await updateDoc(doc(db, BANDS_COLLECTION, bandId, FANS_SUBCOLLECTION, existingDoc.id), cleanUpdates);
+      console.log("Fanoušek již existuje v kapele, aktualizován stávající záznam:", existingDoc.id);
+      return { ...existingFan, ...cleanUpdates };
+    }
+  } catch (err) {
+    console.warn("Kontrola duplicit fanoušků selhala, pokračuji s uložením:", err);
+  }
+
+  // 2. Pokud fanoušek ještě neexistuje, vytvoříme deterministické ID (e-mail nebo jméno)
+  const fanDocId = (fanData.email ? fanData.email.toLowerCase().trim().replace(/[^a-z0-9]/g, '_') : '') ||
+                   (fanData.phone ? fanData.phone.replace(/[^0-9]/g, '') : '') ||
+                   fanData.name.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+
+  const fanRef = doc(db, BANDS_COLLECTION, bandId, FANS_SUBCOLLECTION, fanDocId);
   const newFanData = sanitizeFirestoreData({
     ...fanData,
+    id: fanDocId,
     joinedAt: Date.now()
   });
-  const docRef = await addDoc(colRef, newFanData);
+
+  await setDoc(fanRef, newFanData, { merge: true });
   notifyAdminsAboutNewFan(bandId, fanData.name, fanData.email);
+
   return {
-    id: docRef.id,
+    id: fanDocId,
     ...newFanData
   } as Fan;
 };
