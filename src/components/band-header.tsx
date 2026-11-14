@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, PanResponder } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import * as Linking from 'expo-linking';
@@ -10,6 +10,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/useAppStore';
 import { useTranslation } from '@/utils/i18n';
 import { getCountryDisplayName } from '@/constants/countries';
+import { getBands } from '@/services/firebaseService';
 
 interface BandHeaderProps {
   overrideBand?: {
@@ -24,57 +25,65 @@ interface BandHeaderProps {
 export function BandHeader({ overrideBand }: BandHeaderProps = {}) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { activeBand, setActiveBand, setCurrentUser, setActiveRoleView } = useAppStore();
+  const { activeBand, setActiveBand, setCurrentUser, setActiveRoleView, activeRoleView } = useAppStore();
   const { t, currentLang } = useTranslation();
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
 
   const displayBand = overrideBand || activeBand;
 
-  const touchStartX = useRef<number | null>(null);
+  // PanResponder pro spolehlivé odchycení swipování přes logo kapely bez blokování Pressable
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dx) > 25 && Math.abs(gestureState.dy) < 30,
+      onPanResponderRelease: async (_, gestureState) => {
+        const deltaX = gestureState.dx;
+        if (Math.abs(deltaX) > 25) {
+          try {
+            let availableBands: any[] = [];
 
-  const handleTouchStart = (evt: any) => {
-    touchStartX.current = evt.nativeEvent.pageX;
-  };
+            // 1. Zkusíme načíst uložená sezení
+            const sessionsStr = await AsyncStorage.getItem('savedSessions');
+            if (sessionsStr) {
+              const sessions = JSON.parse(sessionsStr);
+              availableBands = sessions.map((s: any) => s.band).filter(Boolean);
+            }
 
-  const handleTouchEnd = async (evt: any) => {
-    if (touchStartX.current === null) return;
-    const deltaX = evt.nativeEvent.pageX - touchStartX.current;
-    touchStartX.current = null;
+            // 2. Pokud je uživatel fanoušek a má málo uložených kapel, načteme všechny dostupné kapely z Firebase
+            if (availableBands.length <= 1) {
+              const allBandsFromFb = await getBands();
+              if (allBandsFromFb && allBandsFromFb.length > 0) {
+                availableBands = allBandsFromFb;
+              }
+            }
 
-    // Pokud byl swipe alespoň 40px dlouhý
-    if (Math.abs(deltaX) > 40) {
-      try {
-        const sessionsStr = await AsyncStorage.getItem('savedSessions');
-        if (!sessionsStr) return;
-        const sessions = JSON.parse(sessionsStr);
-        if (sessions.length <= 1) return;
+            if (availableBands.length <= 1) return;
 
-        let currentIndex = sessions.findIndex((s: any) => s.band?.id === activeBand?.id);
-        if (currentIndex === -1) currentIndex = 0;
+            let currentIndex = availableBands.findIndex((b: any) => b.id === activeBand?.id);
+            if (currentIndex === -1) currentIndex = 0;
 
-        let nextIndex = 0;
-        if (deltaX < 0) {
-          // Swipe vlevo -> Další kapela
-          nextIndex = (currentIndex + 1) % sessions.length;
-        } else {
-          // Swipe vpravo -> Předchozí kapela
-          nextIndex = (currentIndex - 1 + sessions.length) % sessions.length;
-        }
+            let nextIndex = 0;
+            if (deltaX < 0) {
+              // Swipe vlevo -> Další kapela
+              nextIndex = (currentIndex + 1) % availableBands.length;
+            } else {
+              // Swipe vpravo -> Předchozí kapela
+              nextIndex = (currentIndex - 1 + availableBands.length) % availableBands.length;
+            }
 
-        const nextSession = sessions[nextIndex];
-        if (nextSession && nextSession.band) {
-          setActiveBand(nextSession.band);
-          if (nextSession.user) {
-            setCurrentUser(nextSession.user);
-            setActiveRoleView(nextSession.user.role || 'fan');
+            const nextBand = availableBands[nextIndex];
+            if (nextBand) {
+              setActiveBand(nextBand);
+              await AsyncStorage.setItem('lastActiveBandId', nextBand.id);
+              console.log("Přepnuto na kapelu:", nextBand.name);
+            }
+          } catch (e) {
+            console.error("Chyba při přepínání kapely gestem v hlavičce:", e);
           }
-          await AsyncStorage.setItem('lastActiveBandId', nextSession.band.id);
         }
-      } catch (e) {
-        console.error("Chyba při přepínání kapely gestem na logu:", e);
-      }
-    }
-  };
+      },
+    })
+  ).current;
 
   const handleLogoPress = () => {
     if (displayBand?.web) {
@@ -88,8 +97,7 @@ export function BandHeader({ overrideBand }: BandHeaderProps = {}) {
 
   return (
     <View
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
+      {...panResponder.panHandlers}
       style={[styles.header, { paddingTop: insets.top + 3 }]}
     >
       {displayBand?.logoUri ? (
