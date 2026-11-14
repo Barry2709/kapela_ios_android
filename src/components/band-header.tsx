@@ -35,7 +35,11 @@ export function BandHeader({ overrideBand }: BandHeaderProps = {}) {
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dx) > 25 && Math.abs(gestureState.dy) < 30,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Přepínání kapely gestem na logu je povolené VÝHRADNĚ pro pohled Fanouška
+        if (activeRoleView !== 'fan') return false;
+        return Math.abs(gestureState.dx) > 25 && Math.abs(gestureState.dy) < 30;
+      },
       onPanResponderRelease: async (_, gestureState) => {
         const deltaX = gestureState.dx;
         if (Math.abs(deltaX) > 25) {
