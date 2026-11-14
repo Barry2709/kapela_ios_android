@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import * as Linking from 'expo-linking';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,11 +24,57 @@ interface BandHeaderProps {
 export function BandHeader({ overrideBand }: BandHeaderProps = {}) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { activeBand } = useAppStore();
+  const { activeBand, setActiveBand, setCurrentUser, setActiveRoleView } = useAppStore();
   const { t, currentLang } = useTranslation();
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
 
   const displayBand = overrideBand || activeBand;
+
+  const touchStartX = useRef<number | null>(null);
+
+  const handleTouchStart = (evt: any) => {
+    touchStartX.current = evt.nativeEvent.pageX;
+  };
+
+  const handleTouchEnd = async (evt: any) => {
+    if (touchStartX.current === null) return;
+    const deltaX = evt.nativeEvent.pageX - touchStartX.current;
+    touchStartX.current = null;
+
+    // Pokud byl swipe alespoň 40px dlouhý
+    if (Math.abs(deltaX) > 40) {
+      try {
+        const sessionsStr = await AsyncStorage.getItem('savedSessions');
+        if (!sessionsStr) return;
+        const sessions = JSON.parse(sessionsStr);
+        if (sessions.length <= 1) return;
+
+        let currentIndex = sessions.findIndex((s: any) => s.band?.id === activeBand?.id);
+        if (currentIndex === -1) currentIndex = 0;
+
+        let nextIndex = 0;
+        if (deltaX < 0) {
+          // Swipe vlevo -> Další kapela
+          nextIndex = (currentIndex + 1) % sessions.length;
+        } else {
+          // Swipe vpravo -> Předchozí kapela
+          nextIndex = (currentIndex - 1 + sessions.length) % sessions.length;
+        }
+
+        const nextSession = sessions[nextIndex];
+        if (nextSession && nextSession.band) {
+          setActiveBand(nextSession.band);
+          if (nextSession.user) {
+            setCurrentUser(nextSession.user);
+            setActiveRoleView(nextSession.user.role || 'fan');
+          }
+          await AsyncStorage.setItem('lastActiveBandId', nextSession.band.id);
+        }
+      } catch (e) {
+        console.error("Chyba při přepínání kapely gestem na logu:", e);
+      }
+    }
+  };
 
   const handleLogoPress = () => {
     if (displayBand?.web) {
@@ -40,7 +87,11 @@ export function BandHeader({ overrideBand }: BandHeaderProps = {}) {
   };
 
   return (
-    <View style={[styles.header, { paddingTop: insets.top + 3 }]}>
+    <View
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      style={[styles.header, { paddingTop: insets.top + 3 }]}
+    >
       {displayBand?.logoUri ? (
          <Pressable onPress={handleLogoPress} style={{ width: '100%', alignItems: 'center' }}>
            <Image
