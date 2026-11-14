@@ -527,16 +527,18 @@ export default function HomeScreen() {
           }
 
           const unsub = subscribeToConcerts(bId, (freshConcerts) => {
-            // Označit koncerty čerstvým jménem a logem kapely a filtrovat soukromé
+            const freshBand = freshBandsMap.get(bId) || bandObj;
+            // Označit koncerty čerstvým jménem a logem konkrétní kapely bId
             const publicConcerts = freshConcerts
               .filter(c => !c.isPrivate)
               .map(c => ({
                 ...c,
-                _bandName: bandObj.name,
-                _bandLogoUri: bandObj.logoUri || null,
-                _bandWeb: bandObj.web || null,
-                _bandGenre: bandObj.genre || null,
-                _bandCountry: bandObj.country || null,
+                _bandId: bId,
+                _bandName: freshBand.name || 'Kapela',
+                _bandLogoUri: freshBand.logoUri || null,
+                _bandWeb: freshBand.web || null,
+                _bandGenre: freshBand.genre || null,
+                _bandCountry: freshBand.country || null,
               }));
 
             allConcertsByBand.set(bId, publicConcerts);
@@ -809,7 +811,7 @@ export default function HomeScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <BandHeader overrideBand={earliestBandForFan} />
+          <BandHeader />
 
           <View style={[styles.contentPadding, { marginTop: 3 }]}>
             {/* Rychlý řádek s informací o přihlášení a viditelné tlačítko odhlášení */}

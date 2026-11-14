@@ -42,25 +42,26 @@ export function BandHeader({ overrideBand }: BandHeaderProps = {}) {
       },
       onPanResponderRelease: async (_, gestureState) => {
         const deltaX = gestureState.dx;
-        if (Math.abs(deltaX) > 25) {
+        if (Math.abs(deltaX) > 20) {
           try {
-            let availableBands: any[] = [];
+            let availableBandsMap = new Map<string, any>();
 
-            // 1. Zkusíme načíst uložená sezení
+            // 1. Uložená sezení fanouška
             const sessionsStr = await AsyncStorage.getItem('savedSessions');
             if (sessionsStr) {
               const sessions = JSON.parse(sessionsStr);
-              availableBands = sessions.map((s: any) => s.band).filter(Boolean);
+              sessions.forEach((s: any) => {
+                if (s.band && s.band.id) availableBandsMap.set(s.band.id, s.band);
+              });
             }
 
-            // 2. Pokud je uživatel fanoušek a má málo uložených kapel, načteme všechny dostupné kapely z Firebase
-            if (availableBands.length <= 1) {
-              const allBandsFromFb = await getBands();
-              if (allBandsFromFb && allBandsFromFb.length > 0) {
-                availableBands = allBandsFromFb;
-              }
+            // 2. Pokud je méně než 2 kapely, načteme všechny z Firebase
+            if (availableBandsMap.size <= 1) {
+              const allFb = await getBands();
+              allFb.forEach(b => availableBandsMap.set(b.id, b));
             }
 
+            const availableBands = Array.from(availableBandsMap.values());
             if (availableBands.length <= 1) return;
 
             let currentIndex = availableBands.findIndex((b: any) => b.id === activeBand?.id);
@@ -76,10 +77,10 @@ export function BandHeader({ overrideBand }: BandHeaderProps = {}) {
             }
 
             const nextBand = availableBands[nextIndex];
-            if (nextBand) {
+            if (nextBand && nextBand.id) {
               setActiveBand(nextBand);
               await AsyncStorage.setItem('lastActiveBandId', nextBand.id);
-              console.log("Přepnuto na kapelu:", nextBand.name);
+              console.log("Přepnuto na aktivní kapelu fanouška:", nextBand.name);
             }
           } catch (e) {
             console.error("Chyba při přepínání kapely gestem v hlavičce:", e);
