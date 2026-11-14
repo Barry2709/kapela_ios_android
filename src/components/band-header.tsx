@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
-import { View, StyleSheet, Pressable, PanResponder } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import * as Linking from 'expo-linking';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureHandlerRootView, GestureDetector, Gesture } from 'react-native-gesture-handler';
 
 import { ThemedText } from './themed-text';
 import { useTheme } from '@/hooks/use-theme';
@@ -25,72 +26,69 @@ interface BandHeaderProps {
 export function BandHeader({ overrideBand }: BandHeaderProps = {}) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { activeBand, setActiveBand, setCurrentUser, setActiveRoleView, activeRoleView } = useAppStore();
+  const { activeBand, setActiveBand, activeRoleView } = useAppStore();
   const { t, currentLang } = useTranslation();
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
 
   const displayBand = overrideBand || activeBand;
 
-  // PanResponder pro spolehlivé odchycení swipování přes logo kapely bez blokování Pressable
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Přepínání kapely gestem na logu je povolené VÝHRADNĚ pro pohled Fanouška
-        if (activeRoleView !== 'fan') return false;
-        return Math.abs(gestureState.dx) > 25 && Math.abs(gestureState.dy) < 30;
-      },
-      onPanResponderRelease: async (_, gestureState) => {
-        const deltaX = gestureState.dx;
-        if (Math.abs(deltaX) > 20) {
-          try {
-            let availableBandsMap = new Map<string, any>();
+  // Nativní gesto pro swipe (Funguje 100% i přes Pressable)
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-20, 20]) // Aktivuje se až po posunutí o 20px vlevo/vpravo
+    .onEnd(async (e) => {
+      // Přepínání povoleno jen fanouškům
+      if (activeRoleView !== 'fan') return;
 
-            // 1. Uložená sezení fanouška
-            const sessionsStr = await AsyncStorage.getItem('savedSessions');
-            if (sessionsStr) {
-              const sessions = JSON.parse(sessionsStr);
-              sessions.forEach((s: any) => {
-                if (s.band && s.band.id) availableBandsMap.set(s.band.id, s.band);
-              });
-            }
+      const deltaX = e.translationX;
+      if (Math.abs(deltaX) > 20) {
+        try {
+          let availableBandsMap = new Map<string, any>();
 
-            // 2. Pokud je méně než 2 kapely, načteme všechny z Firebase
-            if (availableBandsMap.size <= 1) {
-              const allFb = await getBands();
-              allFb.forEach(b => availableBandsMap.set(b.id, b));
-            }
-
-            const availableBands = Array.from(availableBandsMap.values());
-            if (availableBands.length <= 1) return;
-
-            let currentIndex = availableBands.findIndex((b: any) => b.id === activeBand?.id);
-            if (currentIndex === -1) currentIndex = 0;
-
-            let nextIndex = 0;
-            if (deltaX < 0) {
-              // Swipe vlevo -> Další kapela
-              nextIndex = (currentIndex + 1) % availableBands.length;
-            } else {
-              // Swipe vpravo -> Předchozí kapela
-              nextIndex = (currentIndex - 1 + availableBands.length) % availableBands.length;
-            }
-
-            const nextBand = availableBands[nextIndex];
-            if (nextBand && nextBand.id) {
-              setActiveBand(nextBand);
-              await AsyncStorage.setItem('lastActiveBandId', nextBand.id);
-              console.log("Přepnuto na aktivní kapelu fanouška:", nextBand.name);
-            }
-          } catch (e) {
-            console.error("Chyba při přepínání kapely gestem v hlavičce:", e);
+          // Načtení z uložených sessions
+          const sessionsStr = await AsyncStorage.getItem('savedSessions');
+          if (sessionsStr) {
+            const sessions = JSON.parse(sessionsStr);
+            sessions.forEach((s: any) => {
+              if (s.band && s.band.id) availableBandsMap.set(s.band.id, s.band);
+            });
           }
+
+          // Fallback, pokud má jen 1 nebo 0 kapel (načte všechny)
+          if (availableBandsMap.size <= 1) {
+            const allFb = await getBands();
+            allFb.forEach(b => availableBandsMap.set(b.id, b));
+          }
+
+          const availableBands = Array.from(availableBandsMap.values());
+          if (availableBands.length <= 1) return;
+
+          let currentIndex = availableBands.findIndex((b: any) => b.id === activeBand?.id);
+          if (currentIndex === -1) currentIndex = 0;
+
+          let nextIndex = 0;
+          if (deltaX < 0) {
+            // Swipe doleva -> Další
+            nextIndex = (currentIndex + 1) % availableBands.length;
+          } else {
+            // Swipe doprava -> Předchozí
+            nextIndex = (currentIndex - 1 + availableBands.length) % availableBands.length;
+          }
+
+          const nextBand = availableBands[nextIndex];
+          if (nextBand && nextBand.id) {
+            setActiveBand(nextBand);
+            await AsyncStorage.setItem('lastActiveBandId', nextBand.id);
+          }
+        } catch (err) {
+          console.error("Chyba při gestu přepínání:", err);
         }
-      },
-    })
-  ).current;
+      }
+    });
 
   const handleLogoPress = () => {
+    // Proklik na web funguje jen pro kapelníky/členy (fanouškům to vypneme, aby nerušilo swipe)
+    if (activeRoleView === 'fan') return;
+
     if (displayBand?.web) {
       let url = displayBand.web;
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
@@ -101,43 +99,44 @@ export function BandHeader({ overrideBand }: BandHeaderProps = {}) {
   };
 
   return (
-    <View
-      {...panResponder.panHandlers}
-      style={[styles.header, { paddingTop: insets.top + 3 }]}
-    >
-      {displayBand?.logoUri ? (
-         <Pressable onPress={handleLogoPress} style={{ width: '100%', alignItems: 'center' }}>
-           <Image
-             source={{ uri: displayBand.logoUri }}
-             style={[
-               styles.logo,
-               aspectRatio ? { aspectRatio, height: undefined, width: '100%' } : { height: 120, width: '100%' }
-             ]}
-             contentFit="cover"
-             onLoad={(e) => {
-               const { width, height } = e.source;
-               if (width && height) {
-                 setAspectRatio(width / height);
-               }
-             }}
-           />
-         </Pressable>
-      ) : (
-        <Pressable
-          style={[styles.logo, { backgroundColor: theme.backgroundElement, justifyContent: 'center', alignItems: 'center' }]}
-          onPress={handleLogoPress}
-        >
-          <ThemedText type="title" style={styles.titlePlaceholder}>
-            {displayBand?.name || t('common.loading')}
-          </ThemedText>
-          {displayBand?.genre || displayBand?.country ? (
-            <ThemedText type="subtitle" themeColor="textSecondary" style={styles.genrePlaceholder}>
-              {[displayBand.genre, getCountryDisplayName(displayBand.country, currentLang)].filter(Boolean).join(' • ')}
-            </ThemedText>
-          ) : null}
-        </Pressable>
-      )}
-    </View>
+    <GestureHandlerRootView style={[styles.header, { paddingTop: insets.top + 3 }]}>
+      <GestureDetector gesture={panGesture}>
+        <View style={{ width: '100%', alignItems: 'center' }}>
+          {displayBand?.logoUri ? (
+             <Pressable onPress={handleLogoPress} style={{ width: '100%', alignItems: 'center' }}>
+               <Image
+                 source={{ uri: displayBand.logoUri }}
+                 style={[
+                   styles.logo,
+                   aspectRatio ? { aspectRatio, height: undefined, width: '100%' } : { height: 120, width: '100%' }
+                 ]}
+                 contentFit="cover"
+                 onLoad={(e) => {
+                   const { width, height } = e.source;
+                   if (width && height) {
+                     setAspectRatio(width / height);
+                   }
+                 }}
+               />
+             </Pressable>
+          ) : (
+            <Pressable
+              style={[styles.logo, { backgroundColor: theme.backgroundElement, justifyContent: 'center', alignItems: 'center' }]}
+              onPress={handleLogoPress}
+            >
+              <ThemedText type="title" style={styles.titlePlaceholder}>
+                {displayBand?.name || t('common.loading')}
+              </ThemedText>
+              {displayBand?.genre || displayBand?.country ? (
+                <ThemedText type="subtitle" themeColor="textSecondary" style={styles.genrePlaceholder}>
+                  {[displayBand.genre, getCountryDisplayName(displayBand.country, currentLang)].filter(Boolean).join(' • ')}
+                </ThemedText>
+              ) : null}
+            </Pressable>
+          )}
+        </View>
+      </GestureDetector>
+    </GestureHandlerRootView>
   );
 }
 
