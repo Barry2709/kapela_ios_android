@@ -12,7 +12,17 @@ import { useTranslation } from '@/utils/i18n';
 import { getCountryDisplayName } from '@/constants/countries';
 import { getBands } from '@/services/firebaseService';
 
-export function BandHeader({ overrideBand }: any = {}) {
+interface BandHeaderProps {
+  overrideBand?: {
+    name?: string;
+    logoUri?: string | null;
+    web?: string;
+    genre?: string;
+    country?: string;
+  } | null;
+}
+
+export function BandHeader({ overrideBand }: BandHeaderProps = {}) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { activeBand, setActiveBand, activeRoleView } = useAppStore();
@@ -21,21 +31,28 @@ export function BandHeader({ overrideBand }: any = {}) {
 
   const displayBand = overrideBand || activeBand;
 
-  // 1. Zaručeně fungující syrový odchytávač prstu (žádný PanResponder, který ScrollView ukradne)
   const touchStartX = useRef<number | null>(null);
 
   const handleTouchStart = (evt: any) => {
     if (activeRoleView !== 'fan') return;
-    touchStartX.current = evt.nativeEvent.pageX;
+    const x = evt.nativeEvent.touches?.[0]?.pageX ?? evt.nativeEvent.pageX;
+    touchStartX.current = x;
   };
 
   const handleTouchEnd = async (evt: any) => {
     if (activeRoleView !== 'fan' || touchStartX.current === null) return;
 
-    const deltaX = evt.nativeEvent.pageX - touchStartX.current;
+    const endX = evt.nativeEvent.changedTouches?.[0]?.pageX ?? evt.nativeEvent.pageX;
+    if (typeof endX !== 'number' || isNaN(endX)) {
+      touchStartX.current = null;
+      return;
+    }
+
+    const deltaX = endX - touchStartX.current;
     touchStartX.current = null;
 
-    if (Math.abs(deltaX) > 30) {
+    // Pokud byl swipe delší než 25px
+    if (Math.abs(deltaX) > 25) {
       try {
         let availableBandsMap = new Map<string, any>();
 
@@ -73,6 +90,7 @@ export function BandHeader({ overrideBand }: any = {}) {
         if (nextBand && nextBand.id) {
           setActiveBand(nextBand);
           await AsyncStorage.setItem('lastActiveBandId', nextBand.id);
+          console.log("Přepnuto na kapelu v kruhu:", nextBand.name);
         }
       } catch (err) {
         console.error("Chyba při gestu přepínání:", err);
@@ -120,13 +138,15 @@ export function BandHeader({ overrideBand }: any = {}) {
       <View
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
         style={{ width: '100%', alignItems: 'center' }}
       >
         {activeRoleView === 'fan' ? (
-          // Fanouškům zakážeme klikací obálku (Pressable), aby swipe na dotyk (onTouch) fungoval na 100%
-          renderLogoContent()
+          // pointerEvents="none" zakáže nativnímu obrázku na Androidu pohlcovat dotyky a vynutí přenos na rodičovský View!
+          <View pointerEvents="none" style={{ width: '100%', alignItems: 'center' }}>
+            {renderLogoContent()}
+          </View>
         ) : (
-          // Členové a kapelník mají obálku pro klik na web
           <Pressable onPress={handleLogoPress} style={{ width: '100%', alignItems: 'center' }}>
             {renderLogoContent()}
           </Pressable>
