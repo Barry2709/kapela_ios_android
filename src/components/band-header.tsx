@@ -99,7 +99,7 @@ export function BandHeader({ overrideBand }: BandHeaderProps = {}) {
   };
 
   return (
-    <GestureHandlerRootView style={[styles.header, { paddingTop: insets.top + 3 }]}>
+        <View style={[styles.header, { paddingTop: insets.top + 3 }]}>
       <GestureDetector gesture={panGesture}>
         <View style={{ width: '100%', alignItems: 'center' }}>
           {displayBand?.logoUri ? (
@@ -136,7 +136,7 @@ export function BandHeader({ overrideBand }: BandHeaderProps = {}) {
           )}
         </View>
       </GestureDetector>
-    </GestureHandlerRootView>
+    </View>
   );
 }
 
