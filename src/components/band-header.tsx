@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, StyleSheet, Pressable, PanResponder } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import * as Linking from 'expo-linking';
@@ -21,70 +21,64 @@ export function BandHeader({ overrideBand }: any = {}) {
 
   const displayBand = overrideBand || activeBand;
 
-  const panResponder = useRef(
-    PanResponder.create({
-      // 1. Zaručeně zachytíme začátek dotyku na hlavičce
-      onStartShouldSetPanResponder: () => activeRoleView === 'fan',
-      onStartShouldSetPanResponderCapture: () => activeRoleView === 'fan',
+  // 1. Zaručeně fungující syrový odchytávač prstu (žádný PanResponder, který ScrollView ukradne)
+  const touchStartX = useRef<number | null>(null);
 
-      // 2. Zachytíme POUZE horizontální pohyb (swipování)
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        if (activeRoleView !== 'fan') return false;
-        return Math.abs(gestureState.dx) > 10;
-      },
-      onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-        if (activeRoleView !== 'fan') return false;
-        return Math.abs(gestureState.dx) > 10;
-      },
+  const handleTouchStart = (evt: any) => {
+    if (activeRoleView !== 'fan') return;
+    touchStartX.current = evt.nativeEvent.pageX;
+  };
 
-      // 3. Nedáme ScrollView ŠANCI nám dotyk ukrást
-      onPanResponderTerminationRequest: () => false,
+  const handleTouchEnd = async (evt: any) => {
+    if (activeRoleView !== 'fan' || touchStartX.current === null) return;
 
-      // 4. Samotné přepnutí
-      onPanResponderRelease: async (_, gestureState) => {
-        if (activeRoleView !== 'fan') return;
-        const deltaX = gestureState.dx;
+    const deltaX = evt.nativeEvent.pageX - touchStartX.current;
+    touchStartX.current = null;
 
-        if (Math.abs(deltaX) > 20) {
-          try {
-            let availableBandsMap = new Map<string, any>();
-            const sessionsStr = await AsyncStorage.getItem('savedSessions');
-            if (sessionsStr) {
-              const sessions = JSON.parse(sessionsStr);
-              sessions.forEach((s: any) => {
-                if (s.band && s.band.id) availableBandsMap.set(s.band.id, s.band);
-              });
-            }
-            if (availableBandsMap.size <= 1) {
-              const allFb = await getBands();
-              allFb.forEach(b => availableBandsMap.set(b.id, b));
-            }
+    if (Math.abs(deltaX) > 30) {
+      try {
+        let availableBandsMap = new Map<string, any>();
 
-            const availableBands = Array.from(availableBandsMap.values());
-            if (availableBands.length <= 1) return;
-
-            let currentIndex = availableBands.findIndex((b: any) => b.id === activeBand?.id);
-            if (currentIndex === -1) currentIndex = 0;
-
-            let nextIndex = 0;
-            if (deltaX < 0) {
-              nextIndex = (currentIndex + 1) % availableBands.length; // doleva -> další
-            } else {
-              nextIndex = (currentIndex - 1 + availableBands.length) % availableBands.length; // doprava -> předchozí
-            }
-
-            const nextBand = availableBands[nextIndex];
-            if (nextBand && nextBand.id) {
-              setActiveBand(nextBand);
-              await AsyncStorage.setItem('lastActiveBandId', nextBand.id);
-            }
-          } catch (err) {
-            console.error("Chyba při gestu přepínání:", err);
-          }
+        // Načtení z uložených sessions
+        const sessionsStr = await AsyncStorage.getItem('savedSessions');
+        if (sessionsStr) {
+          const sessions = JSON.parse(sessionsStr);
+          sessions.forEach((s: any) => {
+            if (s.band && s.band.id) availableBandsMap.set(s.band.id, s.band);
+          });
         }
-      },
-    })
-  ).current;
+
+        // Fallback, pokud má fanoušek v telefonu jen 1 uloženou kapelu
+        if (availableBandsMap.size <= 1) {
+          const allFb = await getBands();
+          allFb.forEach(b => availableBandsMap.set(b.id, b));
+        }
+
+        const availableBands = Array.from(availableBandsMap.values());
+        if (availableBands.length <= 1) return;
+
+        let currentIndex = availableBands.findIndex((b: any) => b.id === activeBand?.id);
+        if (currentIndex === -1) currentIndex = 0;
+
+        let nextIndex = 0;
+        if (deltaX < 0) {
+          // Swipe doleva -> Další kapela v kruhu
+          nextIndex = (currentIndex + 1) % availableBands.length;
+        } else {
+          // Swipe doprava -> Předchozí kapela v kruhu
+          nextIndex = (currentIndex - 1 + availableBands.length) % availableBands.length;
+        }
+
+        const nextBand = availableBands[nextIndex];
+        if (nextBand && nextBand.id) {
+          setActiveBand(nextBand);
+          await AsyncStorage.setItem('lastActiveBandId', nextBand.id);
+        }
+      } catch (err) {
+        console.error("Chyba při gestu přepínání:", err);
+      }
+    }
+  };
 
   const handleLogoPress = () => {
     if (activeRoleView === 'fan') return;
@@ -122,9 +116,21 @@ export function BandHeader({ overrideBand }: any = {}) {
   };
 
   return (
-    <View style={[styles.header, { paddingTop: insets.top + 3 }]} {...panResponder.panHandlers}>
-      <View pointerEvents={activeRoleView === 'fan' ? 'none' : 'auto'} style={{ width: '100%', alignItems: 'center' }}>
-        {activeRoleView === 'fan' ? renderLogoContent() : <Pressable onPress={handleLogoPress} style={{ width: '100%', alignItems: 'center' }}>{renderLogoContent()}</Pressable>}
+    <View style={[styles.header, { paddingTop: insets.top + 3 }]}>
+      <View
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        style={{ width: '100%', alignItems: 'center' }}
+      >
+        {activeRoleView === 'fan' ? (
+          // Fanouškům zakážeme klikací obálku (Pressable), aby swipe na dotyk (onTouch) fungoval na 100%
+          renderLogoContent()
+        ) : (
+          // Členové a kapelník mají obálku pro klik na web
+          <Pressable onPress={handleLogoPress} style={{ width: '100%', alignItems: 'center' }}>
+            {renderLogoContent()}
+          </Pressable>
+        )}
       </View>
     </View>
   );
