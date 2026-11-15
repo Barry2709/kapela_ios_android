@@ -23,18 +23,28 @@ export function BandHeader({ overrideBand }: any = {}) {
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
+      // 1. Zaručeně zachytíme začátek dotyku na hlavičce
+      onStartShouldSetPanResponder: () => activeRoleView === 'fan',
+      onStartShouldSetPanResponderCapture: () => activeRoleView === 'fan',
+
+      // 2. Zachytíme POUZE horizontální pohyb (swipování)
       onMoveShouldSetPanResponder: (_, gestureState) => {
         if (activeRoleView !== 'fan') return false;
-        // Aktivovat POUZE pokud je pohyb výrazně horizontální (aby šlo normálně scrollovat dolů)
-        return Math.abs(gestureState.dx) > 15 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+        return Math.abs(gestureState.dx) > 10;
       },
-      // TOTO JE TEN ZÁSADNÍ ŘÁDEK PROTI SCROLLVIEW:
-      // Jakmile začneme swipovat do boku, nesmí nám ScrollView ten dotyk ukrást!
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+        if (activeRoleView !== 'fan') return false;
+        return Math.abs(gestureState.dx) > 10;
+      },
+
+      // 3. Nedáme ScrollView ŠANCI nám dotyk ukrást
       onPanResponderTerminationRequest: () => false,
+
+      // 4. Samotné přepnutí
       onPanResponderRelease: async (_, gestureState) => {
         if (activeRoleView !== 'fan') return;
         const deltaX = gestureState.dx;
+
         if (Math.abs(deltaX) > 20) {
           try {
             let availableBandsMap = new Map<string, any>();
@@ -113,7 +123,7 @@ export function BandHeader({ overrideBand }: any = {}) {
 
   return (
     <View style={[styles.header, { paddingTop: insets.top + 3 }]} {...panResponder.panHandlers}>
-      <View style={{ width: '100%', alignItems: 'center' }}>
+      <View pointerEvents={activeRoleView === 'fan' ? 'none' : 'auto'} style={{ width: '100%', alignItems: 'center' }}>
         {activeRoleView === 'fan' ? renderLogoContent() : <Pressable onPress={handleLogoPress} style={{ width: '100%', alignItems: 'center' }}>{renderLogoContent()}</Pressable>}
       </View>
     </View>
