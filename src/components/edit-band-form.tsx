@@ -248,8 +248,23 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
   };
 
   useEffect(() => {
+    setName(band.name);
+    setGenre(band.genre || '');
+    setCountry(band.country || 'CZ');
+    setGoogleCalendarId(band.googleCalendarId || '');
+    setAppleCalendarUrl(band.appleCalendarUrl || '');
+    setWeb(band.web || '');
+    setFacebook(band.facebook || '');
+    setInstagram(band.instagram || '');
+    setBandzone(band.bandzone || '');
+    setLogoUri(band.logoUri || null);
+    setTechRiderPresets(band.techRiderPresets || []);
+    setWhatToTakePresets(band.whatToTakePresets || []);
     loadMembers();
-  }, []);
+    if (activeTab === ('fans' as any)) {
+      loadFans();
+    }
+  }, [band.id, activeTab]);
 
   const loadMembers = async () => {
     try {
