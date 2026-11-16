@@ -136,3 +136,14 @@ Tento koncept řeší zápis (ukládání) událostí z aplikace přímo do syst
 - **Rychlá Navigace na Místo Koncertu (GPS):** Tlačítko pro spuštění Waze / Google Maps s přesnou adresou klubu nebo festivalu.
 - **Pozvat Přátele na Akci:** Generování pozvánky s odkazem do WhatsAppu / Messengeru na 1 klik.
 - **Soutěže o Lístky:** Bleskové soutěže přímo v aplikaci o volné vstupenky na nadcházející koncert.
+- **30s Zvukové Ukázky Písniček:** Přehrávač krátkých audio ukázek studiových nahrávek.
+- **Digitální Podpis Kapely:** Možnost nechat si podepsat virtuální podpiskartu členy kapely na displeji mobilu.
+
+### 📱 Inspirace u Světových Aplikací (Bandsintown, Spotify, MasterTour, Setlist.fm)
+- **Tlačítko "Zúčastním se / Jdu" (Bandsintown style):** Tlačítko u koncertu, které zvýší počítadlo fanoušků chystajících se na akci a ukáže ostatním, kolik lidí z fanklubu dorazí.
+- **Oficiální Odkazy na Vstupenky (Ticket Links):** Tlačítko *"Koupit lístek"* u akce, které fanouška přesměruje přímo na GoOut, Ticketportal nebo web pořadatele.
+- **Hudební Přehrávač Singlů (Spotify style):** Přehrávač nejnovějších skladeb kapely na pozadí aplikace při prohlížení fotogalerie či akcí.
+- **Archiv Minulých Koncertů & Vzpomínky (Setlist.fm style):** Historie všech proběhlých koncertů s počtem návštěvníků, fotkami a videoklipy z dané noci.
+- **Automatický Export do Google / Apple Kalendáře (iCal Feed):** Unikátní odkaz pro každou kapelu, který si členové vloží do iPhonu/Androidu a kalendář se jim aktualizuje sám bez otevírání aplikace.
+- **Rychlý Souhrn pro Zvukaře (Gig Sheet PDF):** Stažení jednopránkového přehledu pro zvukaře/pořadatele obsahujícího Input List, Stageplan a Časový harmonogram v 1 souboru.
+- **Garáž & Správa Výbavy (Gear Inventory):** Seznam kapelních nástrojů, mikrofonů a beden se sériovými čísly a pořizovací cenou pro případ pojištění nebo ztráty.
