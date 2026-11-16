@@ -135,8 +135,8 @@ Tento koncept řeší zápis (ukládání) událostí z aplikace přímo do syst
 - **Fotostěna od Fanoušků:** Nahrávání vlastních fotek z davu pod pódiem do schvalovaného alba ve Fotogalerii.
 - **Rychlá Navigace na Místo Koncertu (GPS):** Tlačítko pro spuštění Waze / Google Maps s přesnou adresou klubu nebo festivalu.
 - **Pozvat Přátele na Akci:** Generování pozvánky s odkazem do WhatsAppu / Messengeru na 1 klik.
-- **Soutěže o Lístky:** Bleskové soutěže přímo v aplikaci o volné vstupenky na nadcházející koncert.
-- **30s Zvukové Ukázky Písniček:** Přehrávač krátkých audio ukázek studiových nahrávek.
+- **Soutěže o Lístky:** Bleskové soutěže přímo v aplikaci o volné vstupenky na nadchádzající koncert.
+- **30s Zvukové Ukázky Písniček:** Přehrávač krátkých audio ukázak studiových nahrávek.
 - **Digitální Podpis Kapely:** Možnost nechat si podepsat virtuální podpiskartu členy kapely na displeji mobilu.
 
 ### 📱 Inspirace u Světových Aplikací (Bandsintown, Spotify, MasterTour, Setlist.fm)
@@ -147,3 +147,13 @@ Tento koncept řeší zápis (ukládání) událostí z aplikace přímo do syst
 - **Automatický Export do Google / Apple Kalendáře (iCal Feed):** Unikátní odkaz pro každou kapelu, který si členové vloží do iPhonu/Androidu a kalendář se jim aktualizuje sám bez otevírání aplikace.
 - **Rychlý Souhrn pro Zvukaře (Gig Sheet PDF):** Stažení jednopránkového přehledu pro zvukaře/pořadatele obsahujícího Input List, Stageplan a Časový harmonogram v 1 souboru.
 - **Garáž & Správa Výbavy (Gear Inventory):** Seznam kapelních nástrojů, mikrofonů a beden se sériovými čísly a pořizovací cenou pro případ pojištění nebo ztráty.
+
+### 🤖 Automatizace, AI a Interaktivita (Gemini, Gamifikace & Výkon)
+- **Hlasové Dotazy na Aplikaci (AI Voice Assistant):** Hlasové dotazy typu *"Kdy máme zkoušku?"* nebo *"Kde je sobota koncert?"* bez proklikávání menu.
+- **Automatické Připomínky Nepotvrzené Docházky:** Upozornění členům 48 hodin před akcí, pokud nepotvrdili docházku.
+- **Inteligentní Generátor Setlistu:** Automatické sestavení 60minutového setlistu podle tempa (BPM), tónin a oblíbenosti u fanoušků.
+- **Generátor Smluv o Vystoupení v PDF:** Předvyplněné smlouvy o vystoupení v PDF pro pořadatele na 1 kliknutí.
+- **Žebříček a Odznaky pro Fanoušky:** Odznaky pro věrné fanoušky (*Super Fanoušek*, *Věrný člen*, *Dopisovatel*).
+- **Digitální Kolo Štěstí na Merch:** Zatočení kolem štěstí 1x za měsíc o slevové kupony na merch nebo pivo.
+- **Rychlé Ankety Uvnitř Kapely (Band Polls):** Hlasování členů kapely o termínech, tričkách či playlistu.
+- **A/B Porovnávač Verzí Nahrávek:** Přepínání tlačítkem A/B pro porovnání nahrávky zkoušky se starým a novým aranžmá.
