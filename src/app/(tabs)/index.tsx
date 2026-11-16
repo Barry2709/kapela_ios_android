@@ -1149,6 +1149,8 @@ export default function HomeScreen() {
 
       
       {/* MODAL PRO PŘEPÍNÁNÍ KAPEL */}
+      <HelpModal visible={showHelpModal} onClose={() => setShowHelpModal(false)} role={activeRoleView} />
+
       <Modal visible={showSwitchBandModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <ThemedView type="backgroundElement" style={styles.modalBox}>
