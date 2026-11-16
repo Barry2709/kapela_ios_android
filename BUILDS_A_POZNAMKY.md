@@ -118,9 +118,21 @@ Tento koncept řeší zápis (ukládání) událostí z aplikace přímo do syst
 - **Interaktivní Editor Stageplanu:** Rychlé poskládání rozestavení nástrojů na pódiu (bicí, aparáty, odposlechy) s okamžitým exportem do PDF.
 - **Servisní Deník Nástrojů & Dodávky:** Připomínky na výměnu strun, výměnu elektronek v zesilovači, seřízení nástrojů nebo výměnu oleje a technickou kontrolu kapelního auta.
 
-### 🎙️ Tvorba, statistik a fanklub
+### 🎙️ Tvorba, statistiky a fanklub
 - **Banka Hudebních Nápadů (Voice Memos):** Rychlé nahrání kytarového riffu nebo melodie z mobilu na zkoušce, přiřazení k pracovnímu názvu písničky a sdílení ostatním pro poslech v autě.
 - **Kapelní Statistiky:** Přehledné grafy – kolik koncertů kapela odehrála za rok, celkový výdělek, nejčastěji hrané písničky a procentuální docházka členů na zkouškách.
 - **Generátor Plakátů na Socials:** Jedním klikem vytvořit z koncertu hezký grafický obrázek (Story) pro sdílení na Instagram / Facebook.
 - **Evidování a prodej Merche:** Jednoduché počítadlo triček, CD a placek prodeje na stánku během koncertu.
 - **Hlasování o Přídavek:** Fanoušci přihlášení do fanklubu mohou před koncertem v aplikaci hlasovat, jakou bonusovou písničku chce dav slyšet jako přídavek.
+
+### 🎉 Speciální funkce pro Fanoušky
+- **Digitální Karta Fanklubu (Fan Pass):** Digitální průkazka s QR kódem pro slevu na merch nebo nápoj zdarma na koncertě.
+- **Živý Odpočet do Koncertu:** Animovaný odpočet dní, hodin a minut do startu nejbližšího koncertu přímo na hlavní stránce.
+- **Přidat Koncert do Osobního Kalendáře:** Uložení koncertu do osobního kalendáře v mobilu jedním kliknutím s připomínkou.
+- **Zákulisní Setlist po Koncertu:** Zobrazení seznamu odehraných písniček s možností lajkovat/srdíčkovat oblíbené songy.
+- **Písnička na Přání:** Možnost poslat kapelníkům vzkaz/přání na písničku před koncertem.
+- **Notifikace podle Města / Kraje:** Upozornění do mobilu pouze při vyhlášení nového koncertu v blízkém okolí fanouška.
+- **Fotostěna od Fanoušků:** Nahrávání vlastních fotek z davu pod pódiem do schvalovaného alba ve Fotogalerii.
+- **Rychlá Navigace na Místo Koncertu (GPS):** Tlačítko pro spuštění Waze / Google Maps s přesnou adresou klubu nebo festivalu.
+- **Pozvat Přátele na Akci:** Generování pozvánky s odkazem do WhatsAppu / Messengeru na 1 klik.
+- **Soutěže o Lístky:** Bleskové soutěže přímo v aplikaci o volné vstupenky na nadcházející koncert.
