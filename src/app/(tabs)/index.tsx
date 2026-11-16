@@ -833,9 +833,25 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
-            {/* Ikony Facebook, Instagram a Bandzone pod informací o přihlášení */}
-            {(activeBand?.facebook || activeBand?.instagram || activeBand?.bandzone) && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -2, marginBottom: Spacing.two, flexWrap: 'wrap' }}>
+            {/* Ikony Web, FB, IG a BZ zarovnané na střed pod informací o přihlášení */}
+            {(activeBand?.web || activeBand?.facebook || activeBand?.instagram || activeBand?.bandzone) && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: -2, marginBottom: Spacing.two, flexWrap: 'wrap' }}>
+                {activeBand?.web ? (
+                  <Pressable
+                    style={styles.socialHeaderBadge}
+                    onPress={() => {
+                      let url = activeBand.web!;
+                      if (!url.startsWith('http://') && !url.startsWith('https://')) url = `https://${url}`;
+                      Linking.openURL(url);
+                    }}
+                  >
+                    <SymbolView name={{ ios: 'globe', android: 'language', web: 'language' }} size={16} tintColor="#4caf50" />
+                    <ThemedText type="smallBold" style={{ color: '#4caf50', fontSize: 12, marginLeft: 4 }}>
+                      Web
+                    </ThemedText>
+                  </Pressable>
+                ) : null}
+
                 {activeBand?.facebook ? (
                   <Pressable
                     style={styles.socialHeaderBadge}
@@ -849,7 +865,7 @@ export default function HomeScreen() {
                       <ThemedText style={{ color: '#ffffff', fontSize: 13, fontWeight: 'bold', lineHeight: 15 }}>f</ThemedText>
                     </View>
                     <ThemedText type="smallBold" style={{ color: '#1877f2', fontSize: 12 }}>
-                      Facebook
+                      FB
                     </ThemedText>
                   </Pressable>
                 ) : null}
@@ -865,7 +881,7 @@ export default function HomeScreen() {
                   >
                     <SymbolView name={{ ios: 'camera.fill', android: 'photo_camera', web: 'camera' }} size={16} tintColor="#e1306c" />
                     <ThemedText type="smallBold" style={{ color: '#e1306c', fontSize: 12, marginLeft: 4 }}>
-                      Instagram
+                      IG
                     </ThemedText>
                   </Pressable>
                 ) : null}
@@ -883,7 +899,7 @@ export default function HomeScreen() {
                       <ThemedText style={{ color: '#ffffff', fontSize: 11, fontWeight: 'bold', lineHeight: 13 }}>BZ</ThemedText>
                     </View>
                     <ThemedText type="smallBold" style={{ color: '#ff5722', fontSize: 12 }}>
-                      Bandzone
+                      BZ
                     </ThemedText>
                   </Pressable>
                 ) : null}
