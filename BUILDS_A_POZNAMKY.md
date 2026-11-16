@@ -106,6 +106,7 @@ Tento koncept řeší zápis (ukládání) událostí z aplikace přímo do syst
 - **Tisk / Export Setlistu do PDF:** Jedním klikem vygenerovat čistý A4 setlist na pódium ke stažení do PDF nebo tisku před koncertem.
 - **Optický Metronom ve Zpěvníku:** Nastavení BPM u písničky a optické blikání tempa na kraji displeje při zkoušce.
 - **Offline Zpěvník:** Automatická záloha textů a akordů do paměti telefonu pro hraní na místech bez signálu (sklepy, hrady, lesní festivaly).
+- **Transpozice Akordů ve Zpěvníku:** Tlačítko `+1` / `-1` půltónu pro okamžité automatické přetransponování akordů.
 
 ### 🚐 Logistika, financování a správa
 - **Kalkulačka cestovních náhrad (Cesťák):** Automatický výpočet ceny benzínu/našlapaných km na koncert podle auta vybraného z garáže kapely.
@@ -135,8 +136,8 @@ Tento koncept řeší zápis (ukládání) událostí z aplikace přímo do syst
 - **Fotostěna od Fanoušků:** Nahrávání vlastních fotek z davu pod pódiem do schvalovaného alba ve Fotogalerii.
 - **Rychlá Navigace na Místo Koncertu (GPS):** Tlačítko pro spuštění Waze / Google Maps s přesnou adresou klubu nebo festivalu.
 - **Pozvat Přátele na Akci:** Generování pozvánky s odkazem do WhatsAppu / Messengeru na 1 klik.
-- **Soutěže o Lístky:** Bleskové soutěže přímo v aplikaci o volné vstupenky na nadchádzající koncert.
-- **30s Zvukové Ukázky Písniček:** Přehrávač krátkých audio ukázak studiových nahrávek.
+- **Soutěže o Lístky:** Bleskové soutěže přímo v aplikaci o volné vstupenky na nadcházející koncert.
+- **30s Zvukové Ukázky Písniček:** Přehrávač krátkých audio ukázek studiových nahrávek.
 - **Digitální Podpis Kapely:** Možnost nechat si podepsat virtuální podpiskartu členy kapely na displeji mobilu.
 
 ### 📱 Inspirace u Světových Aplikací (Bandsintown, Spotify, MasterTour, Setlist.fm)
@@ -157,3 +158,14 @@ Tento koncept řeší zápis (ukládání) událostí z aplikace přímo do syst
 - **Digitální Kolo Štěstí na Merch:** Zatočení kolem štěstí 1x za měsíc o slevové kupony na merch nebo pivo.
 - **Rychlé Ankety Uvnitř Kapely (Band Polls):** Hlasování členů kapely o termínech, tričkách či playlistu.
 - **A/B Porovnávač Verzí Nahrávek:** Přepínání tlačítkem A/B pro porovnání nahrávky zkoušky se starým a novým aranžmá.
+
+### 💳 Monetizace, Zákulisí & Komunita
+- **Dobrovolné Vstupné / Dýška Kapely (Digital Tipping):** Možnost pro fanoušky poslat kapela drobné "dýško" na benzin/album přes QR kód nebo platební bránu na 1 klik.
+- **Exkluzivní Zákulisní Videa (Backstage Shorts):** Krátká 15s videa ze šatny, zkoušky nebo cesty na koncert jen pro přihlášené fanoušky.
+- **Předobjednávky Merche s Vyzvednutím na Koncertě (Pre-Order Merch):** Rezervace trička konkrétní velikosti v aplikaci s předáním na stánku podle QR kódu.
+- **Živé Oznámení na Koncertě (Live Stage Broadcast):** Notifikace do mobilu fanoušků v klubu *"Za 3 minuty začínáme!"*.
+- **Akordy a Tabulátory pro Muzikanty:** Zobrazení oficiálních akordů a kytarových tabulatur pro fanoušky, kteří hrají na nástroj.
+- **Lokační Hra "Razítko z Koncertu" (GPS Check-in):** Získání digitálního razítka v aplikaci za fyzickou účast na koncertě po ověření GPS polohy.
+- **Předprodejní Exkluzivní Přístup pro Fanklub:** Možnost pro členy fanklubu koupit si lístky na koncert o 24 hodin dříve než veřejnost.
+- **Bazar Použité Výbavy Kapely (Band Flea Market):** Sekce, kde kapela může fanouškům nabídnout k prodeji staré kytarové pedály, činely nebo podepsané blány.
+- **Widget na Plochu Mobilu (Android / iOS Widget):** Miniaplikace na plochu telefonu zobrazující název a datum příštího koncertu bez otevírání apky.
