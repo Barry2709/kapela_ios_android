@@ -15,6 +15,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { BandMember, Band, Rehearsal, Concert, UserProfile } from '@/types';
 import { getBands, getBandMembers, addBandMember, updateBand, updateBandMember, subscribeToBand, getRehearsals, getConcerts, subscribeToRehearsals, subscribeToConcerts, updateRehearsal, updateConcert, saveFanToFirebase, addFanToBand, notifyAdminsAboutAttendance } from '@/services/firebaseService';
 import { BandHeader } from '@/components/band-header';
+import { HelpModal } from '@/components/help-modal';
 import { AddMemberForm } from '@/components/add-member-form';
 import { AddInquiryForm } from '@/components/add-inquiry-form';
 import { addInquiry } from '@/services/firebaseService';
@@ -54,6 +55,7 @@ export default function HomeScreen() {
   const [expandedAttendance, setExpandedAttendance] = useState<Record<string, boolean>>({});
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showSwitchBandModal, setShowSwitchBandModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [savedSessions, setSavedSessions] = useState<{user: UserProfile, band: Band}[]>([]);
   const [allBands, setAllBands] = useState<Band[]>([]);
   const [fanFeedRefreshKey, setFanFeedRefreshKey] = useState(0);
@@ -819,6 +821,10 @@ export default function HomeScreen() {
               <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1, marginRight: 8 }} numberOfLines={1}>
                 {t('home.misc.loggedInAs')} <ThemedText type="smallBold">{currentUser?.displayName}</ThemedText>
               </ThemedText>
+
+              <Pressable onPress={() => setShowHelpModal(true)} style={[styles.logoutBtnInline, { marginRight: 8, paddingHorizontal: 10 }]}>
+                <SymbolView name={{ ios: 'questionmark.circle.fill', android: 'help', web: 'help' }} size={16} tintColor={theme.text} />
+              </Pressable>
 
               <Pressable onPress={handleOpenSwitchModal} style={[styles.logoutBtnInline, { marginRight: 8, backgroundColor: 'rgba(33, 150, 243, 0.1)', borderColor: 'rgba(33, 150, 243, 0.4)' }]}>
                 <ThemedText type="smallBold" style={{ color: '#2196f3' }}>
