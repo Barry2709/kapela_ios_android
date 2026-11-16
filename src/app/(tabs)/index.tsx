@@ -818,8 +818,8 @@ export default function HomeScreen() {
           <View style={[styles.contentPadding, { marginTop: 3 }]}>
             {/* Rychlý řádek s informací o přihlášení a viditelné tlačítko odhlášení */}
             <View style={styles.loggedInRow}>
-              <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1, marginRight: 8 }} numberOfLines={1}>
-                {t('home.misc.loggedInAs')} <ThemedText type="smallBold">{currentUser?.displayName}</ThemedText>
+              <ThemedText type="smallBold" themeColor="textSecondary" style={{ flex: 1, marginRight: 8 }} numberOfLines={1}>
+                {currentUser?.displayName}
               </ThemedText>
 
               <Pressable onPress={() => setShowHelpModal(true)} style={[styles.logoutBtnInline, { marginRight: 8, paddingHorizontal: 10 }]}>
