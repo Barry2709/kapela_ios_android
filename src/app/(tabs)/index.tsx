@@ -822,7 +822,14 @@ export default function HomeScreen() {
                 {currentUser?.displayName}
               </ThemedText>
 
-              <Pressable onPress={() => setShowHelpModal(true)} style={[styles.logoutBtnInline, { marginRight: 8, paddingHorizontal: 10 }]}>
+              {/* TLAČÍTKO NÁPOVĚDA - Spolehlivé spuštění okna */}
+              <Pressable
+                onPress={() => {
+                  console.log('Otevírám nápovědu...');
+                  setShowHelpModal(true);
+                }}
+                style={[styles.logoutBtnInline, { marginRight: 8, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(150,150,150,0.1)' }]}
+              >
                 <SymbolView name={{ ios: 'questionmark.circle.fill', android: 'help', web: 'help' }} size={16} tintColor={theme.text} />
               </Pressable>
 
