@@ -33,30 +33,41 @@ const CustomMarquee = ({ text, color }: { text: string; color: string }) => {
   const animatedValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    let anim: Animated.CompositeAnimation | null = null;
-
-    // Zabraňuje zbytečné animaci, pokud se text vejde do kontejneru
     if (textWidth > 0 && containerWidth > 0) {
-      if (textWidth <= containerWidth) {
-         animatedValue.setValue(0);
-         return;
-      }
-
+      // Vždy začneme s textem, který je vidět aspoň částečně (vyhneme se tomu, aby čekal někde schovaný za obrazovkou celou minutu)
       animatedValue.setValue(0);
-      anim = Animated.loop(
-        Animated.timing(animatedValue, {
-          toValue: -(textWidth + 50),
-          duration: (textWidth + containerWidth) * 20,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        })
+
+      const toVal = -(textWidth + 10);
+      // Rychlost 30ms na 1 pixel
+      const duration = Math.abs(toVal) * 30;
+
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(animatedValue, {
+            toValue: toVal,
+            duration: duration,
+            easing: Easing.linear,
+            useNativeDriver: true,
+          }),
+          // Než začne smyčka znovu zprava, musíme ho potichu teleportovat na pravou stranu
+          Animated.timing(animatedValue, {
+            toValue: containerWidth,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+          // A pak ho pomalu nechat najet
+          Animated.timing(animatedValue, {
+            toValue: 0,
+            duration: containerWidth * 30,
+            easing: Easing.linear,
+            useNativeDriver: true,
+          })
+        ])
       );
       anim.start();
-    }
 
-    return () => {
-      if (anim) anim.stop();
-    };
+      return () => anim.stop();
+    }
   }, [textWidth, containerWidth, text]);
 
   return (
@@ -67,7 +78,7 @@ const CustomMarquee = ({ text, color }: { text: string; color: string }) => {
       <Animated.View style={{ flexDirection: 'row', transform: [{ translateX: animatedValue }] }}>
         <ThemedText
           type="smallBold"
-          style={{ color, marginLeft: containerWidth > 0 && textWidth > containerWidth ? containerWidth : 0, marginRight: 50, fontSize: 13, lineHeight: 18 }}
+          style={{ color, fontSize: 13, lineHeight: 18,  }}
           onLayout={(e) => setTextWidth(e.nativeEvent.layout.width)}
           numberOfLines={1}
         >
