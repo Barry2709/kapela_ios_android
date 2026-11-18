@@ -818,32 +818,29 @@ export default function HomeScreen() {
           <View style={[styles.contentPadding, { marginTop: 3 }]}>
             {/* Rychlý řádek s informací o přihlášení a viditelné tlačítko odhlášení */}
             <View style={styles.loggedInRow}>
-              <ThemedText type="smallBold" themeColor="textSecondary" style={{ flex: 1, marginRight: 8 }} numberOfLines={1}>
+              {/* Jméno vlevo */}
+              <ThemedText type="smallBold" themeColor="textSecondary" style={{ flex: 1 }} numberOfLines={1}>
                 {currentUser?.displayName}
               </ThemedText>
 
-              {/* TLAČÍTKO NÁPOVĚDA - Spolehlivé spuštění okna */}
-              <Pressable
-                onPress={() => {
-                  console.log('Otevírám nápovědu...');
-                  setShowHelpModal(true);
-                }}
-                style={[styles.logoutBtnInline, { marginRight: 8, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(150,150,150,0.1)' }]}
-              >
-                <SymbolView name={{ ios: 'questionmark.circle.fill', android: 'help', web: 'help' }} size={16} tintColor={theme.text} />
-              </Pressable>
+              {/* Tlačítka vpravo (Kapely, Nápověda, Odhlásit) */}
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Pressable onPress={handleOpenSwitchModal} style={[styles.logoutBtnInline, { marginRight: 12, backgroundColor: 'rgba(33, 150, 243, 0.1)', borderColor: 'rgba(33, 150, 243, 0.4)' }]}>
+                  <ThemedText type="smallBold" style={{ color: '#2196f3' }}>
+                    Kapely
+                  </ThemedText>
+                </Pressable>
 
-              <Pressable onPress={handleOpenSwitchModal} style={[styles.logoutBtnInline, { marginRight: 8, backgroundColor: 'rgba(33, 150, 243, 0.1)', borderColor: 'rgba(33, 150, 243, 0.4)' }]}>
-                <ThemedText type="smallBold" style={{ color: '#2196f3' }}>
-                  {activeRoleView === 'fan' ? (t('home.misc.addBandFan') || 'Přidat / spravovat kapely') : (t('home.misc.switchBand') || 'Změnit kapelu')}
-                </ThemedText>
-              </Pressable>
+                <Pressable onPress={() => setShowHelpModal(true)} style={[styles.logoutBtnInline, { marginRight: 5, paddingHorizontal: 8, paddingVertical: 6, backgroundColor: 'rgba(150,150,150,0.1)' }]}>
+                  <SymbolView name={{ ios: 'questionmark.circle.fill', android: 'help', web: 'help' }} size={16} tintColor={theme.text} />
+                </Pressable>
 
-              <Pressable onPress={handleLogout} style={styles.logoutBtnInline}>
-                <ThemedText type="smallBold" style={{ color: theme.text }}>
-                  {t('home.misc.logout')}
-                </ThemedText>
-              </Pressable>
+                <Pressable onPress={handleLogout} style={styles.logoutBtnInline}>
+                  <ThemedText type="smallBold" style={{ color: theme.text }}>
+                    {t('home.misc.logout')}
+                  </ThemedText>
+                </Pressable>
+              </View>
             </View>
 
             {/* Ikony Web, FB, IG a BZ zarovnané na střed pod informací o přihlášení */}
