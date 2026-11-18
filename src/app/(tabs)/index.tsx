@@ -34,35 +34,23 @@ const CustomMarquee = ({ text, color }: { text: string; color: string }) => {
 
   useEffect(() => {
     if (textWidth > 0 && containerWidth > 0) {
-      // Vždy začneme s textem, který je vidět aspoň částečně (vyhneme se tomu, aby čekal někde schovaný za obrazovkou celou minutu)
-      animatedValue.setValue(0);
+      // Začátek animace posuneme na pravý okraj obrazovky, aby celý text postupně najel do záběru.
+      animatedValue.setValue(containerWidth);
 
-      const toVal = -(textWidth + 10);
-      // Rychlost 30ms na 1 pixel
-      const duration = Math.abs(toVal) * 30;
+      // Konec animace je až ve chvíli, kdy celý text odjede doleva mimo obrazovku (šířka textu do mínusu).
+      const toVal = -textWidth;
+
+      // Rychlost: cca 35ms na 1 pixel. Tím zajistíme plynulé a neuspěchané čtení.
+      const totalDistance = containerWidth + textWidth;
+      const duration = totalDistance * 35;
 
       const anim = Animated.loop(
-        Animated.sequence([
-          Animated.timing(animatedValue, {
-            toValue: toVal,
-            duration: duration,
-            easing: Easing.linear,
-            useNativeDriver: true,
-          }),
-          // Než začne smyčka znovu zprava, musíme ho potichu teleportovat na pravou stranu
-          Animated.timing(animatedValue, {
-            toValue: containerWidth,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-          // A pak ho pomalu nechat najet
-          Animated.timing(animatedValue, {
-            toValue: 0,
-            duration: containerWidth * 30,
-            easing: Easing.linear,
-            useNativeDriver: true,
-          })
-        ])
+        Animated.timing(animatedValue, {
+          toValue: toVal,
+          duration: duration,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
       );
       anim.start();
 
@@ -76,11 +64,11 @@ const CustomMarquee = ({ text, color }: { text: string; color: string }) => {
       onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
     >
       <Animated.View style={{ flexDirection: 'row', transform: [{ translateX: animatedValue }] }}>
+        {/* Odstraněno numberOfLines={1}, místo toho používáme velkou fixní šířku pro absolutní roztažení textu do jedné lajny */}
         <ThemedText
           type="smallBold"
-          style={{ color, fontSize: 13, lineHeight: 18,  }}
+          style={{ color, fontSize: 13, lineHeight: 18 }}
           onLayout={(e) => setTextWidth(e.nativeEvent.layout.width)}
-          numberOfLines={1}
         >
           {text}
         </ThemedText>
@@ -937,12 +925,14 @@ export default function HomeScreen() {
             {/* Rychlý řádek s informací o přihlášení a viditelné tlačítko odhlášení */}
             <View style={[styles.loggedInRow, { justifyContent: 'space-between' }]}>
               {/* Jméno vlevo (šířka 30%) */}
-              <ThemedText type="smallBold" themeColor="textSecondary" style={{ flex: 0.3 }} numberOfLines={1}>
-                {currentUser?.displayName}
-              </ThemedText>
+              <View style={{ flex: 0.35, alignItems: 'flex-start' }}>
+                <ThemedText type="smallBold" themeColor="textSecondary" numberOfLines={1}>
+                  {currentUser?.displayName}
+                </ThemedText>
+              </View>
 
-              {/* Střed: Kapely */}
-              <View style={{ flex: 0.4, alignItems: 'center' }}>
+              {/* Tlačítko Kapely pevně vycentrované na střed */}
+              <View style={{ flex: 0.3, alignItems: 'center' }}>
                 <Pressable onPress={handleOpenSwitchModal} style={[styles.logoutBtnInline, { backgroundColor: 'rgba(33, 150, 243, 0.1)', borderColor: 'rgba(33, 150, 243, 0.4)' }]}>
                   <ThemedText type="smallBold" style={{ color: '#2196f3' }}>
                     Kapely
@@ -950,9 +940,9 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
 
-              {/* Tlačítka vpravo (Nápověda, Odhlásit) šířka 30% */}
-              <View style={{ flex: 0.3, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' }}>
-                <Pressable onPress={() => setShowHelpModal(true)} style={[styles.logoutBtnInline, { marginRight: 8, paddingHorizontal: 8, paddingVertical: 6, backgroundColor: 'rgba(150,150,150,0.1)' }]}>
+              {/* Tlačítka Odhlášení a Nápověda na pravém okraji (šířka 35%) */}
+              <View style={{ flex: 0.35, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' }}>
+                <Pressable onPress={() => setShowHelpModal(true)} style={[styles.logoutBtnInline, { marginRight: 10, paddingHorizontal: 8, paddingVertical: 6, backgroundColor: 'rgba(150,150,150,0.1)' }]}>
                   <SymbolView name={{ ios: 'questionmark.circle.fill', android: 'help', web: 'help' }} size={16} tintColor={theme.text} />
                 </Pressable>
 
