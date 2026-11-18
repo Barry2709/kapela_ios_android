@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, Pressable, ScrollView, Modal, Alert, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { SymbolView } from 'expo-symbols';
 import { Image } from 'expo-image';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -23,6 +24,44 @@ import { EditBandForm } from '@/components/edit-band-form';
 import { StageplanModal, shareConcertStageplan } from '@/components/stageplan-modal';
 import { TunerModal } from '@/components/tuner-modal';
 import { useTranslation } from '@/utils/i18n';
+
+import { Animated, Easing } from 'react-native';
+
+const CustomMarquee = ({ text, color }: { text: string; color: string }) => {
+  const [textWidth, setTextWidth] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const animatedValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (textWidth > 0 && containerWidth > 0) {
+      Animated.loop(
+        Animated.timing(animatedValue, {
+          toValue: -textWidth,
+          duration: (textWidth + containerWidth) * 15, // Rychlost podle délky
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start();
+    }
+  }, [textWidth, containerWidth]);
+
+  return (
+    <View
+      style={{ overflow: 'hidden', width: '100%', flexDirection: 'row', alignItems: 'center' }}
+      onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
+    >
+      <Animated.View style={{ flexDirection: 'row', transform: [{ translateX: animatedValue }] }}>
+        <ThemedText
+          type="smallBold"
+          style={{ color, marginLeft: containerWidth, marginRight: 50, fontSize: 13, lineHeight: 18 }}
+          onLayout={(e) => setTextWidth(e.nativeEvent.layout.width)}
+        >
+          {text}
+        </ThemedText>
+      </Animated.View>
+    </View>
+  );
+};
 
 export default function HomeScreen() {
   const theme = useTheme();
@@ -972,13 +1011,17 @@ export default function HomeScreen() {
               </View>
             )}
 
-            {/* Zobrazení živého odpočtu pro fanoušky */}
+            {/* Nekonečně běžící Ticker odpočtu pro fanoušky */}
             {activeRoleView === 'fan' && countdownText && upcomingConcert && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255, 152, 0, 0.1)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, marginBottom: Spacing.two }}>
-                <SymbolView name={{ ios: 'timer', android: 'timer', web: 'timer' }} size={16} tintColor="#ff9800" />
-                <ThemedText type="smallBold" style={{ color: '#ff9800', marginLeft: 8 }}>
-                  Start: {countdownText}
-                </ThemedText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 152, 0, 0.1)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, marginBottom: Spacing.two, overflow: 'hidden' }}>
+                <SymbolView name={{ ios: 'music.note.house.fill', android: 'domain', web: 'domain' }} size={16} tintColor="#ff9800" style={{ marginRight: 8 }} />
+
+                <View style={{ flex: 1, overflow: 'hidden' }}>
+                  <CustomMarquee
+                    text={`${(upcomingConcert as any)._bandName || activeBand?.name || 'Kapela'} • ${upcomingConcert.title} • ${formatDateDisplay(upcomingConcert.date)} ${upcomingConcert.startTime ? 'v ' + upcomingConcert.startTime : ''} • ${upcomingConcert.location} ⏳ Čas do startu: ${countdownText}`}
+                    color="#ff9800"
+                  />
+                </View>
               </View>
             )}
 
