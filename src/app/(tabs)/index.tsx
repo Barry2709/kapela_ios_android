@@ -817,21 +817,24 @@ export default function HomeScreen() {
 
           <View style={[styles.contentPadding, { marginTop: 3 }]}>
             {/* Rychlý řádek s informací o přihlášení a viditelné tlačítko odhlášení */}
-            <View style={styles.loggedInRow}>
-              {/* Jméno vlevo */}
-              <ThemedText type="smallBold" themeColor="textSecondary" style={{ flex: 1 }} numberOfLines={1}>
+            <View style={[styles.loggedInRow, { justifyContent: 'space-between' }]}>
+              {/* Jméno vlevo (šířka 30%) */}
+              <ThemedText type="smallBold" themeColor="textSecondary" style={{ flex: 0.3 }} numberOfLines={1}>
                 {currentUser?.displayName}
               </ThemedText>
 
-              {/* Tlačítka vpravo (Kapely, Nápověda, Odhlásit) */}
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Pressable onPress={handleOpenSwitchModal} style={[styles.logoutBtnInline, { marginRight: 12, backgroundColor: 'rgba(33, 150, 243, 0.1)', borderColor: 'rgba(33, 150, 243, 0.4)' }]}>
+              {/* Střed: Kapely */}
+              <View style={{ flex: 0.4, alignItems: 'center' }}>
+                <Pressable onPress={handleOpenSwitchModal} style={[styles.logoutBtnInline, { backgroundColor: 'rgba(33, 150, 243, 0.1)', borderColor: 'rgba(33, 150, 243, 0.4)' }]}>
                   <ThemedText type="smallBold" style={{ color: '#2196f3' }}>
                     Kapely
                   </ThemedText>
                 </Pressable>
+              </View>
 
-                <Pressable onPress={() => setShowHelpModal(true)} style={[styles.logoutBtnInline, { marginRight: 5, paddingHorizontal: 8, paddingVertical: 6, backgroundColor: 'rgba(150,150,150,0.1)' }]}>
+              {/* Tlačítka vpravo (Nápověda, Odhlásit) šířka 30% */}
+              <View style={{ flex: 0.3, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' }}>
+                <Pressable onPress={() => setShowHelpModal(true)} style={[styles.logoutBtnInline, { marginRight: 8, paddingHorizontal: 8, paddingVertical: 6, backgroundColor: 'rgba(150,150,150,0.1)' }]}>
                   <SymbolView name={{ ios: 'questionmark.circle.fill', android: 'help', web: 'help' }} size={16} tintColor={theme.text} />
                 </Pressable>
 
