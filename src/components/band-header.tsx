@@ -65,11 +65,8 @@ export function BandHeader({ overrideBand }: BandHeaderProps = {}) {
           });
         }
 
-        // Fallback, pokud má fanoušek v telefonu jen 1 uloženou kapelu
-        if (availableBandsMap.size <= 1) {
-          const allFb = await getBands();
-          allFb.forEach(b => availableBandsMap.set(b.id, b));
-        }
+        // U fanoušků striktně rotujeme POUZE kapely, do kterých se přihlásil / které sleduje.
+        // Fallback na všechny kapely je odstraněn.
 
         const availableBands = Array.from(availableBandsMap.values());
         if (availableBands.length <= 1) return;
