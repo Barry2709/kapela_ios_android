@@ -809,6 +809,59 @@ export default function HomeScreen() {
     country: (upcomingConcert as any)._bandCountry || activeBand?.country,
   } : null;
 
+  // ⏱️ Živý odpočet k nejbližšímu koncertu pro fanoušky
+  const [countdownText, setCountdownText] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeRoleView !== 'fan' || !upcomingConcert) {
+      setCountdownText(null);
+      return;
+    }
+
+    const calculateCountdown = () => {
+      try {
+        const parts = upcomingConcert.date.split('.');
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+
+        let hours = 20, minutes = 0;
+        if (upcomingConcert.startTime) {
+          const timeParts = upcomingConcert.startTime.split(':');
+          if (timeParts.length === 2) {
+            hours = parseInt(timeParts[0], 10);
+            minutes = parseInt(timeParts[1], 10);
+          }
+        }
+
+        const eventDate = new Date(year, month, day, hours, minutes, 0).getTime();
+        const now = new Date().getTime();
+        const diff = eventDate - now;
+
+        if (diff <= 0) {
+          setCountdownText('Koncert právě probíhá nebo skončil!');
+          return;
+        }
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hrs = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+        let text = '';
+        if (days > 0) text += `${days}d `;
+        text += `${hrs}h ${mins}m`;
+        setCountdownText(text);
+      } catch (e) {
+        setCountdownText(null);
+      }
+    };
+
+    calculateCountdown();
+    const interval = setInterval(calculateCountdown, 60000); // Aktualizace každou minutu
+
+    return () => clearInterval(interval);
+  }, [activeRoleView, upcomingConcert]);
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
@@ -916,6 +969,16 @@ export default function HomeScreen() {
                     </ThemedText>
                   </Pressable>
                 ) : null}
+              </View>
+            )}
+
+            {/* Zobrazení živého odpočtu pro fanoušky */}
+            {activeRoleView === 'fan' && countdownText && upcomingConcert && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255, 152, 0, 0.1)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, marginBottom: Spacing.two }}>
+                <SymbolView name={{ ios: 'timer', android: 'timer', web: 'timer' }} size={16} tintColor="#ff9800" />
+                <ThemedText type="smallBold" style={{ color: '#ff9800', marginLeft: 8 }}>
+                  Start: {countdownText}
+                </ThemedText>
               </View>
             )}
 
