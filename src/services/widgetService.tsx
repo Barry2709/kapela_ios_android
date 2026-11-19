@@ -27,7 +27,7 @@ export const updateAppWidget = async (concert: {
 
     await AsyncStorage.setItem('widgetConcertData', JSON.stringify(data));
 
-    // A) Aktualizace Android Widgetu
+    // Aktualizace Android Widgetu
     if (Platform.OS === 'android') {
       try {
         await requestWidgetUpdate({
@@ -36,18 +36,6 @@ export const updateAppWidget = async (concert: {
         });
       } catch (e) {
         // Ignoruje v případě, že widget ještě není na ploše
-      }
-    }
-
-    // B) Aktualizace iOS WidgetExtension přes App Group
-    if (Platform.OS === 'ios') {
-      try {
-        const WidgetExtension = require('react-native-widget-extension');
-        if (WidgetExtension && WidgetExtension.setItem) {
-          await WidgetExtension.setItem('widgetConcertData', JSON.stringify(data), 'group.com.ios.kapela');
-        }
-      } catch (e) {
-        // Ignoruje na iOS simulátorech nebo pokud AppGroup není aktivní
       }
     }
   } catch (e) {
