@@ -32,7 +32,7 @@ export function ConcertWidget({
       clickAction="OPEN_URI"
       clickActionData={{ uri: 'kapelaiosandroid://' }}
     >
-      {/* Řádek 1: Název kapely vlevo | Datum a Čas vpravo */}
+      {/* 1. Horní řádek: Datum a Čas vlevo | Název kapely vpravo */}
       <FlexWidget
         style={{
           flexDirection: 'row',
@@ -41,6 +41,14 @@ export function ConcertWidget({
           width: 'match_parent',
         }}
       >
+        <TextWidget
+          text={formattedDateTime}
+          style={{
+            fontSize: 12,
+            color: '#ff9800',
+            fontWeight: 'bold',
+          }}
+        />
         <TextWidget
           text={bandName}
           style={{
@@ -49,26 +57,10 @@ export function ConcertWidget({
             fontWeight: 'bold',
           }}
         />
-        <TextWidget
-          text={formattedDateTime}
-          style={{
-            fontSize: 11,
-            color: '#ff9800',
-            fontWeight: 'bold',
-          }}
-        />
       </FlexWidget>
 
-      {/* Řádek 2: Název akce vlevo | Místo vpravo */}
-      <FlexWidget
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          width: 'match_parent',
-          marginTop: 2,
-        }}
-      >
+      {/* 2. Druhý řádek: Název akce zarovnaný vlevo */}
+      <FlexWidget style={{ width: 'match_parent', marginTop: 3 }}>
         <TextWidget
           text={concertTitle}
           style={{
@@ -77,16 +69,20 @@ export function ConcertWidget({
             fontWeight: 'bold',
           }}
         />
-        {locationStr ? (
+      </FlexWidget>
+
+      {/* 3. Třetí řádek: Místo zarovnané vlevo */}
+      {locationStr ? (
+        <FlexWidget style={{ width: 'match_parent', marginTop: 2 }}>
           <TextWidget
-            text={`📍 ${locationStr}`}
+            text={`📍 Místo: ${locationStr}`}
             style={{
               fontSize: 11,
               color: '#aaaaaa',
             }}
           />
-        ) : null}
-      </FlexWidget>
+        </FlexWidget>
+      ) : null}
     </FlexWidget>
   );
 }
