@@ -98,12 +98,15 @@
             {
               "name": "ConcertWidget",
               "label": "Kapela - Příští Koncert",
-              "minWidth": "180dp",
-              "minHeight": "110dp",
+              "minWidth": "110dp",
+              "minHeight": "60dp",
               "targetCellWidth": 2,
               "targetCellHeight": 2,
               "description": "Zobrazuje název a datum nejbližšího koncertu kapely přímo na ploše.",
-              "updatePeriodMillis": 3600000
+              "updatePeriodMillis": 3600000,
+              "maxResizeWidth": "500dp",
+              "maxResizeHeight": "500dp",
+              "resizeMode": "horizontal|vertical"
             }
           ]
         }
