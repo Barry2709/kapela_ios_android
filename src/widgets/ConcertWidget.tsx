@@ -16,6 +16,8 @@ export function ConcertWidget({
   timeStr = '',
   locationStr = '',
 }: ConcertWidgetProps) {
+  const formattedDateTime = timeStr ? `📅 ${dateStr} • ⏰ ${timeStr}` : `📅 ${dateStr}`;
+
   return (
     <FlexWidget
       style={{
@@ -48,7 +50,7 @@ export function ConcertWidget({
           }}
         />
         <TextWidget
-          text="Kapela"
+          text="🎸 Kapela"
           style={{
             fontSize: 10,
             color: '#8e8e93',
@@ -68,7 +70,7 @@ export function ConcertWidget({
         />
         {locationStr ? (
           <TextWidget
-            text={`Místo: ${locationStr}`}
+            text={`📍 Místo: ${locationStr}`}
             style={{
               fontSize: 11,
               color: '#aaaaaa',
@@ -78,7 +80,7 @@ export function ConcertWidget({
         ) : null}
       </FlexWidget>
 
-      {/* Datum a Čas */}
+      {/* Datum a Čas akce */}
       <FlexWidget
         style={{
           flexDirection: 'row',
@@ -86,13 +88,13 @@ export function ConcertWidget({
           backgroundColor: '#33ff9800',
           borderRadius: 8,
           paddingHorizontal: 8,
-          paddingVertical: 4,
+          paddingVertical: 5,
           width: 'match_parent',
           marginTop: 6,
         }}
       >
         <TextWidget
-          text={`Datum: ${dateStr}${timeStr ? ' v ' + timeStr : ''}`}
+          text={formattedDateTime}
           style={{
             fontSize: 12,
             color: '#ff9800',
