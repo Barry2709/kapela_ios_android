@@ -16,7 +16,7 @@ export function ConcertWidget({
   timeStr = '',
   locationStr = '',
 }: ConcertWidgetProps) {
-  const formattedDateTime = timeStr ? `📅 ${dateStr} • ⏰ ${timeStr}` : `📅 ${dateStr}`;
+  const formattedDateTime = timeStr ? `📅 ${dateStr} v ${timeStr}` : `📅 ${dateStr}`;
 
   return (
     <FlexWidget
@@ -24,15 +24,15 @@ export function ConcertWidget({
         height: 'match_parent',
         width: 'match_parent',
         backgroundColor: '#1c1c1e',
-        borderRadius: 16,
-        padding: 12,
+        borderRadius: 14,
+        padding: 10,
         justifyContent: 'space-between',
         alignItems: 'flex-start',
       }}
       clickAction="OPEN_URI"
       clickActionData={{ uri: 'kapelaiosandroid://' }}
     >
-      {/* Hlavička kapely */}
+      {/* Řádek 1: Název kapely vlevo | Datum a Čas vpravo */}
       <FlexWidget
         style={{
           flexDirection: 'row',
@@ -50,57 +50,42 @@ export function ConcertWidget({
           }}
         />
         <TextWidget
-          text="🎸 Kapela"
+          text={formattedDateTime}
           style={{
-            fontSize: 10,
-            color: '#8e8e93',
+            fontSize: 11,
+            color: '#ff9800',
+            fontWeight: 'bold',
           }}
         />
       </FlexWidget>
 
-      {/* Název koncertu a Místo */}
-      <FlexWidget style={{ width: 'match_parent', marginTop: 4 }}>
+      {/* Řádek 2: Název akce vlevo | Místo vpravo */}
+      <FlexWidget
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: 'match_parent',
+          marginTop: 2,
+        }}
+      >
         <TextWidget
           text={concertTitle}
           style={{
-            fontSize: 15,
+            fontSize: 14,
             color: '#ffffff',
             fontWeight: 'bold',
           }}
         />
         {locationStr ? (
           <TextWidget
-            text={`📍 Místo: ${locationStr}`}
+            text={`📍 ${locationStr}`}
             style={{
               fontSize: 11,
               color: '#aaaaaa',
-              marginTop: 2,
             }}
           />
         ) : null}
-      </FlexWidget>
-
-      {/* Datum a Čas akce */}
-      <FlexWidget
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          backgroundColor: '#33ff9800',
-          borderRadius: 8,
-          paddingHorizontal: 8,
-          paddingVertical: 5,
-          width: 'match_parent',
-          marginTop: 6,
-        }}
-      >
-        <TextWidget
-          text={formattedDateTime}
-          style={{
-            fontSize: 12,
-            color: '#ff9800',
-            fontWeight: 'bold',
-          }}
-        />
       </FlexWidget>
     </FlexWidget>
   );
