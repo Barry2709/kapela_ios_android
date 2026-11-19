@@ -85,7 +85,24 @@
       "@react-native-community/datetimepicker",
       "expo-mail-composer",
       "expo-sharing",
-      "expo-asset"
+      "expo-asset",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "ConcertWidget",
+              "label": "Kapela - Příští Koncert",
+              "minWidth": "180dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "description": "Zobrazuje název a datum nejbližšího koncertu kapely přímo na ploše.",
+              "updatePeriodMillis": 3600000
+            }
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

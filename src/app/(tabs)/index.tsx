@@ -16,6 +16,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { BandMember, Band, Rehearsal, Concert, UserProfile } from '@/types';
 import { getBands, getBandMembers, addBandMember, updateBand, updateBandMember, subscribeToBand, getRehearsals, getConcerts, subscribeToRehearsals, subscribeToConcerts, updateRehearsal, updateConcert, saveFanToFirebase, addFanToBand, notifyAdminsAboutAttendance } from '@/services/firebaseService';
 import { BandHeader } from '@/components/band-header';
+import { updateAppWidget } from '@/services/widgetService';
 import { HelpModal } from '@/components/help-modal';
 import { AddMemberForm } from '@/components/add-member-form';
 import { AddInquiryForm } from '@/components/add-inquiry-form';
@@ -60,13 +61,14 @@ const CustomMarquee = ({ text, color }: { text: string; color: string }) => {
 
   return (
     <View
-      style={{ overflow: 'hidden', width: '100%', flexDirection: 'row', alignItems: 'center' }}
+      style={{ overflow: 'hidden', width: '100%', height: 18, flexDirection: 'row', alignItems: 'center' }}
       onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
     >
-      <Animated.View style={{ flexDirection: 'row', transform: [{ translateX: animatedValue }] }}>
-        {/* Odstraněno numberOfLines={1}, místo toho používáme velkou fixní šířku pro absolutní roztažení textu do jedné lajny */}
+      {/* position absolute zajistí, že rodič (obrazovka) nezačne text zalamovat a on zůstane v 1 řádku, takže se může spočítat jeho plná délka */}
+      <Animated.View style={{ flexDirection: 'row', position: 'absolute', transform: [{ translateX: animatedValue }] }}>
         <ThemedText
           type="smallBold"
+          numberOfLines={1}
           style={{ color, fontSize: 13, lineHeight: 18 }}
           onLayout={(e) => setTextWidth(e.nativeEvent.layout.width)}
         >
@@ -914,6 +916,21 @@ export default function HomeScreen() {
 
     return () => clearInterval(interval);
   }, [activeRoleView, upcomingConcert]);
+
+    // 📱 Aktualizace Android/iOS Widgetu na ploše
+  useEffect(() => {
+    if (upcomingConcert) {
+      updateAppWidget({
+        bandName: (upcomingConcert as any)._bandName || activeBand?.name || 'Kapela',
+        title: upcomingConcert.title,
+        date: formatDateDisplay(upcomingConcert.date),
+        startTime: upcomingConcert.startTime,
+        location: upcomingConcert.location,
+      });
+    } else {
+      updateAppWidget(null);
+    }
+  }, [upcomingConcert?.id, activeBand?.name]);
 
   return (
     <ThemedView style={styles.container}>

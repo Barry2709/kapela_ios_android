@@ -1,3 +1,5 @@
+import { registerWidgetTaskHandler } from 'react-native-android-widget';
+import { widgetTaskHandler } from '../widgets/widget-task-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -19,6 +21,10 @@ import { getBandMembers, updateBandMember, updateFanInBand, removeInvalidPushTok
 import { arrayUnion } from 'firebase/firestore';
 
 SplashScreen.preventAutoHideAsync();
+
+try {
+  registerWidgetTaskHandler(widgetTaskHandler);
+} catch (e) {}
 
 export default function RootLayout() {
   const { currentUser, setCurrentUser, activeBand, setActiveBand, setActiveRoleView } = useAppStore();
