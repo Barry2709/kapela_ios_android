@@ -3,14 +3,7 @@ import { WidgetTaskHandlerProps } from 'react-native-android-widget';
 import { ConcertWidget } from './ConcertWidget';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const nameToWidgetMap = {
-  ConcertWidget: ConcertWidget,
-};
-
 export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
-  const widgetInfo = props.widgetInfo;
-  const Widget = nameToWidgetMap[widgetInfo.widgetName as keyof typeof nameToWidgetMap];
-
   let widgetData = {
     bandName: 'Kapela',
     concertTitle: 'Žádný nadcházející koncert',
@@ -28,7 +21,7 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
   } catch (e) {}
 
   props.renderWidget(
-    <Widget
+    <ConcertWidget
       bandName={widgetData.bandName}
       concertTitle={widgetData.concertTitle}
       dateStr={widgetData.dateStr}

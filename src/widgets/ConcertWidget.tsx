@@ -27,7 +27,8 @@ export function ConcertWidget({
         justifyContent: 'space-between',
         alignItems: 'flex-start',
       }}
-      clickAction="OPEN_APP"
+      clickAction="OPEN_URI"
+      clickActionData={{ uri: 'kapelaiosandroid://' }}
     >
       {/* Hlavička kapely */}
       <FlexWidget
@@ -47,7 +48,7 @@ export function ConcertWidget({
           }}
         />
         <TextWidget
-          text="🎸 Kapela"
+          text="Kapela"
           style={{
             fontSize: 10,
             color: '#8e8e93',
@@ -67,7 +68,7 @@ export function ConcertWidget({
         />
         {locationStr ? (
           <TextWidget
-            text={`📍 ${locationStr}`}
+            text={`Místo: ${locationStr}`}
             style={{
               fontSize: 11,
               color: '#aaaaaa',
@@ -82,7 +83,7 @@ export function ConcertWidget({
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          backgroundColor: 'rgba(255, 152, 0, 0.2)',
+          backgroundColor: '#33ff9800',
           borderRadius: 8,
           paddingHorizontal: 8,
           paddingVertical: 4,
@@ -91,7 +92,7 @@ export function ConcertWidget({
         }}
       >
         <TextWidget
-          text={`📅 ${dateStr}${timeStr ? ' v ' + timeStr : ''}`}
+          text={`Datum: ${dateStr}${timeStr ? ' v ' + timeStr : ''}`}
           style={{
             fontSize: 12,
             color: '#ff9800',
