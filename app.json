@@ -97,15 +97,48 @@
           "widgets": [
             {
               "name": "ConcertWidget",
-              "label": "Kapela - Příští Koncert",
-              "minWidth": "110dp",
-              "minHeight": "60dp",
-              "targetCellWidth": 2,
+              "label": "Kapela - Příští Koncert (Karta)",
+              "minWidth": "180dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 3,
               "targetCellHeight": 2,
-              "description": "Zobrazuje název a datum nejbližšího koncertu kapely přímo na ploše.",
+              "description": "Zobrazuje název a datum nejbližšího koncertu kapely ve formě karty.",
               "updatePeriodMillis": 3600000,
               "maxResizeWidth": "500dp",
               "maxResizeHeight": "500dp",
+              "resizeMode": "horizontal|vertical"
+            },
+            {
+              "name": "ConcertWidget3x1",
+              "label": "Kapela - Příští Koncert (3x1)",
+              "minWidth": "180dp",
+              "minHeight": "60dp",
+              "targetCellWidth": 3,
+              "targetCellHeight": 1,
+              "description": "Kompaktní widget 3x1 s datem a názvem koncertu.",
+              "updatePeriodMillis": 3600000,
+              "resizeMode": "horizontal|vertical"
+            },
+            {
+              "name": "ConcertWidget4x1",
+              "label": "Kapela - Příští Koncert (4x1)",
+              "minWidth": "250dp",
+              "minHeight": "60dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 1,
+              "description": "Široký widget 4x1 přes celou šířku obrazovky.",
+              "updatePeriodMillis": 3600000,
+              "resizeMode": "horizontal|vertical"
+            },
+            {
+              "name": "ConcertWidget5x1",
+              "label": "Kapela - Příští Koncert (5x1)",
+              "minWidth": "320dp",
+              "minHeight": "60dp",
+              "targetCellWidth": 5,
+              "targetCellHeight": 1,
+              "description": "Extra široký widget 5x1 pro velké displeje.",
+              "updatePeriodMillis": 3600000,
               "resizeMode": "horizontal|vertical"
             }
           ]

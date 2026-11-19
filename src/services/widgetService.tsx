@@ -27,18 +27,21 @@ export const updateAppWidget = async (concert: {
 
     await AsyncStorage.setItem('widgetConcertData', JSON.stringify(data));
 
-    // Aktualizace Android Widgetu
+    // Aktualizace VŠECH velikostních variant Android Widgetu (2x2, 3x1, 4x1, 5x1)
     if (Platform.OS === 'android') {
-      try {
-        await requestWidgetUpdate({
-          widgetName: 'ConcertWidget',
-          renderWidget: () => <ConcertWidget {...data} />,
-        });
-      } catch (e) {
-        // Ignoruje v případě, že widget ještě není na ploše
+      const widgetNames = ['ConcertWidget', 'ConcertWidget3x1', 'ConcertWidget4x1', 'ConcertWidget5x1'];
+      for (const widgetName of widgetNames) {
+        try {
+          await requestWidgetUpdate({
+            widgetName,
+            renderWidget: () => <ConcertWidget {...data} />,
+          });
+        } catch (e) {
+          // Ignoruje u neplaced widgetů
+        }
       }
     }
   } catch (e) {
-    console.error("Chyba při aktualizaci widgetu:", e);
+    console.error("Chyba při aktualizaci widgetů:", e);
   }
 };
