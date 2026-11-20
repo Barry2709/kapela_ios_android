@@ -40,6 +40,7 @@ import { EventsCalendar } from '@/components/calendar/EventsCalendar';
 import { cs, sk, enUS } from 'date-fns/locale';
 import { format as formatFns } from 'date-fns';
 import { useTranslation } from '@/utils/i18n';
+import { openNavigationOptions } from '@/services/navigationService';
 import { createGoogleCalendarEventOAuth, updateGoogleCalendarEventOAuth, deleteGoogleCalendarEventOAuth } from '@/services/googleCalendarService';
 import { syncEventToLocalCalendar, deleteEventFromLocalCalendar, parseEventDate, openInGoogleCalendarPrefilled, openGoogleCalendarAtDate } from '@/services/calendarSyncService';
 
@@ -1009,9 +1010,34 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
             <ThemedText type="default" style={{ fontWeight: 'bold', marginTop: 2 }}>
               📅 {formatDateDisplay(concert.date)} {concert.startTime ? `v ${concert.startTime}` : ''} {concert.endTime ? `- ${concert.endTime}` : ''}
             </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: 2 }}>
-              📍 {concert.location}
-            </ThemedText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+              <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1, marginRight: 6 }} numberOfLines={1}>
+                📍 {concert.location}
+              </ThemedText>
+              {concert.location ? (
+                <Pressable
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    openNavigationOptions(concert.location!);
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: 'rgba(33, 150, 243, 0.12)',
+                    borderColor: 'rgba(33, 150, 243, 0.4)',
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                  }}
+                >
+                  <SymbolView name={{ ios: 'safari', android: 'explore', web: 'explore' }} size={13} tintColor="#2196f3" />
+                  <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11, marginLeft: 4 }}>
+                    Navigovat
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
 
           <View style={styles.badgeColumn}>
