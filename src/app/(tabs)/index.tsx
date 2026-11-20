@@ -17,6 +17,7 @@ import { BandMember, Band, Rehearsal, Concert, UserProfile } from '@/types';
 import { getBands, getBandMembers, addBandMember, updateBand, updateBandMember, subscribeToBand, getRehearsals, getConcerts, subscribeToRehearsals, subscribeToConcerts, updateRehearsal, updateConcert, saveFanToFirebase, addFanToBand, notifyAdminsAboutAttendance } from '@/services/firebaseService';
 import { BandHeader } from '@/components/band-header';
 import { openNavigationOptions } from '@/services/navigationService';
+import { inviteFriendsToConcert } from '@/services/shareService';
 import { updateAppWidget } from '@/services/widgetService';
 import { HelpModal } from '@/components/help-modal';
 import { AddMemberForm } from '@/components/add-member-form';
@@ -1140,27 +1141,58 @@ export default function HomeScreen() {
                               📍 {concert.location}
                             </ThemedText>
                             {concert.location ? (
-                              <Pressable
-                                onPress={(e) => {
-                                  e.stopPropagation();
-                                  openNavigationOptions(concert.location!);
-                                }}
-                                style={{
-                                  flexDirection: 'row',
-                                  alignItems: 'center',
-                                  backgroundColor: 'rgba(33, 150, 243, 0.12)',
-                                  borderColor: 'rgba(33, 150, 243, 0.4)',
-                                  borderWidth: 1,
-                                  borderRadius: 8,
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 4,
-                                }}
-                              >
-                                <SymbolView name={{ ios: 'safari', android: 'explore', web: 'explore' }} size={13} tintColor="#2196f3" />
-                                <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11, marginLeft: 4 }}>
-                                  Navigovat
-                                </ThemedText>
-                              </Pressable>
+                              <View style={{ flexDirection: 'row', gap: 6 }}>
+                                <Pressable
+                                  onPress={(e) => {
+                                    e.stopPropagation();
+                                    openNavigationOptions(concert.location!);
+                                  }}
+                                  style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    backgroundColor: 'rgba(33, 150, 243, 0.12)',
+                                    borderColor: 'rgba(33, 150, 243, 0.4)',
+                                    borderWidth: 1,
+                                    borderRadius: 8,
+                                    paddingHorizontal: 8,
+                                    paddingVertical: 4,
+                                  }}
+                                >
+                                  <SymbolView name={{ ios: 'safari', android: 'explore', web: 'explore' }} size={13} tintColor="#2196f3" />
+                                  <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11, marginLeft: 4 }}>
+                                    Navigovat
+                                  </ThemedText>
+                                </Pressable>
+
+                                <Pressable
+                                  onPress={(e) => {
+                                    e.stopPropagation();
+                                    inviteFriendsToConcert({
+                                      bandName: bName,
+                                      title: concert.title,
+                                      date: formatDateDisplay(concert.date),
+                                      startTime: concert.startTime,
+                                      location: concert.location,
+                                      web: (concert as any)._bandWeb || activeBand?.web,
+                                    });
+                                  }}
+                                  style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    backgroundColor: 'rgba(76, 175, 80, 0.12)',
+                                    borderColor: 'rgba(76, 175, 80, 0.4)',
+                                    borderWidth: 1,
+                                    borderRadius: 8,
+                                    paddingHorizontal: 8,
+                                    paddingVertical: 4,
+                                  }}
+                                >
+                                  <SymbolView name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }} size={13} tintColor="#4caf50" />
+                                  <ThemedText type="smallBold" style={{ color: '#4caf50', fontSize: 11, marginLeft: 4 }}>
+                                    Pozvat
+                                  </ThemedText>
+                                </Pressable>
+                              </View>
                             ) : null}
                           </View>
                         </ThemedView>
