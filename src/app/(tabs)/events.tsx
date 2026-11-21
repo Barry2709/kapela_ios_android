@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/page-header';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/useAppStore';
-import { Rehearsal, Concert, Inquiry, Absence, BandMember } from '@/types';
+import { Rehearsal, Concert, Inquiry, Absence, BandMember, UserProfile } from '@/types';
 import {
   getRehearsals,
   getConcerts,
@@ -44,6 +44,27 @@ import { openNavigationOptions } from '@/services/navigationService';
 import { inviteFriendsToConcert } from '@/services/shareService';
 import { createGoogleCalendarEventOAuth, updateGoogleCalendarEventOAuth, deleteGoogleCalendarEventOAuth } from '@/services/googleCalendarService';
 import { syncEventToLocalCalendar, deleteEventFromLocalCalendar, parseEventDate, openInGoogleCalendarPrefilled, openGoogleCalendarAtDate } from '@/services/calendarSyncService';
+
+
+    const getFanAttendanceInfo = (concert: Concert, userProfile: UserProfile | null) => {
+    const attendees = concert.attendees || {};
+    let count = 0;
+    let isGoing = false;
+    const myUid = userProfile?.uid;
+
+    Object.entries(attendees).forEach(([key, val]: [string, any]) => {
+      const status = typeof val === 'string' ? val : val?.status;
+      if (status === 'yes') {
+        count++;
+        if (myUid && (key === myUid || val?.name === userProfile?.displayName)) {
+          isGoing = true;
+        }
+      }
+    });
+
+    return { count, isGoing };
+  };
+
 
 export default function EventsScreen() {
   const theme = useTheme();
@@ -1000,9 +1021,21 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
         <View style={styles.cardHeader}>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <ThemedText type="subtitle" style={{ fontSize: 18, fontWeight: 'bold' }}>
-                {concert.title}
-              </ThemedText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
+                <ThemedText type="subtitle" style={{ fontSize: 18, fontWeight: 'bold', flex: 1, marginRight: 6 }}>
+                  {concert.title}
+                </ThemedText>
+                {(() => {
+                  const { count } = getFanAttendanceInfo(concert, currentUser);
+                  return (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 152, 0, 0.15)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
+                      <ThemedText type="smallBold" style={{ color: '#ff9800', fontSize: 12 }}>
+                        🔥 {count} {count === 1 ? 'jde' : (count >= 2 && count <= 4 ? 'jdou' : 'jde')}
+                      </ThemedText>
+                    </View>
+                  );
+                })()}
+              </View>
               <View style={[styles.statusBadge, { backgroundColor: '#e91e63' }]}>
                 <ThemedText type="smallBold" style={{ color: '#fff', fontSize: 10 }}>{t('events.list.concert')}</ThemedText>
               </View>
@@ -1015,7 +1048,33 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
               📍 {concert.location}
             </ThemedText>
             {concert.location ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 10, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(150, 150, 150, 0.15)' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(150, 150, 150, 0.15)' }}>
+                {(() => {
+                  const { isGoing } = getFanAttendanceInfo(concert, currentUser);
+                  return (
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleToggleFanGoing(concert);
+                      }}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: isGoing ? '#ff9800' : 'rgba(255, 152, 0, 0.12)',
+                        borderColor: 'rgba(255, 152, 0, 0.4)',
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <SymbolView name={{ ios: isGoing ? 'checkmark.seal.fill' : 'flame.fill', android: isGoing ? 'check_circle' : 'local_fire_department', web: isGoing ? 'check_circle' : 'local_fire_department' }} size={14} tintColor={isGoing ? '#ffffff' : '#ff9800'} />
+                      <ThemedText type="smallBold" style={{ color: isGoing ? '#ffffff' : '#ff9800', fontSize: 12, marginLeft: 4 }}>
+                        {isGoing ? 'Jdu ✓' : 'Jdu!'}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })()}
                 <Pressable
                   onPress={(e) => {
                     e.stopPropagation();
@@ -1289,6 +1348,39 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
       return b.sortKey.localeCompare(a.sortKey);
     }
   });
+
+  
+  const handleToggleFanGoing = async (concert: Concert) => {
+    if (!currentUser) return;
+    const targetBandId = concert.bandId || activeBand?.id;
+    if (!targetBandId) return;
+
+    try {
+      const attendees: Record<string, any> = { ...(concert.attendees || {}) };
+      const myUid = currentUser.uid;
+
+      const currentRecord = attendees[myUid];
+      const currentStatus = typeof currentRecord === 'string' ? currentRecord : currentRecord?.status;
+
+      if (currentStatus === 'yes') {
+        delete attendees[myUid];
+      } else {
+        attendees[myUid] = {
+          status: 'yes',
+          name: currentUser.displayName || 'Fanoušek',
+          role: activeRoleView || 'fan',
+          updatedAt: Date.now(),
+        };
+      }
+
+      await updateConcert(targetBandId, concert.id, { attendees: attendees as any });
+      // Event update via snapshot or reload
+
+    } catch (e) {
+      console.error("Chyba při ukládání účasti:", e);
+    }
+  };
+
 
   return (
     <ThemedView style={styles.container}>

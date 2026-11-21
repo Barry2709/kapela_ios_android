@@ -81,6 +81,27 @@ const CustomMarquee = ({ text, color }: { text: string; color: string }) => {
   );
 };
 
+
+    const getFanAttendanceInfo = (concert: Concert, userProfile: UserProfile | null) => {
+    const attendees = concert.attendees || {};
+    let count = 0;
+    let isGoing = false;
+    const myUid = userProfile?.uid;
+
+    Object.entries(attendees).forEach(([key, val]: [string, any]) => {
+      const status = typeof val === 'string' ? val : val?.status;
+      if (status === 'yes') {
+        count++;
+        if (myUid && (key === myUid || val?.name === userProfile?.displayName)) {
+          isGoing = true;
+        }
+      }
+    });
+
+    return { count, isGoing };
+  };
+
+
 export default function HomeScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -934,6 +955,37 @@ export default function HomeScreen() {
     }
   }, [upcomingConcert?.id, activeBand?.name]);
 
+  
+  const handleToggleFanGoing = async (concert: Concert) => {
+    if (!currentUser) return;
+    const targetBandId = concert.bandId || activeBand?.id;
+    if (!targetBandId) return;
+
+    try {
+      const attendees: Record<string, any> = { ...(concert.attendees || {}) };
+      const myUid = currentUser.uid;
+
+      const currentRecord = attendees[myUid];
+      const currentStatus = typeof currentRecord === 'string' ? currentRecord : currentRecord?.status;
+
+      if (currentStatus === 'yes') {
+        delete attendees[myUid];
+      } else {
+        attendees[myUid] = {
+          status: 'yes',
+          name: currentUser.displayName || 'Fanoušek', role: activeRoleView || 'fan',
+          updatedAt: Date.now(),
+        };
+      }
+
+      await updateConcert(targetBandId, concert.id, { attendees: attendees as any });
+      setFanFeedRefreshKey(prev => prev + 1);
+    } catch (e) {
+      console.error("Chyba při ukládání účasti:", e);
+    }
+  };
+
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
@@ -1130,9 +1182,21 @@ export default function HomeScreen() {
                             </ThemedText>
                           </View>
 
-                          <ThemedText type="subtitle" style={{ fontSize: 18, fontWeight: 'bold' }}>
-                            {concert.title}
-                          </ThemedText>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <ThemedText type="subtitle" style={{ fontSize: 18, fontWeight: 'bold', flex: 1, marginRight: 6 }}>
+                              {concert.title}
+                            </ThemedText>
+                            {(() => {
+                              const { count } = getFanAttendanceInfo(concert, currentUser);
+                              return (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 152, 0, 0.15)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
+                                  <ThemedText type="smallBold" style={{ color: '#ff9800', fontSize: 12 }}>
+                                    🔥 {count} {count === 1 ? 'jde' : (count >= 2 && count <= 4 ? 'jdou' : 'jde')}
+                                  </ThemedText>
+                                </View>
+                              );
+                            })()}
+                          </View>
                           <ThemedText type="default" style={{ fontWeight: 'bold', marginTop: 4 }}>
                             📅 {formatDateDisplay(concert.date)} {concert.startTime ? `v ${concert.startTime}` : ''}
                           </ThemedText>
@@ -1140,7 +1204,33 @@ export default function HomeScreen() {
                             📍 {concert.location}
                           </ThemedText>
                           {concert.location ? (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 10, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(150, 150, 150, 0.15)' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(150, 150, 150, 0.15)' }}>
+                              {(() => {
+                                const { isGoing } = getFanAttendanceInfo(concert, currentUser);
+                                return (
+                                  <Pressable
+                                    onPress={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleFanGoing(concert);
+                                    }}
+                                    style={{
+                                      flexDirection: 'row',
+                                      alignItems: 'center',
+                                      backgroundColor: isGoing ? '#ff9800' : 'rgba(255, 152, 0, 0.12)',
+                                      borderColor: 'rgba(255, 152, 0, 0.4)',
+                                      borderWidth: 1,
+                                      borderRadius: 8,
+                                      paddingHorizontal: 10,
+                                      paddingVertical: 6,
+                                    }}
+                                  >
+                                    <SymbolView name={{ ios: isGoing ? 'checkmark.seal.fill' : 'flame.fill', android: isGoing ? 'check_circle' : 'local_fire_department', web: isGoing ? 'check_circle' : 'local_fire_department' }} size={14} tintColor={isGoing ? '#ffffff' : '#ff9800'} />
+                                    <ThemedText type="smallBold" style={{ color: isGoing ? '#ffffff' : '#ff9800', fontSize: 12, marginLeft: 4 }}>
+                                      {isGoing ? 'Jdu ✓' : 'Jdu!'}
+                                    </ThemedText>
+                                  </Pressable>
+                                );
+                              })()}
                               <Pressable
                                 onPress={(e) => {
                                   e.stopPropagation();
