@@ -1363,7 +1363,7 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
   });
 
   
-  const handleToggleFanGoing = async (concert: Concert) => {
+    const handleToggleFanGoing = async (concert: Concert) => {
     if (!currentUser) return;
     const targetBandId = concert.bandId || activeBand?.id;
     if (!targetBandId) return;
@@ -1371,24 +1371,33 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
     try {
       const attendees: Record<string, any> = { ...(concert.attendees || {}) };
       const myUid = currentUser.uid;
+      const myName = currentUser.displayName;
 
-      const currentRecord = attendees[myUid];
-      const currentStatus = typeof currentRecord === 'string' ? currentRecord : currentRecord?.status;
+      // Najít VŠECHNY klíče/záznamy, které patří tomuto uživateli (podle UID nebo jména)
+      const matchingKeys = Object.keys(attendees).filter(k => {
+        if (k === myUid) return true;
+        const record = attendees[k];
+        if (record && typeof record === 'object' && record.name && myName) {
+          return record.name.toLowerCase() === myName.toLowerCase();
+        }
+        return false;
+      });
 
-      if (currentStatus === 'yes') {
-        delete attendees[myUid];
+      if (matchingKeys.length > 0) {
+        // Uživatel už zapsán byl -> Smazat všechny jeho záznamy (Nejdu)
+        matchingKeys.forEach(k => delete attendees[k]);
       } else {
+        // Uživatel zapsán není -> Přidat nový záznam (Jdu!)
         attendees[myUid] = {
           status: 'yes',
-          name: currentUser.displayName || 'Fanoušek',
-          role: activeRoleView || 'fan',
+          name: myName || 'Fanoušek',
+          role: 'fan',
           updatedAt: Date.now(),
         };
       }
 
       await updateConcert(targetBandId, concert.id, { attendees: attendees as any });
-      // Event update via snapshot or reload
-
+      loadConcerts();
     } catch (e) {
       console.error("Chyba při ukládání účasti:", e);
     }
