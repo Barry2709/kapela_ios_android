@@ -1048,7 +1048,64 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
               📍 {concert.location}
             </ThemedText>
             {concert.location ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(150, 150, 150, 0.15)' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(150, 150, 150, 0.15)' }}>
+                {/* VLEVO: Navigovat a Pozvat */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  {concert.location ? (
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        openNavigationOptions(concert.location!);
+                      }}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: 'rgba(33, 150, 243, 0.12)',
+                        borderColor: 'rgba(33, 150, 243, 0.4)',
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <SymbolView name={{ ios: 'safari', android: 'explore', web: 'explore' }} size={13} tintColor="#2196f3" />
+                      <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11, marginLeft: 4 }}>
+                        Navigovat
+                      </ThemedText>
+                    </Pressable>
+                  ) : null}
+
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      inviteFriendsToConcert({
+                        bandName: (concert as any)._bandName || activeBand?.name,
+                        title: concert.title,
+                        date: formatDateDisplay(concert.date),
+                        startTime: concert.startTime,
+                        location: concert.location,
+                        web: activeBand?.web,
+                      });
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: 'rgba(76, 175, 80, 0.12)',
+                      borderColor: 'rgba(76, 175, 80, 0.4)',
+                      borderWidth: 1,
+                      borderRadius: 8,
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                    }}
+                  >
+                    <SymbolView name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }} size={13} tintColor="#4caf50" />
+                    <ThemedText type="smallBold" style={{ color: '#4caf50', fontSize: 11, marginLeft: 4 }}>
+                      Pozvat
+                    </ThemedText>
+                  </Pressable>
+                </View>
+
+                {/* VPRAVO: Jdu! */}
                 {(() => {
                   const { isGoing } = getFanAttendanceInfo(concert, currentUser);
                   return (
@@ -1068,63 +1125,13 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
                         paddingVertical: 6,
                       }}
                     >
-                      <SymbolView name={{ ios: isGoing ? 'checkmark.seal.fill' : 'flame.fill', android: isGoing ? 'check_circle' : 'local_fire_department', web: isGoing ? 'check_circle' : 'local_fire_department' }} size={14} tintColor={isGoing ? '#ffffff' : '#ff9800'} />
-                      <ThemedText type="smallBold" style={{ color: isGoing ? '#ffffff' : '#ff9800', fontSize: 12, marginLeft: 4 }}>
+                      <SymbolView name={{ ios: isGoing ? 'checkmark.seal.fill' : 'flame.fill', android: isGoing ? 'check_circle' : 'local_fire_department', web: isGoing ? 'check_circle' : 'local_fire_department' }} size={13} tintColor={isGoing ? '#ffffff' : '#ff9800'} />
+                      <ThemedText type="smallBold" style={{ color: isGoing ? '#ffffff' : '#ff9800', fontSize: 11, marginLeft: 4 }}>
                         {isGoing ? 'Jdu ✓' : 'Jdu!'}
                       </ThemedText>
                     </Pressable>
                   );
                 })()}
-                <Pressable
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    openNavigationOptions(concert.location!);
-                  }}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: 'rgba(33, 150, 243, 0.12)',
-                    borderColor: 'rgba(33, 150, 243, 0.4)',
-                    borderWidth: 1,
-                    borderRadius: 8,
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                  }}
-                >
-                  <SymbolView name={{ ios: 'safari', android: 'explore', web: 'explore' }} size={14} tintColor="#2196f3" />
-                  <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 12, marginLeft: 5 }}>
-                    Navigovat
-                  </ThemedText>
-                </Pressable>
-
-                <Pressable
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    inviteFriendsToConcert({
-                      bandName: (concert as any)._bandName || activeBand?.name,
-                      title: concert.title,
-                      date: formatDateDisplay(concert.date),
-                      startTime: concert.startTime,
-                      location: concert.location,
-                      web: activeBand?.web,
-                    });
-                  }}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: 'rgba(76, 175, 80, 0.12)',
-                    borderColor: 'rgba(76, 175, 80, 0.4)',
-                    borderWidth: 1,
-                    borderRadius: 8,
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                  }}
-                >
-                  <SymbolView name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }} size={14} tintColor="#4caf50" />
-                  <ThemedText type="smallBold" style={{ color: '#4caf50', fontSize: 12, marginLeft: 5 }}>
-                    Pozvat
-                  </ThemedText>
-                </Pressable>
               </View>
             ) : null}
           </View>
