@@ -82,18 +82,21 @@ const CustomMarquee = ({ text, color }: { text: string; color: string }) => {
 };
 
 
-      const getFanAttendanceInfo = (concert: Concert, userProfile: UserProfile | null) => {
+        const getFanAttendanceInfo = (concert: Concert, userProfile: UserProfile | null, membersList: BandMember[] = []) => {
     const attendees = concert.attendees || {};
     let count = 0;
     let isGoing = false;
     const myUid = userProfile?.uid;
+    const memberIdsSet = new Set((membersList || []).map(m => m.id));
 
     Object.entries(attendees).forEach(([key, val]: [string, any]) => {
       const status = typeof val === 'string' ? val : val?.status;
       const role = typeof val === 'object' ? val?.role : undefined;
 
-      // Nepočítat členy kapely ani adminy (pouze fanoušky)
-      if (status === 'yes' && role !== 'admin' && role !== 'member') {
+      // Zkontrolujeme, zda klíč nepatří členovi kapely nebo adminovi
+      const isBandMember = memberIdsSet.has(key) || role === 'admin' || role === 'member';
+
+      if (status === 'yes' && !isBandMember) {
         count++;
         if (myUid && (key === myUid || val?.name === userProfile?.displayName)) {
           isGoing = true;
@@ -1190,7 +1193,7 @@ export default function HomeScreen() {
                               {concert.title}
                             </ThemedText>
                             {(() => {
-                              const { count } = getFanAttendanceInfo(concert, currentUser);
+                              const { count } = getFanAttendanceInfo(concert, currentUser, members);
                               return (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 152, 0, 0.15)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
                                   <ThemedText type="smallBold" style={{ color: '#ff9800', fontSize: 12 }}>
@@ -1266,7 +1269,7 @@ export default function HomeScreen() {
 
                               {/* VPRAVO: Jdu! */}
                               {(() => {
-                                const { isGoing } = getFanAttendanceInfo(concert, currentUser);
+                                const { isGoing } = getFanAttendanceInfo(concert, currentUser, members);
                                 return (
                                   <Pressable
                                     onPress={(e) => {
