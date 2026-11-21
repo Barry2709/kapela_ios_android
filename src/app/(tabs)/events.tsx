@@ -46,7 +46,7 @@ import { createGoogleCalendarEventOAuth, updateGoogleCalendarEventOAuth, deleteG
 import { syncEventToLocalCalendar, deleteEventFromLocalCalendar, parseEventDate, openInGoogleCalendarPrefilled, openGoogleCalendarAtDate } from '@/services/calendarSyncService';
 
 
-    const getFanAttendanceInfo = (concert: Concert, userProfile: UserProfile | null) => {
+      const getFanAttendanceInfo = (concert: Concert, userProfile: UserProfile | null) => {
     const attendees = concert.attendees || {};
     let count = 0;
     let isGoing = false;
@@ -54,7 +54,10 @@ import { syncEventToLocalCalendar, deleteEventFromLocalCalendar, parseEventDate,
 
     Object.entries(attendees).forEach(([key, val]: [string, any]) => {
       const status = typeof val === 'string' ? val : val?.status;
-      if (status === 'yes') {
+      const role = typeof val === 'object' ? val?.role : undefined;
+
+      // Nepočítat členy kapely ani adminy (pouze fanoušky)
+      if (status === 'yes' && role !== 'admin' && role !== 'member') {
         count++;
         if (myUid && (key === myUid || val?.name === userProfile?.displayName)) {
           isGoing = true;
@@ -1117,17 +1120,17 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',
-                        backgroundColor: isGoing ? '#ff9800' : 'rgba(255, 152, 0, 0.12)',
-                        borderColor: 'rgba(255, 152, 0, 0.4)',
+                        backgroundColor: isGoing ? 'rgba(233, 30, 99, 0.12)' : 'rgba(255, 152, 0, 0.12)',
+                        borderColor: isGoing ? 'rgba(233, 30, 99, 0.4)' : 'rgba(255, 152, 0, 0.4)',
                         borderWidth: 1,
                         borderRadius: 8,
                         paddingHorizontal: 10,
                         paddingVertical: 6,
                       }}
                     >
-                      <SymbolView name={{ ios: isGoing ? 'checkmark.seal.fill' : 'flame.fill', android: isGoing ? 'check_circle' : 'local_fire_department', web: isGoing ? 'check_circle' : 'local_fire_department' }} size={13} tintColor={isGoing ? '#ffffff' : '#ff9800'} />
-                      <ThemedText type="smallBold" style={{ color: isGoing ? '#ffffff' : '#ff9800', fontSize: 11, marginLeft: 4 }}>
-                        {isGoing ? 'Jdu ✓' : 'Jdu!'}
+                      <SymbolView name={{ ios: isGoing ? 'xmark.circle.fill' : 'flame.fill', android: isGoing ? 'cancel' : 'local_fire_department', web: isGoing ? 'cancel' : 'local_fire_department' }} size={13} tintColor={isGoing ? '#e91e63' : '#ff9800'} />
+                      <ThemedText type="smallBold" style={{ color: isGoing ? '#e91e63' : '#ff9800', fontSize: 11, marginLeft: 4 }}>
+                        {isGoing ? 'Nejdu' : 'Jdu!'}
                       </ThemedText>
                     </Pressable>
                   );
