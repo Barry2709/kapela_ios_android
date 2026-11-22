@@ -82,23 +82,25 @@ const CustomMarquee = ({ text, color }: { text: string; color: string }) => {
 };
 
 
-        const getFanAttendanceInfo = (concert: Concert, userProfile: UserProfile | null, membersList: BandMember[] = []) => {
+          const getFanAttendanceInfo = (concert: Concert, userProfile: UserProfile | null, membersList: BandMember[] = []) => {
     const attendees = concert.attendees || {};
     let count = 0;
     let isGoing = false;
     const myUid = userProfile?.uid;
+    const myName = userProfile?.displayName;
     const memberIdsSet = new Set((membersList || []).map(m => m.id));
 
     Object.entries(attendees).forEach(([key, val]: [string, any]) => {
       const status = typeof val === 'string' ? val : val?.status;
       const role = typeof val === 'object' ? val?.role : undefined;
+      const valName = typeof val === 'object' ? val?.name : undefined;
 
-      // Zkontrolujeme, zda klíč nepatří členovi kapely nebo adminovi
+      // Nepočítat členy kapely ani adminy (pouze fanoušky)
       const isBandMember = memberIdsSet.has(key) || role === 'admin' || role === 'member';
 
       if (status === 'yes' && !isBandMember) {
         count++;
-        if (myUid && (key === myUid || val?.name === userProfile?.displayName)) {
+        if ((myUid && key === myUid) || (myName && valName && valName.toLowerCase() === myName.toLowerCase())) {
           isGoing = true;
         }
       }
@@ -962,22 +964,22 @@ export default function HomeScreen() {
   }, [upcomingConcert?.id, activeBand?.name]);
 
   
-    const handleToggleFanGoing = async (concert: Concert) => {
-    if (!currentUser) return;
+      const handleToggleFanGoing = async (concert: Concert) => {
     const targetBandId = concert.bandId || activeBand?.id;
     if (!targetBandId) return;
 
     try {
+      const savedName = currentUser?.displayName || (await AsyncStorage.getItem('savedFanName')) || 'Fanoušek';
+      const savedUid = currentUser?.uid || (await AsyncStorage.getItem('savedFanEmail')) || 'fan_' + savedName.toLowerCase().replace(/\s+/g, '_');
+
       const attendees: Record<string, any> = { ...(concert.attendees || {}) };
-      const myUid = currentUser.uid;
-      const myName = currentUser.displayName;
 
       // Najít VŠECHNY klíče/záznamy, které patří tomuto uživateli (podle UID nebo jména)
       const matchingKeys = Object.keys(attendees).filter(k => {
-        if (k === myUid) return true;
+        if (k === savedUid) return true;
         const record = attendees[k];
-        if (record && typeof record === 'object' && record.name && myName) {
-          return record.name.toLowerCase() === myName.toLowerCase();
+        if (record && typeof record === 'object' && record.name && savedName) {
+          return record.name.toLowerCase() === savedName.toLowerCase();
         }
         return false;
       });
@@ -987,9 +989,9 @@ export default function HomeScreen() {
         matchingKeys.forEach(k => delete attendees[k]);
       } else {
         // Uživatel zapsán není -> Přidat nový záznam (Jdu!)
-        attendees[myUid] = {
+        attendees[savedUid] = {
           status: 'yes',
-          name: myName || 'Fanoušek',
+          name: savedName,
           role: 'fan',
           updatedAt: Date.now(),
         };
