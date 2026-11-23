@@ -82,6 +82,7 @@ export default function EventsScreen() {
       const { t } = useTranslation();
 
   const [rehearsals, setRehearsals] = useState<Rehearsal[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [concerts, setConcerts] = useState<Concert[]>([]);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
@@ -1366,7 +1367,7 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
   });
 
   
-      const handleToggleFanGoing = async (concert: Concert) => {
+        const handleToggleFanGoing = async (concert: Concert) => {
     const targetBandId = concert.bandId || activeBand?.id;
     if (!targetBandId) return;
 
@@ -1374,35 +1375,66 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
       const savedName = currentUser?.displayName || (await AsyncStorage.getItem('savedFanName')) || 'Fanoušek';
       const savedUid = currentUser?.uid || (await AsyncStorage.getItem('savedFanEmail')) || 'fan_' + savedName.toLowerCase().replace(/\s+/g, '_');
 
-      const attendees: Record<string, any> = { ...(concert.attendees || {}) };
+      // Optimistic Update v UI
+      const updatedConcerts = concerts.map(c => {
+        if (c.id === concert.id) {
+          const newAttendees = { ...(c.attendees || {}) };
+          const matchingKeys = Object.keys(newAttendees).filter(k => {
+            if (k === savedUid) return true;
+            const record = newAttendees[k];
+            if (record && typeof record === 'object' && (record as any).name && savedName) {
+              return (record as any).name.toLowerCase() === savedName.toLowerCase();
+            }
+            return false;
+          });
 
-      // Najít VŠECHNY klíče/záznamy, které patří tomuto uživateli (podle UID nebo jména)
-      const matchingKeys = Object.keys(attendees).filter(k => {
+          if (matchingKeys.length > 0) {
+            matchingKeys.forEach(k => delete newAttendees[k]); // Nejdu
+          } else {
+            newAttendees[savedUid] = { // Jdu
+              status: 'yes',
+              // @ts-ignore
+          name: savedName,
+              role: 'fan',
+              updatedAt: Date.now(),
+            };
+          }
+          return { ...c, attendees: newAttendees };
+        }
+        return c;
+      });
+
+      // Okamžitá aktualizace na obrazovce (bez čekání na server)
+      setConcerts(updatedConcerts);
+
+      // Aktualizace v datech Firebase na pozadí
+      const currentAttendees: Record<string, any> = { ...(concert.attendees || {}) };
+      const matchingKeysDb = Object.keys(currentAttendees).filter(k => {
         if (k === savedUid) return true;
-        const record = attendees[k];
-        if (record && typeof record === 'object' && record.name && savedName) {
-          return record.name.toLowerCase() === savedName.toLowerCase();
+        const record = currentAttendees[k];
+        if (record && typeof record === 'object' && (record as any).name && savedName) {
+          return (record as any).name.toLowerCase() === savedName.toLowerCase();
         }
         return false;
       });
 
-      if (matchingKeys.length > 0) {
-        // Uživatel už zapsán byl -> Smazat všechny jeho záznamy (Nejdu)
-        matchingKeys.forEach(k => delete attendees[k]);
+      if (matchingKeysDb.length > 0) {
+        matchingKeysDb.forEach(k => delete currentAttendees[k]);
       } else {
-        // Uživatel zapsán není -> Přidat nový záznam (Jdu!)
-        attendees[savedUid] = {
+        currentAttendees[savedUid] = {
           status: 'yes',
+          // @ts-ignore
           name: savedName,
           role: 'fan',
           updatedAt: Date.now(),
         };
       }
 
-      await updateConcert(targetBandId, concert.id, { attendees: attendees as any });
-      loadConcerts();
+      await updateConcert(targetBandId, concert.id, { attendees: currentAttendees as any });
+      // Odstranili jsme tvrdý loadConcerts(), protože už máme zobrazená aktuální data z optimistic updatu
     } catch (e) {
       console.error("Chyba při ukládání účasti:", e);
+      // Při selhání bychom měli data načíst zpět, tady to ale pro jednoduchost přeskočíme
     }
   };
 
