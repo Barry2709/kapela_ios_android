@@ -1037,6 +1037,7 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
                 </ThemedText>
                 {(() => {
                   const { count } = getFanAttendanceInfo(concert, currentUser, bandMembers);
+                  if (count === 0) return null;
                   return (
                     <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 152, 0, 0.15)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
                       <ThemedText type="smallBold" style={{ color: '#ff9800', fontSize: 12 }}>

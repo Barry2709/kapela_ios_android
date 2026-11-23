@@ -754,9 +754,11 @@ export const updateConcert = async (
 ): Promise<void> => {
   const docRef = doc(db, BANDS_COLLECTION, bandId, 'concerts', concertId);
 
-  // Kdo změní událost automaticky zařadit jako "můžu" (yes)
   const updatedUpdates = { ...updates };
-  if (editorMemberId && updates.date !== undefined) {
+
+  // Přidáme editora pouze v případě, že se mění datum a akce byla skutečně přesunuta adminem
+  // Pokud se pouze upravuje attendance (fanoušky), nesmíme editorMemberId přidávat!
+  if (editorMemberId && updates.date !== undefined && Object.keys(updates).length > 1) {
     updatedUpdates.attendees = {
       ...(updates.attendees || oldConcert?.attendees || {}),
       [editorMemberId]: { status: 'yes', updatedAt: Date.now() },

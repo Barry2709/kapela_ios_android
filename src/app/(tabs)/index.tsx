@@ -1238,6 +1238,7 @@ export default function HomeScreen() {
                             </ThemedText>
                             {(() => {
                               const { count } = getFanAttendanceInfo(concert, currentUser, members);
+                              if (count === 0) return null;
                               return (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 152, 0, 0.15)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
                                   <ThemedText type="smallBold" style={{ color: '#ff9800', fontSize: 12 }}>
@@ -1359,9 +1360,22 @@ export default function HomeScreen() {
                         >
                           <View style={styles.cardHeader}>
                             <View style={{ flex: 1 }}>
-                              <ThemedText type="subtitle" style={{ fontSize: 16, fontWeight: 'bold' }}>
-                                {concert.title}
-                              </ThemedText>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginRight: 6 }}>
+                                <ThemedText type="subtitle" style={{ fontSize: 16, fontWeight: 'bold', flex: 1 }}>
+                                  {concert.title}
+                                </ThemedText>
+                                {(() => {
+                              const { count } = getFanAttendanceInfo(concert, currentUser, members);
+                              if (count === 0) return null;
+                              return (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 152, 0, 0.15)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
+                                  <ThemedText type="smallBold" style={{ color: '#ff9800', fontSize: 12 }}>
+                                    🔥 {count} {count === 1 ? 'jde' : (count >= 2 && count <= 4 ? 'jdou' : 'jde')}
+                                  </ThemedText>
+                                </View>
+                              );
+                            })()}
+                              </View>
                               <ThemedText type="default" style={{ fontWeight: 'bold', marginTop: 2, fontSize: 13 }}>
                                 📅 {formatDateDisplay(concert.date)} {concert.startTime ? `v ${concert.startTime}` : ''}
                               </ThemedText>
