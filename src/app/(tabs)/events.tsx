@@ -1368,7 +1368,7 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
   });
 
   
-        const handleToggleFanGoing = async (concert: Concert) => {
+          const handleToggleFanGoing = async (concert: Concert) => {
     const targetBandId = concert.bandId || activeBand?.id;
     if (!targetBandId) return;
 
@@ -1395,7 +1395,7 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
             newAttendees[savedUid] = { // Jdu
               status: 'yes',
               // @ts-ignore
-          name: savedName,
+              name: savedName,
               role: 'fan',
               updatedAt: Date.now(),
             };
@@ -1409,7 +1409,7 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
       setConcerts(updatedConcerts);
 
       // Aktualizace v datech Firebase na pozadí
-      const currentAttendees: Record<string, any> = { ...(concert.attendees || {}) };
+      const currentAttendees = { ...(concert.attendees || {}) };
       const matchingKeysDb = Object.keys(currentAttendees).filter(k => {
         if (k === savedUid) return true;
         const record = currentAttendees[k];
@@ -1420,7 +1420,12 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
       });
 
       if (matchingKeysDb.length > 0) {
-        matchingKeysDb.forEach(k => delete currentAttendees[k]);
+        // Tady je klíčový moment: ve Firebase místo delete (což nefunguje s merge: true uvnitř updateConcert)
+        // musíme hodnotu explicitně nastavit na null nebo pole poslat natvrdo.
+        // Pro update objektů ve Firebase, nastavení na null nebo změna statusu vyřeší update problému.
+        matchingKeysDb.forEach(k => {
+          currentAttendees[k] = { status: 'no', updatedAt: Date.now() } as any; (currentAttendees[k] as any).role = 'fan';
+        });
       } else {
         currentAttendees[savedUid] = {
           status: 'yes',
@@ -1432,10 +1437,8 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
       }
 
       await updateConcert(targetBandId, concert.id, { attendees: currentAttendees as any });
-      // Odstranili jsme tvrdý loadConcerts(), protože už máme zobrazená aktuální data z optimistic updatu
     } catch (e) {
       console.error("Chyba při ukládání účasti:", e);
-      // Při selhání bychom měli data načíst zpět, tady to ale pro jednoduchost přeskočíme
     }
   };
 
