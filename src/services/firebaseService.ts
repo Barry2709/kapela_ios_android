@@ -1884,3 +1884,26 @@ export const deletePhotoAlbum = async (bandId: string, albumId: string): Promise
     console.error("Chyba při mazání alba:", e);
   }
 };
+
+
+export const saveUserLanguageToFirebase = async (
+  lang: string,
+  userUid?: string,
+  bandId?: string,
+  fanId?: string
+): Promise<void> => {
+  try {
+    if (userUid) {
+      const userRef = doc(db, 'users', userUid);
+      await setDoc(userRef, { preferredLanguage: lang, updatedAt: Date.now() }, { merge: true });
+    }
+
+    if (bandId && fanId) {
+      const fanRef = doc(db, BANDS_COLLECTION, bandId, 'fans', fanId);
+      await setDoc(fanRef, { preferredLanguage: lang, updatedAt: Date.now() }, { merge: true });
+    }
+  } catch (e) {
+    console.error("Chyba při ukládání jazyka do Firebase:", e);
+  }
+};
+

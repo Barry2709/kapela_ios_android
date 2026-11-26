@@ -31,6 +31,7 @@ export interface Band {
 }
 
 export interface UserProfile {
+  preferredLanguage?: string;
   uid: string;
   email: string;
   displayName: string;
@@ -72,6 +73,7 @@ export interface BandMember {
 }
 
 export interface Fan {
+  preferredLanguage?: string;
   id: string;
   name: string;
   email: string;

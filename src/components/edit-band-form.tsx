@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, TextInput, ScrollView, Pressable, Alert, Modal, Switch, KeyboardAvoidingView, Platform } from 'react-native';
 import * as Linking from 'expo-linking';
@@ -15,7 +16,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/store/useAppStore';
 import * as Clipboard from 'expo-clipboard';
 import { Band, BandMember, Fan } from '@/types';
-import { updateBand, getBandMembers, addBandMember, updateBandMember, getBandFans, addFanToBand, updateFanInBand, deleteFanFromBand } from '@/services/firebaseService';
+import { saveUserLanguageToFirebase, updateBand, getBandMembers, addBandMember, updateBandMember, getBandFans, addFanToBand, updateFanInBand, deleteFanFromBand } from '@/services/firebaseService';
 import { AddMemberForm } from './add-member-form';
 import { AddFanForm } from './add-fan-form';
 import { DraggableChips } from './draggable-chips';
@@ -1581,6 +1582,11 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
                     onPress={() => {
                       setLanguage(opt.key as any);
                       setShowLanguageDropdown(false);
+                      AsyncStorage.setItem('appLanguage', opt.key);
+                      (async () => {
+                        const savedFanId = (await AsyncStorage.getItem('savedFanEmail')) || currentUser?.uid;
+                        saveUserLanguageToFirebase(opt.key, currentUser?.uid, band.id, savedFanId);
+                      })();
                     }}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>

@@ -27,6 +27,18 @@ try {
 } catch (e) {}
 
 export default function RootLayout() {
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const savedLang = await AsyncStorage.getItem('appLanguage');
+        if (savedLang && (useAppStore.getState().setLanguage)) {
+          useAppStore.getState().setLanguage(savedLang as any);
+        }
+      } catch (e) {}
+    })();
+  }, []);
+  
   const { currentUser, setCurrentUser, activeBand, setActiveBand, setActiveRoleView } = useAppStore();
   const segments = useSegments();
   const router = useRouter();
