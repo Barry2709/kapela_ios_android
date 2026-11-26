@@ -2,6 +2,9 @@ import { useAppStore } from '@/store/useAppStore';
 
 const translations = {
   cs: {
+    'repertoire.loadingSongs': 'Načítám písně...',
+    'repertoire.loadingSongsPlus': 'Načítám písně ze Zpěvníku+...',
+
     'settings.selectLanguagePrompt': 'Vyberte jazyk:',
     'home.misc.bandsBtn': 'Kapely',
     'home.concert.goingCountOne': 'jde',
@@ -936,6 +939,9 @@ const translations = {
     'tuner.preset.contrabass': 'Kontrabas'
   },
   sk: {
+    'repertoire.loadingSongs': 'Načítavam piesne...',
+    'repertoire.loadingSongsPlus': 'Načítavam piesne zo Spevníka+...',
+
     'settings.selectLanguagePrompt': 'Vyberte jazyk:',
     'home.misc.bandsBtn': 'Kapely',
     'home.concert.goingCountOne': 'ide',
@@ -1861,6 +1867,9 @@ const translations = {
     'tuner.preset.contrabass': 'Kontrabas'
   },
   en: {
+    'repertoire.loadingSongs': 'Loading songs...',
+    'repertoire.loadingSongsPlus': 'Loading songs from Songbook+...',
+
     'settings.selectLanguagePrompt': 'Select language:',
     'home.misc.bandsBtn': 'Bands',
     'home.concert.goingCountOne': 'going',
@@ -2801,6 +2810,9 @@ const translations = {
     'form.concert.contactRole': ''
   },
   de: {
+    'repertoire.loadingSongs': 'Lade Lieder...',
+    'repertoire.loadingSongsPlus': 'Lade Lieder aus Songbook+...',
+
     'settings.selectLanguagePrompt': 'Sprache wählen:',
     'home.misc.bandsBtn': 'Bands',
     'home.concert.goingCountOne': 'dabei',
@@ -3737,6 +3749,9 @@ const translations = {
     "settings.calendar.googleBotHint": "Für die automatische Synchronisierung teilen Sie Ihren Google-Kalender mit dieser E-Mail:"
   },
   pl: {
+    'repertoire.loadingSongs': 'Ładowanie piosenek...',
+    'repertoire.loadingSongsPlus': 'Ładowanie piosenek ze Śpiewnika+...',
+
     'settings.selectLanguagePrompt': 'Wybierz język:',
     'home.misc.bandsBtn': 'Zespoły',
     'home.concert.goingCountOne': 'idzie',
@@ -4673,6 +4688,9 @@ const translations = {
     "settings.calendar.googleBotHint": "Udostępnij swój Kalendarz Google na ten e-mail:"
   },
   es: {
+    'repertoire.loadingSongs': 'Cargando canciones...',
+    'repertoire.loadingSongsPlus': 'Cargando canciones del Cancionero+...',
+
     'settings.selectLanguagePrompt': 'Seleccione el idioma:',
     'home.misc.bandsBtn': 'Bandas',
     'home.concert.goingCountOne': 'asistiendo',
@@ -5609,6 +5627,9 @@ const translations = {
     "settings.calendar.googleBotHint": "Comparte tu Google Calendar con este correo:"
   },
   fr: {
+    'repertoire.loadingSongs': 'Chargement des chansons...',
+    'repertoire.loadingSongsPlus': 'Chargement des chansons du Chansonnier+...',
+
     'settings.selectLanguagePrompt': 'Choisissez la langue :',
     'home.misc.bandsBtn': 'Groupes',
     'home.concert.goingCountOne': 'présent',

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, ScrollView, Pressable, Modal, Alert, Platform, TextInput } from 'react-native';
+import { StyleSheet, View, ScrollView, Pressable, Modal, Alert, Platform, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import * as DocumentPicker from 'expo-document-picker';
@@ -26,6 +26,7 @@ export default function RepertoireScreen() {
   const { t } = useTranslation();
 
   const [songs, setSongs] = useState<Song[]>([]);
+  const [isLoadingSongs, setIsLoadingSongs] = useState(false);
   const [songsPlus, setSongsPlus] = useState<Song[]>([]);
   const [bandMembers, setBandMembers] = useState<BandMember[]>([]);
   const [isQuickEditMode, setIsQuickEditMode] = useState(false);
@@ -856,7 +857,16 @@ export default function RepertoireScreen() {
                   </Pressable>
                 ))}
 
-                {filteredSongs.length === 0 && (
+                {isLoadingSongs ? (
+            <View style={{ paddingVertical: 40, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator size="large" color="#2196f3" />
+              <ThemedText type="smallBold" themeColor="textSecondary" style={{ marginTop: 12 }}>
+                {repertoireTab === 'zpevnik_plus'
+                  ? (t('repertoire.loadingSongsPlus') || 'Načítám písně ze Zpěvníku+...')
+                  : (t('repertoire.loadingSongs') || 'Načítám písně...')}
+              </ThemedText>
+            </View>
+          ) : filteredSongs.length === 0 && (
                   <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', marginTop: 20 }}>
                     {t('repertoire.empty.filter')}
                   </ThemedText>
