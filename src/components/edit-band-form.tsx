@@ -418,7 +418,11 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
             <Image source={{ uri: band.logoUri }} style={styles.fanLogo} contentFit="contain" />
           ) : null}
 
-          {/* Tlačítko výběru jazyka pro fanoušky pod logem */}
+          {/* Nápis Vyberte jazyk a Tlačítko výběru jazyka pro fanoušky pod logem */}
+          <ThemedText type="smallBold" themeColor="textSecondary" style={{ marginTop: 10, textAlign: 'center', fontSize: 12 }}>
+            {t('settings.selectLanguagePrompt') || 'Vyberte jazyk:'}
+          </ThemedText>
+
           <Pressable
             style={[
               styles.fanWebBtn,

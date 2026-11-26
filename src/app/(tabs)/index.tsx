@@ -1092,7 +1092,7 @@ export default function HomeScreen() {
               <View style={{ flex: 0.3, alignItems: 'center' }}>
                 <Pressable onPress={handleOpenSwitchModal} style={[styles.logoutBtnInline, { backgroundColor: 'rgba(33, 150, 243, 0.1)', borderColor: 'rgba(33, 150, 243, 0.4)' }]}>
                   <ThemedText type="smallBold" style={{ color: '#2196f3' }}>
-                    Kapely
+                    {t('home.misc.bandsBtn') || 'Kapely'}
                   </ThemedText>
                 </Pressable>
               </View>
@@ -1278,7 +1278,7 @@ export default function HomeScreen() {
                               return (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 152, 0, 0.15)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
                                   <ThemedText type="smallBold" style={{ color: '#ff9800', fontSize: 12 }}>
-                                    🔥 {count} {count === 1 ? 'jde' : (count >= 2 && count <= 4 ? 'jdou' : 'jde')}
+                                    🔥 {count} {count === 1 ? (t('home.concert.goingCountOne') || 'jde') : (count >= 2 && count <= 4 ? (t('home.concert.goingCountFew') || 'jdou') : (t('home.concert.goingCountMany') || 'jde'))}
                                   </ThemedText>
                                 </View>
                               );
@@ -1406,7 +1406,7 @@ export default function HomeScreen() {
                               return (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 152, 0, 0.15)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
                                   <ThemedText type="smallBold" style={{ color: '#ff9800', fontSize: 12 }}>
-                                    🔥 {count} {count === 1 ? 'jde' : (count >= 2 && count <= 4 ? 'jdou' : 'jde')}
+                                    🔥 {count} {count === 1 ? (t('home.concert.goingCountOne') || 'jde') : (count >= 2 && count <= 4 ? (t('home.concert.goingCountFew') || 'jdou') : (t('home.concert.goingCountMany') || 'jde'))}
                                   </ThemedText>
                                 </View>
                               );

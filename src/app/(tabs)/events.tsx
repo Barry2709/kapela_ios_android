@@ -1055,7 +1055,7 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
                   return (
                     <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 152, 0, 0.15)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
                       <ThemedText type="smallBold" style={{ color: '#ff9800', fontSize: 12 }}>
-                        🔥 {count} {count === 1 ? 'jde' : (count >= 2 && count <= 4 ? 'jdou' : 'jde')}
+                        🔥 {count} {count === 1 ? (t('home.concert.goingCountOne') || 'jde') : (count >= 2 && count <= 4 ? (t('home.concert.goingCountFew') || 'jdou') : (t('home.concert.goingCountMany') || 'jde'))}
                       </ThemedText>
                     </View>
                   );

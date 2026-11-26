@@ -2,6 +2,12 @@ import { useAppStore } from '@/store/useAppStore';
 
 const translations = {
   cs: {
+    'settings.selectLanguagePrompt': 'Vyberte jazyk:',
+    'home.misc.bandsBtn': 'Kapely',
+    'home.concert.goingCountOne': 'jde',
+    'home.concert.goingCountFew': 'jdou',
+    'home.concert.goingCountMany': 'jde',
+
     'home.concert.navigate': 'Navigovat',
     'home.concert.invite': 'Pozvat',
     'home.concert.imGoing': 'Jdu!',
@@ -930,6 +936,12 @@ const translations = {
     'tuner.preset.contrabass': 'Kontrabas'
   },
   sk: {
+    'settings.selectLanguagePrompt': 'Vyberte jazyk:',
+    'home.misc.bandsBtn': 'Kapely',
+    'home.concert.goingCountOne': 'ide',
+    'home.concert.goingCountFew': 'idú',
+    'home.concert.goingCountMany': 'ide',
+
     'home.concert.navigate': 'Navigovať',
     'home.concert.invite': 'Pozvať',
     'home.concert.imGoing': 'Idem!',
@@ -1849,6 +1861,12 @@ const translations = {
     'tuner.preset.contrabass': 'Kontrabas'
   },
   en: {
+    'settings.selectLanguagePrompt': 'Select language:',
+    'home.misc.bandsBtn': 'Bands',
+    'home.concert.goingCountOne': 'going',
+    'home.concert.goingCountFew': 'going',
+    'home.concert.goingCountMany': 'going',
+
     'home.concert.navigate': 'Navigate',
     'home.concert.invite': 'Invite',
     'home.concert.imGoing': 'Going!',
@@ -2783,6 +2801,12 @@ const translations = {
     'form.concert.contactRole': ''
   },
   de: {
+    'settings.selectLanguagePrompt': 'Sprache wählen:',
+    'home.misc.bandsBtn': 'Bands',
+    'home.concert.goingCountOne': 'dabei',
+    'home.concert.goingCountFew': 'dabei',
+    'home.concert.goingCountMany': 'dabei',
+
     'home.concert.navigate': 'Navigieren',
     'home.concert.invite': 'Einladen',
     'home.concert.imGoing': 'Dabei!',
@@ -3713,6 +3737,12 @@ const translations = {
     "settings.calendar.googleBotHint": "Für die automatische Synchronisierung teilen Sie Ihren Google-Kalender mit dieser E-Mail:"
   },
   pl: {
+    'settings.selectLanguagePrompt': 'Wybierz język:',
+    'home.misc.bandsBtn': 'Zespoły',
+    'home.concert.goingCountOne': 'idzie',
+    'home.concert.goingCountFew': 'idą',
+    'home.concert.goingCountMany': 'idzie',
+
     'home.concert.navigate': 'Nawiguj',
     'home.concert.invite': 'Zaproś',
     'home.concert.imGoing': 'Idę!',
@@ -4643,6 +4673,12 @@ const translations = {
     "settings.calendar.googleBotHint": "Udostępnij swój Kalendarz Google na ten e-mail:"
   },
   es: {
+    'settings.selectLanguagePrompt': 'Seleccione el idioma:',
+    'home.misc.bandsBtn': 'Bandas',
+    'home.concert.goingCountOne': 'asistiendo',
+    'home.concert.goingCountFew': 'asistiendo',
+    'home.concert.goingCountMany': 'asistiendo',
+
     'home.concert.navigate': 'Navegar',
     'home.concert.invite': 'Invitar',
     'home.concert.imGoing': '¡Voy!',
@@ -5573,6 +5609,12 @@ const translations = {
     "settings.calendar.googleBotHint": "Comparte tu Google Calendar con este correo:"
   },
   fr: {
+    'settings.selectLanguagePrompt': 'Choisissez la langue :',
+    'home.misc.bandsBtn': 'Groupes',
+    'home.concert.goingCountOne': 'présent',
+    'home.concert.goingCountFew': 'présents',
+    'home.concert.goingCountMany': 'présents',
+
     'home.concert.navigate': 'Naviguer',
     'home.concert.invite': 'Inviter',
     'home.concert.imGoing': 'J\'y vais !',
