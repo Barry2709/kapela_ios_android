@@ -1,6 +1,27 @@
 # 🛠️ Příkazy pro Build, Aktualizace a Poznámky k aplikaci
 
-Tento soubor slouží jako přehledný manuál všech klíčových příkazů pro sestavování balíčků (APK / IPA), odesílání do TestFlightu a rychlé aktualizace vzduchem (OTA).
+## 🚨 0. Závazná pravidla pro vývojáře (AI Agent Code Guidelines)
+*Tato pravidla jsou striktně vyžadována a dodržována při každé úpravě projektu.*
+
+1. **🌐 100% Internacionalizace (Všech 7 jazyků současně):**
+   - Jakýkoliv nový UI text, popisek, tlačítko, chybová zpráva nebo nadpis **nesmí být zapsán natvrdo česky** v komponentách (`.tsx`).
+   - Všechny texty musí být okamžitě přidány do `src/utils/i18n.ts` pro **všech 7 podporovaných jazyků** (`cs`, `sk`, `en`, `de`, `pl`, `es`, `fr`).
+
+2. **💬 Pravidlo "Návrh ➔ Schválení ➔ Realizace":**
+   - Před jakoukoliv úpravou kódu vývojář **nejprve v chatu předloží stručný a jasný návrh řešení**.
+   - Kód se upravuje **až po výslovném potvrzení uživatele** (*"ok"*, *"ano"*, *"realizuj"*).
+
+3. **🐙 Automatická synchronizace na GitHub:**
+   - Po každé schválené a provedené úpravě kódu se automaticky spustí `git add .`, `git commit` s výstižným anglickým popisem změn a `git push origin master`.
+
+4. **🛡️ Nedotknutelnost fungujícího kódu:**
+   - Zásadně nerozbíjet ani nepřemazávat již funkční okolní komponenty, logiku ani zavedené datové struktury ve Firebase Firestore.
+
+5. **🚀 Tiché neblokující EAS Updates:**
+   - Odesílání bezdrátových aktualizací (`eas update`) probíhá na pozadí, bez zbytečných a otravných čekacích smyček v chatu.
+
+6. **⚡ Okamžitá odezva UI (Optimistic Updates):**
+   - Interaktivní tlačítka (docházka, Jdu/Nejdu) musí vizuálně reagovat v paměti zařízení okamžitě bez čekání na databázi a bez problikávání celého seznamu.
 
 ---
 
