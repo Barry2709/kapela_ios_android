@@ -1,4 +1,5 @@
-import { Share, Alert } from 'react-native';
+import { Share } from 'react-native';
+import { getTranslation } from '@/utils/i18n';
 
 export const inviteFriendsToConcert = async (concert: {
   bandName?: string;
@@ -16,11 +17,22 @@ export const inviteFriendsToConcert = async (concert: {
     const location = concert.location ? `\n📍 Místo: ${concert.location}` : '';
     const web = concert.web ? `\n🌐 Odkaz: ${concert.web}` : '';
 
-    const message = `🎸 Ahoj! Zvu tě na koncert kapely ${bName}!\n\n🔥 ${title}\n📅 Kdy: ${date}${time}${location}${web}\n\nPojďme se společně pobavit! 🚀`;
+    const messageTpl = getTranslation('share.inviteMessage') || `🎸 Ahoj! Zvu tě na koncert kapely {bandName}!\n\n🔥 {title}\n📅 Kdy: {date}{time}{location}{web}\n\nPojďme se společně pobavit! 🚀`;
+
+    const message = messageTpl
+      .replace('{bandName}', bName)
+      .replace('{title}', title)
+      .replace('{date}', date)
+      .replace('{time}', time)
+      .replace('{location}', location)
+      .replace('{web}', web);
+
+    const titleTpl = getTranslation('share.inviteTitle') || `Pozvánka na koncert: {title}`;
+    const shareTitle = titleTpl.replace('{title}', title);
 
     await Share.share({
       message,
-      title: `Pozvánka na koncert: ${title}`,
+      title: shareTitle,
     });
   } catch (error: any) {
     console.error('Chyba při sdílení pozvánky:', error);

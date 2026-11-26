@@ -1,8 +1,9 @@
 import { Alert, Linking, Platform } from 'react-native';
+import { getTranslation } from '@/utils/i18n';
 
 export const openNavigationOptions = (location: string) => {
   if (!location || !location.trim()) {
-    Alert.alert('Chyba', 'Místo koncertu není zadané.');
+    Alert.alert('Chyba', getTranslation('navigation.errorNoLocation') || 'Místo koncertu není zadané.');
     return;
   }
 
@@ -33,13 +34,13 @@ export const openNavigationOptions = (location: string) => {
   });
 
   options.push({
-    text: 'Zrušit',
+    text: getTranslation('navigation.cancel') || 'Zrušit',
     style: 'cancel',
   });
 
   Alert.alert(
-    '🧭 Navigace na koncert',
-    `Vyberte navigaci pro cílové místo:\n${cleanLocation}`,
+    getTranslation('navigation.title') || '🧭 Navigace na koncert',
+    `${getTranslation('navigation.selectPrompt') || 'Vyberte navigaci pro cílové místo:'}\n${cleanLocation}`,
     options,
     { cancelable: true }
   );

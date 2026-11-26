@@ -1,5 +1,6 @@
 import React from 'react';
 import { FlexWidget, TextWidget } from 'react-native-android-widget';
+import { getTranslation } from '@/utils/i18n';
 
 interface ConcertWidgetProps {
   bandName?: string;
@@ -11,8 +12,8 @@ interface ConcertWidgetProps {
 
 export function ConcertWidget({
   bandName = 'Kapela',
-  concertTitle = 'Žádný nadcházející koncert',
-  dateStr = 'Čekáme na nový termín',
+  concertTitle = getTranslation('widget.noConcertTitle') || 'Žádný nadcházející koncert',
+  dateStr = getTranslation('widget.noConcertDate') || 'Čekáme na nový termín',
   timeStr = '',
   locationStr = '',
 }: ConcertWidgetProps) {
@@ -75,7 +76,7 @@ export function ConcertWidget({
       {locationStr ? (
         <FlexWidget style={{ width: 'match_parent', marginTop: 2 }}>
           <TextWidget
-            text={`📍 Místo: ${locationStr}`}
+            text={`${getTranslation('widget.locationPrefix') || '📍 Místo:'} ${locationStr}`}
             style={{
               fontSize: 11,
               color: '#aaaaaa',
