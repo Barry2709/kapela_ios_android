@@ -4,6 +4,7 @@ import { ref, uploadBytes, getDownloadURL, listAll, deleteObject } from 'firebas
 import { db, storage } from '@/config/firebase';
 import { Band, BandMember, Rehearsal, Concert, Inquiry, Song, Absence, LiveSessionPayload, Transaction, Vehicle, Ride, Fan, PhotoAlbum, AlbumPhoto } from '@/types';
 import { fixCzechDiacritics, capitalizeFirstLetter } from '@/utils/diacritics';
+import { getLocalZpevnikPlusIndex, saveLocalZpevnikPlusIndex, fetchAndCacheSongLyrics } from './zpevnikPlusCacheService';
 import { sendExpoPushNotifications } from './notificationService';
 import { getTranslation } from '@/utils/i18n';
 
@@ -1918,7 +1919,7 @@ export const saveUserLanguageToFirebase = async (
 
 
 
-// --- NAČÍTÁNÍ PÍSNÍ Z FIREBASE STORAGE SLOŽKY Zpevnik_plus ---
+// --- NAČÍTÁNÍ PÍSNÍ Z FIREBASE STORAGE SLOŽKY Zpevnik_plus (OFFLINE-FIRST + INDEX) ---
 export const getStorageZpevnikPlusSongs = async (): Promise<Song[]> => {
   try {
     let folderRef = ref(storage, 'Zpevnik_plus');
@@ -1929,57 +1930,34 @@ export const getStorageZpevnikPlusSongs = async (): Promise<Song[]> => {
       result = await listAll(folderRef);
     }
 
-    if (!result.items || result.items.length === 0) return [];
+    if (result.items && result.items.length > 0) {
+      const storageSongs = result.items.map((itemRef) => {
+        const rawName = itemRef.name;
+        let title = rawName.replace(/\.(chordpro|pro|txt|chopro)$/i, '');
 
-    const storageSongs = await Promise.all(
-      result.items.map(async (itemRef) => {
-        try {
-          const downloadUrl = await getDownloadURL(itemRef);
-          const rawName = itemRef.name;
+        return {
+          id: `storage_${itemRef.name}`,
+          bandId: 'global_zpevnik_plus',
+          title: fixCzechDiacritics(title || rawName),
+          artist: '',
+          lyrics: '',
+          fileName: rawName,
+          fileUri: '',
+          fileSource: 'gdrive' as const,
+          isLive: true,
+          createdAt: Date.now(),
+        } as Song;
+      });
 
-          let textContent = '';
-          try {
-            const resp = await fetch(downloadUrl);
-            textContent = await resp.text();
-          } catch (fetchErr) {
-            console.log('Nelze stáhnout text souboru ze Storage:', fetchErr);
-          }
-
-          let title = rawName.replace(/\.(chordpro|pro|txt|chopro)$/i, '');
-          const titleMatch = textContent.match(/\{(?:title|t):\s*([^}]+)\}/i);
-          if (titleMatch && titleMatch[1]) {
-            title = titleMatch[1].trim();
-          }
-
-          let artist = '';
-          const artistMatch = textContent.match(/\{(?:subtitle|st|artist|a):\s*([^}]+)\}/i);
-          if (artistMatch && artistMatch[1]) {
-            artist = artistMatch[1].trim();
-          }
-
-          return {
-            id: `storage_${itemRef.name}`,
-            bandId: 'global_zpevnik_plus',
-            title: fixCzechDiacritics(title || rawName),
-            artist: fixCzechDiacritics(artist || ''),
-            lyrics: textContent ? fixCzechDiacritics(textContent) : '',
-            fileName: rawName,
-            fileUri: downloadUrl,
-            fileSource: 'gdrive' as const,
-            isLive: true,
-            createdAt: Date.now(),
-          } as Song;
-        } catch (itemErr) {
-          console.error('Chyba při zpracování položky ze Storage:', itemErr);
-          return null;
-        }
-      })
-    );
-
-    return storageSongs.filter((s): s is Song => s !== null);
+      if (storageSongs.length > 0) {
+        saveLocalZpevnikPlusIndex(storageSongs);
+        return storageSongs;
+      }
+    }
   } catch (e) {
-    console.error('Chyba při načítání Zpěvník_plus ze Storage:', e);
-    return [];
+    console.log('[Offline / Offline režim] Načítám lokální index Zpěvníku+ ze zařízení...');
   }
+
+  return await getLocalZpevnikPlusIndex();
 };
 
