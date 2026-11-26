@@ -410,13 +410,35 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
   if (activeRoleView === 'fan') {
     return (
       <View style={styles.container}>
-        <PageHeader title="O kapele" />
+        <PageHeader title={t('band.info.title') || "O kapele"} />
 
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {/* Logo kapely */}
           {band.logoUri ? (
             <Image source={{ uri: band.logoUri }} style={styles.fanLogo} contentFit="contain" />
           ) : null}
+
+          {/* Tlačítko výběru jazyka pro fanoušky pod logem */}
+          <Pressable
+            style={[
+              styles.fanWebBtn,
+              {
+                backgroundColor: 'rgba(33, 150, 243, 0.12)',
+                borderColor: 'rgba(33, 150, 243, 0.4)',
+                borderWidth: 1,
+                marginTop: 8,
+                alignSelf: 'center',
+                paddingHorizontal: 16,
+              }
+            ]}
+            onPress={() => setShowLanguageDropdown(true)}
+          >
+            <SymbolView name={{ ios: 'globe', android: 'language', web: 'language' }} size={20} tintColor="#2196f3" />
+            <ThemedText type="smallBold" style={{ marginLeft: 8, color: '#2196f3' }}>
+              {currentLangObj.flag} {currentLangObj.label}
+            </ThemedText>
+            <SymbolView name={{ ios: 'chevron.down', android: 'expand_more', web: 'expand_more' }} size={16} tintColor="#2196f3" style={{ marginLeft: 6 }} />
+          </Pressable>
 
           {/* Název a žánr */}
           <View style={{ alignItems: 'center', marginVertical: Spacing.two }}>
@@ -567,6 +589,56 @@ export function EditBandForm({ band, onSave, onCancel }: Props) {
             )}
           </View>
         </ScrollView>
+
+        {/* Modal pro rolovací menu výběru jazyka pro fanoušky */}
+        <Modal visible={showLanguageDropdown} transparent animationType="fade" onRequestClose={() => setShowLanguageDropdown(false)}>
+          <Pressable style={styles.modalOverlay} onPress={() => setShowLanguageDropdown(false)}>
+            <ThemedView type="backgroundElement" style={styles.dropdownModalCard}>
+              <ThemedText type="subtitle" style={{ fontSize: 18, marginBottom: 16, textAlign: 'center' }}>
+                🌐 {t('settings.language') || 'Jazyk / Language'}
+              </ThemedText>
+
+              <View style={{ gap: 8 }}>
+                {languageOptions.map((opt) => {
+                  const isSelected = language === opt.key;
+                  return (
+                    <Pressable
+                      key={opt.key}
+                      style={[
+                        styles.dropdownOptionRow,
+                        {
+                          backgroundColor: isSelected ? 'rgba(33,150,243,0.18)' : 'rgba(200,200,200,0.1)',
+                          borderColor: isSelected ? '#2196f3' : 'rgba(200,200,200,0.2)',
+                        }
+                      ]}
+                      onPress={() => {
+                        setLanguage(opt.key as any);
+                        setShowLanguageDropdown(false);
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <ThemedText style={{ fontSize: 20 }}>{opt.flag}</ThemedText>
+                        <ThemedText type="smallBold" style={{ color: isSelected ? '#2196f3' : theme.text, fontSize: 15 }}>
+                          {opt.label}
+                        </ThemedText>
+                      </View>
+                      {isSelected && (
+                        <SymbolView name={{ ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' }} size={20} tintColor="#2196f3" />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Pressable
+                style={{ alignSelf: 'center', marginTop: 16, paddingVertical: 8, paddingHorizontal: 16 }}
+                onPress={() => setShowLanguageDropdown(false)}
+              >
+                <ThemedText type="smallBold" style={{ color: '#e91e63' }}>{t('setlist.pickerClose') || 'Zavřít'}</ThemedText>
+              </Pressable>
+            </ThemedView>
+          </Pressable>
+        </Modal>
       </View>
     );
   }
