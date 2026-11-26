@@ -47,23 +47,37 @@ import { createGoogleCalendarEventOAuth, updateGoogleCalendarEventOAuth, deleteG
 import { syncEventToLocalCalendar, deleteEventFromLocalCalendar, parseEventDate, openInGoogleCalendarPrefilled, openGoogleCalendarAtDate } from '@/services/calendarSyncService';
 
 
-          const getFanAttendanceInfo = (concert: Concert, userProfile: UserProfile | null, membersList: BandMember[] = []) => {
+            const getFanAttendanceInfo = (concert: Concert, userProfile: UserProfile | null, membersList: BandMember[] = []) => {
     const attendees = concert.attendees || {};
     let count = 0;
     let isGoing = false;
     const myUid = userProfile?.uid;
     const myName = userProfile?.displayName;
+    const myMemberId = userProfile?.memberId;
+
+    // Množina ID a jmen všech členů kapely
     const memberIdsSet = new Set((membersList || []).map(m => m.id));
+    const memberNamesSet = new Set((membersList || []).flatMap(m => [
+      m.firstName?.toLowerCase(),
+      m.lastName?.toLowerCase(),
+      m.nickname?.toLowerCase(),
+      `${m.firstName} ${m.lastName}`.toLowerCase(),
+    ]).filter(Boolean));
 
     Object.entries(attendees).forEach(([key, val]: [string, any]) => {
       const status = typeof val === 'string' ? val : val?.status;
       const role = typeof val === 'object' ? val?.role : undefined;
       const valName = typeof val === 'object' ? val?.name : undefined;
 
-      // Nepočítat členy kapely ani adminy (pouze fanoušky)
-      const isBandMember = memberIdsSet.has(key) || role === 'admin' || role === 'member';
+      // Zkontrolujeme, zda klíč nebo jméno nepatří členovi kapely nebo adminovi
+      const isMemberKey = memberIdsSet.has(key) || (myMemberId && key === myMemberId) || (myUid && key === myUid && userProfile?.role !== 'fan');
+      const isMemberRole = role === 'admin' || role === 'member';
+      const isMemberName = valName && memberNamesSet.has(valName.toLowerCase());
 
-      if (status === 'yes' && !isBandMember) {
+      // Považovat za fanouška POUZE záznam s rolí 'fan' nebo klíčem 'fan_'
+      const isFanRole = role === 'fan' || key.startsWith('fan_');
+
+      if (status === 'yes' && !isMemberKey && !isMemberRole && !isMemberName && isFanRole) {
         count++;
         if ((myUid && key === myUid) || (myName && valName && valName.toLowerCase() === myName.toLowerCase())) {
           isGoing = true;
@@ -1368,7 +1382,7 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
   });
 
   
-          const handleToggleFanGoing = async (concert: Concert) => {
+            const handleToggleFanGoing = async (concert: Concert) => {
     const targetBandId = concert.bandId || activeBand?.id;
     if (!targetBandId) return;
 
@@ -1380,6 +1394,8 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
       const updatedConcerts = concerts.map(c => {
         if (c.id === concert.id) {
           const newAttendees = { ...(c.attendees || {}) };
+
+          let existingKey = savedUid;
           const matchingKeys = Object.keys(newAttendees).filter(k => {
             if (k === savedUid) return true;
             const record = newAttendees[k];
@@ -1390,26 +1406,43 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
           });
 
           if (matchingKeys.length > 0) {
-            matchingKeys.forEach(k => delete newAttendees[k]); // Nejdu
+            existingKey = matchingKeys[0];
+          }
+
+          const currentRecord = newAttendees[existingKey];
+          const currentStatus = typeof currentRecord === 'string' ? currentRecord : currentRecord?.status;
+
+          if (currentStatus === 'yes') {
+            // Pokud byl 'yes', změníme ho na 'no'
+            newAttendees[existingKey] = {
+              status: 'no',
+              // @ts-ignore
+              name: savedName,
+              updatedAt: Date.now(),
+            } as any;
+            (newAttendees[existingKey] as any).role = 'fan';
           } else {
-            newAttendees[savedUid] = { // Jdu
+            // Pokud ještě nebyl, nebo byl 'no' / 'maybe', nastavíme 'yes'
+            newAttendees[existingKey] = {
               status: 'yes',
               // @ts-ignore
               name: savedName,
-              role: 'fan',
               updatedAt: Date.now(),
-            };
+            } as any;
+            (newAttendees[existingKey] as any).role = 'fan';
           }
           return { ...c, attendees: newAttendees };
         }
         return c;
       });
 
-      // Okamžitá aktualizace na obrazovce (bez čekání na server)
+      // Okamžitá aktualizace na obrazovce
       setConcerts(updatedConcerts);
 
       // Aktualizace v datech Firebase na pozadí
       const currentAttendees = { ...(concert.attendees || {}) };
+
+      let existingKeyDb = savedUid;
       const matchingKeysDb = Object.keys(currentAttendees).filter(k => {
         if (k === savedUid) return true;
         const record = currentAttendees[k];
@@ -1420,20 +1453,20 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
       });
 
       if (matchingKeysDb.length > 0) {
-        // Tady je klíčový moment: ve Firebase místo delete (což nefunguje s merge: true uvnitř updateConcert)
-        // musíme hodnotu explicitně nastavit na null nebo pole poslat natvrdo.
-        // Pro update objektů ve Firebase, nastavení na null nebo změna statusu vyřeší update problému.
-        matchingKeysDb.forEach(k => {
-          currentAttendees[k] = { status: 'no', updatedAt: Date.now() } as any; (currentAttendees[k] as any).role = 'fan';
-        });
+        existingKeyDb = matchingKeysDb[0];
+      }
+
+      const dbRecord = currentAttendees[existingKeyDb];
+      const dbStatus = typeof dbRecord === 'string' ? dbRecord : dbRecord?.status;
+
+      if (dbStatus === 'yes') {
+        currentAttendees[existingKeyDb] = { status: 'no', updatedAt: Date.now() } as any;
+        (currentAttendees[existingKeyDb] as any).name = savedName;
+        (currentAttendees[existingKeyDb] as any).role = 'fan';
       } else {
-        currentAttendees[savedUid] = {
-          status: 'yes',
-          // @ts-ignore
-          name: savedName,
-          role: 'fan',
-          updatedAt: Date.now(),
-        };
+        currentAttendees[existingKeyDb] = { status: 'yes', updatedAt: Date.now() } as any;
+        (currentAttendees[existingKeyDb] as any).name = savedName;
+        (currentAttendees[existingKeyDb] as any).role = 'fan';
       }
 
       await updateConcert(targetBandId, concert.id, { attendees: currentAttendees as any });
