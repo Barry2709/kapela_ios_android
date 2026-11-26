@@ -12,6 +12,7 @@ import { Song, BandMember } from '@/types';
 import { getBandMembers } from '@/services/firebaseService';
 import { fixCzechDiacritics, capitalizeFirstLetter, hasVocalsInProfile, getMemberDisplayName } from '@/utils/diacritics';
 import { useTranslation } from '@/utils/i18n';
+import { GoogleDrivePickerModal } from './google-drive-picker-modal';
 
 interface Props {
   initialSong?: Song;
@@ -75,6 +76,7 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
   const [fileUri, setFileUri] = useState<string | null>(initialSong?.fileUri || null);
   const [fileName, setFileName] = useState<string | null>(initialSong?.fileName || null);
   const [fileSource, setFileSource] = useState<'local' | 'gdrive' | 'icloud'>(initialSong?.fileSource || 'local');
+  const [showDriveModal, setShowDriveModal] = useState(false);
 
   // Generování variant akordů pro vybranou tóninu
   const getChordVariants = (root: string): string[] => {
@@ -437,7 +439,7 @@ export function AddSongForm({ initialSong, isZpevnikPlus = false, onSave, onDele
         {Platform.OS === 'android' ? (
           <Pressable
             style={[styles.sourceBtn, { backgroundColor: 'rgba(200,200,200,0.18)', borderColor: 'rgba(200,200,200,0.3)' }]}
-            onPress={() => handlePickDocument('gdrive')}
+            onPress={() => setShowDriveModal(true)}
           >
             <SymbolView name={{ ios: 'cloud', android: 'cloud', web: 'cloud' }} size={16} tintColor="#2196f3" />
             <ThemedText type="smallBold" style={{ fontSize: 12, marginLeft: 4 }}>{t('form.song.fileGDrive')}</ThemedText>
