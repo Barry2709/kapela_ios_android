@@ -1095,8 +1095,8 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
                     >
                       <SymbolView name={{ ios: 'safari', android: 'explore', web: 'explore' }} size={13} tintColor="#2196f3" />
                       <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11, marginLeft: 4 }}>
-                        Navigovat
-                      </ThemedText>
+                      {t('home.concert.navigate') || 'Navigovat'}
+                    </ThemedText>
                     </Pressable>
                   ) : null}
 
@@ -1125,7 +1125,7 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
                   >
                     <SymbolView name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }} size={13} tintColor="#4caf50" />
                     <ThemedText type="smallBold" style={{ color: '#4caf50', fontSize: 11, marginLeft: 4 }}>
-                      Pozvat
+                      {t('home.concert.invite') || 'Pozvat'}
                     </ThemedText>
                   </Pressable>
                 </View>
@@ -1152,7 +1152,7 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
                     >
                       <SymbolView name={{ ios: isGoing ? 'xmark.circle.fill' : 'flame.fill', android: isGoing ? 'cancel' : 'local_fire_department', web: isGoing ? 'cancel' : 'local_fire_department' }} size={13} tintColor={isGoing ? '#e91e63' : '#ff9800'} />
                       <ThemedText type="smallBold" style={{ color: isGoing ? '#e91e63' : '#ff9800', fontSize: 11, marginLeft: 4 }}>
-                        {isGoing ? 'Nejdu' : 'Jdu!'}
+                        {isGoing ? (t('home.concert.notGoing') || 'Nejdu') : (t('home.concert.imGoing') || 'Jdu!')}
                       </ThemedText>
                     </Pressable>
                   );
@@ -1201,7 +1201,7 @@ const handleSaveAbsence = async (absenceData: Omit<Absence, 'id'>) => {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <SymbolView name={{ ios: 'music.note.list', android: 'queue_music', web: 'queue_music' }} size={16} tintColor="#ff9800" />
             <ThemedText type="smallBold" style={{ color: '#ff9800', fontSize: 12 }}>
-              {t('events.btn.setlist')} ({concert.setlist?.length || 0} skladeb)
+              {t('events.btn.setlist')} ({concert.setlist?.length || 0} {t('form.concert.setlistSongsCount') || 'skladeb'})
             </ThemedText>
           </View>
           <ThemedText type="smallBold" style={{ color: '#ff9800', fontSize: 11 }}>

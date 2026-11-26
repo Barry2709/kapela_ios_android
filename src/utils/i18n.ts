@@ -2,6 +2,11 @@ import { useAppStore } from '@/store/useAppStore';
 
 const translations = {
   cs: {
+    'home.concert.navigate': 'Navigovat',
+    'home.concert.invite': 'Pozvat',
+    'home.concert.imGoing': 'Jdu!',
+    'home.concert.notGoing': 'Nejdu',
+
     'events.inquiry.replyTitle': 'Odpovědět na poptávku',
     'events.inquiry.noInquiries': 'Zatím nemáte žádné poptávky hraní.',
     'events.inquiry.emailSubject': 'Odpověď na poptávku: {title}',
@@ -925,6 +930,11 @@ const translations = {
     'tuner.preset.contrabass': 'Kontrabas'
   },
   sk: {
+    'home.concert.navigate': 'Navigovať',
+    'home.concert.invite': 'Pozvať',
+    'home.concert.imGoing': 'Idem!',
+    'home.concert.notGoing': 'Nejdem',
+
     'events.inquiry.replyTitle': 'Odpovedať na dopyt',
     'events.inquiry.noInquiries': 'Zatiaľ nemáte žiadne dopyty na hranie.',
     'events.inquiry.emailSubject': 'Odpoveď na dopyt: {title}',
@@ -1839,6 +1849,11 @@ const translations = {
     'tuner.preset.contrabass': 'Kontrabas'
   },
   en: {
+    'home.concert.navigate': 'Navigate',
+    'home.concert.invite': 'Invite',
+    'home.concert.imGoing': 'Going!',
+    'home.concert.notGoing': 'Not going',
+
     'events.inquiry.replyTitle': 'Reply to inquiry',
     'events.inquiry.noInquiries': 'You have no gig inquiries yet.',
     'events.inquiry.emailSubject': 'Reply to inquiry: {title}',
@@ -2768,6 +2783,11 @@ const translations = {
     'form.concert.contactRole': ''
   },
   de: {
+    'home.concert.navigate': 'Navigieren',
+    'home.concert.invite': 'Einladen',
+    'home.concert.imGoing': 'Dabei!',
+    'home.concert.notGoing': 'Nicht dabei',
+
     'events.inquiry.replyTitle': 'Auf Anfrage antworten',
     'events.inquiry.noInquiries': 'Sie haben noch keine Auftrittsanfragen.',
     'events.inquiry.emailSubject': 'Antwort auf Anfrage: {title}',
@@ -3693,6 +3713,11 @@ const translations = {
     "settings.calendar.googleBotHint": "Für die automatische Synchronisierung teilen Sie Ihren Google-Kalender mit dieser E-Mail:"
   },
   pl: {
+    'home.concert.navigate': 'Nawiguj',
+    'home.concert.invite': 'Zaproś',
+    'home.concert.imGoing': 'Idę!',
+    'home.concert.notGoing': 'Nie idę',
+
     'events.inquiry.replyTitle': 'Odpowiedz na zapytanie',
     'events.inquiry.noInquiries': 'Nie masz jeszcze żadnych zapytań o występy.',
     'events.inquiry.emailSubject': 'Odpowiedź na zapytanie: {title}',
@@ -4618,6 +4643,11 @@ const translations = {
     "settings.calendar.googleBotHint": "Udostępnij swój Kalendarz Google na ten e-mail:"
   },
   es: {
+    'home.concert.navigate': 'Navegar',
+    'home.concert.invite': 'Invitar',
+    'home.concert.imGoing': '¡Voy!',
+    'home.concert.notGoing': 'No voy',
+
     'events.inquiry.replyTitle': 'Responder a la consulta',
     'events.inquiry.noInquiries': 'Aún no tienes consultas de actuaciones.',
     'events.inquiry.emailSubject': 'Respuesta a la consulta: {title}',
@@ -5543,6 +5573,11 @@ const translations = {
     "settings.calendar.googleBotHint": "Comparte tu Google Calendar con este correo:"
   },
   fr: {
+    'home.concert.navigate': 'Naviguer',
+    'home.concert.invite': 'Inviter',
+    'home.concert.imGoing': 'J\'y vais !',
+    'home.concert.notGoing': 'N\'y vais pas',
+
     'events.inquiry.replyTitle': 'Répondre à la demande',
     'events.inquiry.noInquiries': 'Vous n\'avez pas encore de demandes de concert.',
     'events.inquiry.emailSubject': 'Réponse à la demande : {title}',

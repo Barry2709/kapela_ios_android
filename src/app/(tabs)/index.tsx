@@ -1313,7 +1313,7 @@ export default function HomeScreen() {
                                   >
                                     <SymbolView name={{ ios: 'safari', android: 'explore', web: 'explore' }} size={13} tintColor="#2196f3" />
                                     <ThemedText type="smallBold" style={{ color: '#2196f3', fontSize: 11, marginLeft: 4 }}>
-                                      Navigovat
+                                      {t('home.concert.navigate') || 'Navigovat'}
                                     </ThemedText>
                                   </Pressable>
                                 ) : null}
@@ -1343,8 +1343,8 @@ export default function HomeScreen() {
                                 >
                                   <SymbolView name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }} size={13} tintColor="#4caf50" />
                                   <ThemedText type="smallBold" style={{ color: '#4caf50', fontSize: 11, marginLeft: 4 }}>
-                                    Pozvat
-                                  </ThemedText>
+                                      {t('home.concert.invite') || 'Pozvat'}
+                                    </ThemedText>
                                 </Pressable>
                               </View>
 
@@ -1370,7 +1370,7 @@ export default function HomeScreen() {
                                   >
                                     <SymbolView name={{ ios: isGoing ? 'xmark.circle.fill' : 'flame.fill', android: isGoing ? 'cancel' : 'local_fire_department', web: isGoing ? 'cancel' : 'local_fire_department' }} size={13} tintColor={isGoing ? '#e91e63' : '#ff9800'} />
                                     <ThemedText type="smallBold" style={{ color: isGoing ? '#e91e63' : '#ff9800', fontSize: 11, marginLeft: 4 }}>
-                                      {isGoing ? 'Nejdu' : 'Jdu!'}
+                                      {isGoing ? (t('home.concert.notGoing') || 'Nejdu') : (t('home.concert.imGoing') || 'Jdu!')}
                                     </ThemedText>
                                   </Pressable>
                                 );
