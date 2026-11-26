@@ -45,23 +45,31 @@ export const fetchAndCacheSongLyrics = async (song: Song): Promise<string> => {
     }
   } catch (e) {}
 
-  // 1. ONLINE: Pokusit se stáhnout nejnovější verzi z Firebase Storage Zpevnik_plus
+  // 1. ONLINE: Stáhnout nejnovější verzi z Firebase Storage Zpevnik_plus a přepsat lokální soubor v zařízení
   if (fileName) {
     try {
-      const storageRef = ref(storage, `Zpevnik_plus/${fileName}`);
-      const downloadUrl = await getDownloadURL(storageRef);
-      const response = await fetch(downloadUrl);
+      let storageRef = ref(storage, `Zpevnik_plus/${fileName}`);
+      let downloadUrl = '';
+      try {
+        downloadUrl = await getDownloadURL(storageRef);
+      } catch (refErr) {
+        storageRef = ref(storage, `gs://naplech-96e9e.firebasestorage.app/Zpevnik_plus/${fileName}`);
+        downloadUrl = await getDownloadURL(storageRef);
+      }
 
-      if (response.ok) {
-        const rawText = await response.text();
-        const cleanText = fixCzechDiacritics(rawText);
+      if (downloadUrl) {
+        const response = await fetch(downloadUrl);
+        if (response.ok) {
+          const rawText = await response.text();
+          const cleanText = fixCzechDiacritics(rawText);
 
-        // Nahradit verzi v zařízení nově staženým souborem
-        await FileSystem.writeAsStringAsync(localFilePath, cleanText);
-        return cleanText;
+          // PŘEPSAT LOKÁLNÍ SOUBOR V ZAŘÍZENÍ
+          await FileSystem.writeAsStringAsync(localFilePath, cleanText);
+          return cleanText;
+        }
       }
     } catch (onlineErr) {
-      console.log(`[Offline / Offline režim] Používám uloženou lokální verzi pro ${fileName}`);
+      console.log(`[Offline / Režim bez signálu] Používám lokální udrženou verzi pro ${fileName}`);
     }
   }
 

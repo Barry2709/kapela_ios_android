@@ -2,6 +2,8 @@ import { useAppStore } from '@/store/useAppStore';
 
 const translations = {
   cs: {
+    'repertoire.loadingCurrentSong': 'Stahuji aktuální verzi písně z Firebase...',
+
     'repertoire.loadingSongs': 'Načítám písně...',
     'repertoire.loadingSongsPlus': 'Načítám písně ze Zpěvníku+...',
 
@@ -939,6 +941,8 @@ const translations = {
     'tuner.preset.contrabass': 'Kontrabas'
   },
   sk: {
+    'repertoire.loadingCurrentSong': 'Sťahujem aktuálnu verziu piesne z Firebase...',
+
     'repertoire.loadingSongs': 'Načítavam piesne...',
     'repertoire.loadingSongsPlus': 'Načítavam piesne zo Spevníka+...',
 
@@ -1867,6 +1871,8 @@ const translations = {
     'tuner.preset.contrabass': 'Kontrabas'
   },
   en: {
+    'repertoire.loadingCurrentSong': 'Downloading latest song version from Firebase...',
+
     'repertoire.loadingSongs': 'Loading songs...',
     'repertoire.loadingSongsPlus': 'Loading songs from Songbook+...',
 
@@ -2810,6 +2816,8 @@ const translations = {
     'form.concert.contactRole': ''
   },
   de: {
+    'repertoire.loadingCurrentSong': 'Lade die neueste Songversion von Firebase herunter...',
+
     'repertoire.loadingSongs': 'Lade Lieder...',
     'repertoire.loadingSongsPlus': 'Lade Lieder aus Songbook+...',
 
@@ -3749,6 +3757,8 @@ const translations = {
     "settings.calendar.googleBotHint": "Für die automatische Synchronisierung teilen Sie Ihren Google-Kalender mit dieser E-Mail:"
   },
   pl: {
+    'repertoire.loadingCurrentSong': 'Pobieranie najnowszej wersji piosenki z Firebase...',
+
     'repertoire.loadingSongs': 'Ładowanie piosenek...',
     'repertoire.loadingSongsPlus': 'Ładowanie piosenek ze Śpiewnika+...',
 
@@ -4688,6 +4698,8 @@ const translations = {
     "settings.calendar.googleBotHint": "Udostępnij swój Kalendarz Google na ten e-mail:"
   },
   es: {
+    'repertoire.loadingCurrentSong': 'Descargando la última versión de la canción desde Firebase...',
+
     'repertoire.loadingSongs': 'Cargando canciones...',
     'repertoire.loadingSongsPlus': 'Cargando canciones del Cancionero+...',
 
@@ -5627,6 +5639,8 @@ const translations = {
     "settings.calendar.googleBotHint": "Comparte tu Google Calendar con este correo:"
   },
   fr: {
+    'repertoire.loadingCurrentSong': 'Téléchargement de la dernière version de la chanson depuis Firebase...',
+
     'repertoire.loadingSongs': 'Chargement des chansons...',
     'repertoire.loadingSongsPlus': 'Chargement des chansons du Chansonnier+...',
 

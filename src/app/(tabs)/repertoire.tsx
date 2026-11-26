@@ -27,6 +27,7 @@ export default function RepertoireScreen() {
 
   const [songs, setSongs] = useState<Song[]>([]);
   const [isLoadingSongs, setIsLoadingSongs] = useState(false);
+  const [isLoadingSingleSong, setIsLoadingSingleSong] = useState(false);
   const [songsPlus, setSongsPlus] = useState<Song[]>([]);
   const [bandMembers, setBandMembers] = useState<BandMember[]>([]);
   const [isQuickEditMode, setIsQuickEditMode] = useState(false);

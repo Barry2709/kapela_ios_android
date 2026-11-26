@@ -1132,27 +1132,43 @@ export const getSongs = async (bandId: string): Promise<Song[]> => {
 
 // --- REPERTOÁR PLUS (SONGS PLUS) ---
 export const getSongsPlus = async (bandId: string): Promise<Song[]> => {
-  let dbSongs: Song[] = [];
-  if (bandId) {
+  // 1. Nejdříve bleskově načíst lokální index ze zařízení
+  const localIndex = await getLocalZpevnikPlusIndex();
+
+  // 2. Na pozadí zkontrolovat/stáhnout aktualizovaný seznam z Firebase Storage
+  (async () => {
     try {
-      const colRef = collection(db, BANDS_COLLECTION, bandId, 'songs_plus');
-      const snapshot = await getDocs(colRef);
-      dbSongs = snapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      } as Song));
+      let folderRef = ref(storage, 'Zpevnik_plus');
+      let result = await listAll(folderRef);
+      if (!result.items || result.items.length === 0) {
+        folderRef = ref(storage, 'gs://naplech-96e9e.firebasestorage.app/Zpevnik_plus');
+        result = await listAll(folderRef);
+      }
+      if (result.items && result.items.length > 0) {
+        const storageSongs = result.items.map((itemRef) => {
+          const rawName = itemRef.name;
+          let title = rawName.replace(/\.(chordpro|pro|txt|chopro)$/i, '');
+          return {
+            id: `storage_${itemRef.name}`,
+            bandId: 'global_zpevnik_plus',
+            title: fixCzechDiacritics(title || rawName),
+            artist: '',
+            lyrics: '',
+            fileName: rawName,
+            fileUri: '',
+            fileSource: 'gdrive' as const,
+            isLive: true,
+            createdAt: Date.now(),
+          } as Song;
+        });
+        saveLocalZpevnikPlusIndex(storageSongs);
+      }
     } catch (e) {
-      console.error("Nepodařilo se načíst písně plus z DB:", e);
+      console.log('[Offline] Nepodařilo se aktualizovat index ze Storage:', e);
     }
-  }
+  })();
 
-  const storageSongs = await getStorageZpevnikPlusSongs();
-
-  // Sloučit písně z Firebase Storage Zpevnik_plus složky s databází
-  const existingIds = new Set(dbSongs.map(s => s.id));
-  const uniqueStorage = storageSongs.filter(s => !existingIds.has(s.id));
-
-  return [...uniqueStorage, ...dbSongs];
+  return localIndex;
 };
 
 export const addSongPlus = async (bandId: string, songData: Omit<Song, 'id'>): Promise<string> => {
