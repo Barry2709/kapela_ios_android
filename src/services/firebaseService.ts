@@ -1131,18 +1131,27 @@ export const getSongs = async (bandId: string): Promise<Song[]> => {
 
 // --- REPERTOÁR PLUS (SONGS PLUS) ---
 export const getSongsPlus = async (bandId: string): Promise<Song[]> => {
-  if (!bandId) return [];
-  try {
-    const colRef = collection(db, BANDS_COLLECTION, bandId, 'songs_plus');
-    const snapshot = await getDocs(colRef);
-    return snapshot.docs.map(docSnap => ({
-      id: docSnap.id,
-      ...docSnap.data(),
-    } as Song));
-  } catch (e) {
-    console.error("Nepodařilo se načíst písně plus:", e);
-    return [];
+  let dbSongs: Song[] = [];
+  if (bandId) {
+    try {
+      const colRef = collection(db, BANDS_COLLECTION, bandId, 'songs_plus');
+      const snapshot = await getDocs(colRef);
+      dbSongs = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      } as Song));
+    } catch (e) {
+      console.error("Nepodařilo se načíst písně plus z DB:", e);
+    }
   }
+
+  const storageSongs = await getStorageZpevnikPlusSongs();
+
+  // Sloučit písně z Firebase Storage Zpevnik_plus složky s databází
+  const existingIds = new Set(dbSongs.map(s => s.id));
+  const uniqueStorage = storageSongs.filter(s => !existingIds.has(s.id));
+
+  return [...uniqueStorage, ...dbSongs];
 };
 
 export const addSongPlus = async (bandId: string, songData: Omit<Song, 'id'>): Promise<string> => {
@@ -1904,6 +1913,68 @@ export const saveUserLanguageToFirebase = async (
     }
   } catch (e) {
     console.error("Chyba při ukládání jazyka do Firebase:", e);
+  }
+};
+
+
+
+// --- NAČÍTÁNÍ PÍSNÍ Z FIREBASE STORAGE SLOŽKY Zpevnik_plus ---
+export const getStorageZpevnikPlusSongs = async (): Promise<Song[]> => {
+  try {
+    const folderRef = ref(storage, 'Zpevnik_plus');
+    const result = await listAll(folderRef);
+
+    if (!result.items || result.items.length === 0) return [];
+
+    const storageSongs = await Promise.all(
+      result.items.map(async (itemRef) => {
+        try {
+          const downloadUrl = await getDownloadURL(itemRef);
+          const rawName = itemRef.name;
+
+          let textContent = '';
+          try {
+            const resp = await fetch(downloadUrl);
+            textContent = await resp.text();
+          } catch (fetchErr) {
+            console.log('Nelze stáhnout text souboru ze Storage:', fetchErr);
+          }
+
+          let title = rawName.replace(/\.(chordpro|pro|txt|chopro)$/i, '');
+          const titleMatch = textContent.match(/\{(?:title|t):\s*([^}]+)\}/i);
+          if (titleMatch && titleMatch[1]) {
+            title = titleMatch[1].trim();
+          }
+
+          let artist = '';
+          const artistMatch = textContent.match(/\{(?:subtitle|st|artist|a):\s*([^}]+)\}/i);
+          if (artistMatch && artistMatch[1]) {
+            artist = artistMatch[1].trim();
+          }
+
+          return {
+            id: `storage_${itemRef.name}`,
+            bandId: 'global_zpevnik_plus',
+            title: fixCzechDiacritics(title || rawName),
+            artist: fixCzechDiacritics(artist || ''),
+            lyrics: textContent ? fixCzechDiacritics(textContent) : '',
+            fileName: rawName,
+            fileUri: downloadUrl,
+            fileSource: 'gdrive' as const,
+            isLive: true,
+            createdAt: Date.now(),
+          } as Song;
+        } catch (itemErr) {
+          console.error('Chyba při zpracování položky ze Storage:', itemErr);
+          return null;
+        }
+      })
+    );
+
+    return storageSongs.filter((s): s is Song => s !== null);
+  } catch (e) {
+    console.error('Chyba při načítání Zpěvník_plus ze Storage:', e);
+    return [];
   }
 };
 
