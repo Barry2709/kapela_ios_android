@@ -1921,8 +1921,13 @@ export const saveUserLanguageToFirebase = async (
 // --- NAČÍTÁNÍ PÍSNÍ Z FIREBASE STORAGE SLOŽKY Zpevnik_plus ---
 export const getStorageZpevnikPlusSongs = async (): Promise<Song[]> => {
   try {
-    const folderRef = ref(storage, 'Zpevnik_plus');
-    const result = await listAll(folderRef);
+    let folderRef = ref(storage, 'Zpevnik_plus');
+    let result = await listAll(folderRef);
+
+    if (!result.items || result.items.length === 0) {
+      folderRef = ref(storage, 'gs://naplech-96e9e.firebasestorage.app/Zpevnik_plus');
+      result = await listAll(folderRef);
+    }
 
     if (!result.items || result.items.length === 0) return [];
 

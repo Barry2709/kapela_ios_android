@@ -56,4 +56,4 @@ try {
 }
 
 export const db = firestoreDb;
-export const storage = getStorage(app);
+export const storage = getStorage(app, "gs://naplech-96e9e.firebasestorage.app");
