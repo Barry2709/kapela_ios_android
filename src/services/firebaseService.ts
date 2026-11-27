@@ -1131,20 +1131,59 @@ export const getSongs = async (bandId: string): Promise<Song[]> => {
 };
 
 // --- REPERTOÁR PLUS (SONGS PLUS) ---
-export const getSongsPlus = async (bandId: string): Promise<Song[]> => {
-  // 1. Nejdříve bleskově načíst lokální index ze zařízení
+export const getSongsPlus = async (bandId: string, onProgress?: (msg: string) => void): Promise<Song[]> => {
+  // 1. Nejdříve zkusit bleskově načíst lokální index ze zařízení
   const localIndex = await getLocalZpevnikPlusIndex();
 
-  // 2. Na pozadí zkontrolovat/stáhnout aktualizovaný seznam z Firebase Storage
-  (async () => {
+  if (localIndex.length > 0) {
+    // 2A. Máme data -> vrátit je hned a na pozadí tiše aktualizovat z Firebase Storage
+    (async () => {
+      try {
+        let folderRef = ref(storage, 'Zpevnik_plus');
+        let result = await listAll(folderRef);
+        if (!result.items || result.items.length === 0) {
+          folderRef = ref(storage, 'gs://naplech-96e9e.firebasestorage.app/Zpevnik_plus');
+          result = await listAll(folderRef);
+        }
+        if (result.items && result.items.length > 0) {
+          const storageSongs = result.items.map((itemRef) => {
+            const rawName = itemRef.name;
+            let title = rawName.replace(/\.(chordpro|pro|txt|chopro)$/i, '');
+            return {
+              id: `storage_${itemRef.name}`,
+              bandId: 'global_zpevnik_plus',
+              title: fixCzechDiacritics(title || rawName),
+              artist: '',
+              lyrics: '',
+              fileName: rawName,
+              fileUri: '',
+              fileSource: 'gdrive' as const,
+              isLive: true,
+              createdAt: Date.now(),
+            } as Song;
+          });
+          saveLocalZpevnikPlusIndex(storageSongs);
+        }
+      } catch (e) {
+        console.log('[Offline] Nepodařilo se aktualizovat index ze Storage:', e);
+      }
+    })();
+
+    return localIndex;
+  } else {
+    // 2B. Lokální index je prázdný (první start!) -> musíme počkat na stažení a pak ho vrátit
     try {
+      if (onProgress) onProgress('Připojuji k Firebase Storage...');
       let folderRef = ref(storage, 'Zpevnik_plus');
       let result = await listAll(folderRef);
+
       if (!result.items || result.items.length === 0) {
         folderRef = ref(storage, 'gs://naplech-96e9e.firebasestorage.app/Zpevnik_plus');
         result = await listAll(folderRef);
       }
+
       if (result.items && result.items.length > 0) {
+        if (onProgress) onProgress(`Zpracovávám ${result.items.length} skladeb...`);
         const storageSongs = result.items.map((itemRef) => {
           const rawName = itemRef.name;
           let title = rawName.replace(/\.(chordpro|pro|txt|chopro)$/i, '');
@@ -1161,14 +1200,14 @@ export const getSongsPlus = async (bandId: string): Promise<Song[]> => {
             createdAt: Date.now(),
           } as Song;
         });
-        saveLocalZpevnikPlusIndex(storageSongs);
+        await saveLocalZpevnikPlusIndex(storageSongs);
+        return storageSongs;
       }
     } catch (e) {
-      console.log('[Offline] Nepodařilo se aktualizovat index ze Storage:', e);
+      console.log('[Offline] První stažení selhalo:', e);
     }
-  })();
-
-  return localIndex;
+    return [];
+  }
 };
 
 export const addSongPlus = async (bandId: string, songData: Omit<Song, 'id'>): Promise<string> => {

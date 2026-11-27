@@ -28,6 +28,7 @@ export default function RepertoireScreen() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [isLoadingSongs, setIsLoadingSongs] = useState(false);
   const [isLoadingSingleSong, setIsLoadingSingleSong] = useState(false);
+  const [initialSyncMessage, setInitialSyncMessage] = useState<string | null>(null);
   const [songsPlus, setSongsPlus] = useState<Song[]>([]);
   const [bandMembers, setBandMembers] = useState<BandMember[]>([]);
   const [isQuickEditMode, setIsQuickEditMode] = useState(false);
@@ -863,7 +864,7 @@ export default function RepertoireScreen() {
               <ActivityIndicator size="large" color="#2196f3" />
               <ThemedText type="smallBold" themeColor="textSecondary" style={{ marginTop: 12 }}>
                 {repertoireTab === 'zpevnik_plus'
-                  ? (t('repertoire.loadingSongsPlus') || 'Načítám písně ze Zpěvníku+...')
+                  ? (initialSyncMessage || t('repertoire.loadingSongsPlus') || 'Načítám písně ze Zpěvníku+...')
                   : (t('repertoire.loadingSongs') || 'Načítám písně...')}
               </ThemedText>
             </View>
