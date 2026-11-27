@@ -47,18 +47,38 @@ export const downloadGoogleDriveFile = async (accessToken: string, fileId: strin
     const localUri = `${cacheDir}${Date.now()}_${fileName}`;
     const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
 
+    // Paralelně zkusíme stáhnout přímo do paměti přes HTTP (fetch)
+    // To je mnohem spolehlivější pro extrakci textu z octet-streamů na Google Disku
+    let textContent = '';
+    const lowerName = fileName.toLowerCase();
+    const isTextFile = lowerName.endsWith('.txt') || lowerName.endsWith('.chordpro') || lowerName.endsWith('.pro') || lowerName.endsWith('.chopro');
+
+    if (isTextFile) {
+      try {
+        const response = await fetch(downloadUrl, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (response.ok) {
+          const rawText = await response.text();
+          textContent = fixCzechDiacritics(rawText);
+        }
+      } catch (fetchErr) {
+        console.log('Nelze přečíst text souboru přes fetch:', fetchErr);
+      }
+    }
+
+    // Standardně soubor uložíme i do paměti zařízení pro použití jako přílohu
     const res = await FileSystem.downloadAsync(downloadUrl, localUri, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
-    let textContent = '';
-    const lowerName = fileName.toLowerCase();
-    if (lowerName.endsWith('.txt') || lowerName.endsWith('.chordpro') || lowerName.endsWith('.pro') || lowerName.endsWith('.chopro')) {
+    // Fallback: Pokud se nepovedlo přečíst z fetch, zkusíme to z lokálního uložení
+    if (isTextFile && !textContent) {
       try {
-        const readContent = await FileSystem.readAsStringAsync(res.uri);
+        const readContent = await FileSystem.readAsStringAsync(res.uri, { encoding: 'utf8' });
         textContent = fixCzechDiacritics(readContent);
       } catch (readErr) {
-        console.log('Nelze přečíst text souboru:', readErr);
+        console.log('Nelze přečíst text souboru přes FileSystem:', readErr);
       }
     }
 
